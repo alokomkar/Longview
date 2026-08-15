@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Longview Devpost gallery capture</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Lora:wght@600;700&display=swap');
+    :root { color-scheme:dark; --ink:#edf9f8; --muted:#9ab4b3; --line:#214a54; --accent:#48b9e8; --rose:#ef93b6; --green:#70d2a9; --amber:#efbe6c; }
+    * { box-sizing:border-box; }
+    html,body { width:100%; height:100%; margin:0; overflow:hidden; background:#06171c; color:var(--ink); }
+    body { font-family:Inter,system-ui,sans-serif; letter-spacing:0; }
+    main { width:100%; height:100%; display:grid; grid-template-columns:minmax(0,.88fr) minmax(780px,1.12fr); border:1px solid #153942; background:#06171c; }
+    .story { min-width:0; padding:78px 62px 58px 76px; display:flex; flex-direction:column; }
+    .brand { display:flex; align-items:center; gap:15px; }
+    .mark { width:44px; height:44px; display:grid; place-items:center; border:1px solid var(--accent); border-radius:50%; color:var(--accent); font-weight:800; }
+    .brand strong { font:700 30px/1 Lora,serif; }
+    .brand span { display:block; margin-top:5px; color:var(--muted); font-size:13px; }
+    .eyebrow { margin-top:auto; color:var(--accent); font-size:14px; font-weight:800; text-transform:uppercase; }
+    h1 { max-width:12ch; margin:18px 0 20px; font:700 62px/1.08 Lora,serif; }
+    .summary { max-width:620px; margin:0; color:var(--muted); font-size:21px; line-height:1.5; }
+    .proof { margin:30px 0 0; padding:20px 0; display:flex; gap:28px; border-top:1px solid var(--line); border-bottom:1px solid var(--line); }
+    .proof div { min-width:120px; }
+    .proof b { display:block; color:var(--ink); font-size:18px; }
+    .proof span { display:block; margin-top:5px; color:var(--muted); font-size:12px; line-height:1.35; }
+    .tech { margin-top:auto; display:flex; flex-wrap:wrap; gap:8px; }
+    .tech span { padding:8px 11px; border:1px solid var(--line); border-radius:6px; color:var(--muted); font-size:11px; font-weight:700; }
+    .visual { position:relative; display:grid; place-items:center; border-left:1px solid var(--line); background:#0a2229; }
+    .visual::before { content:"PWA · INTERACTIVE PROTOTYPE"; position:absolute; z-index:2; top:35px; right:38px; color:var(--muted); font-size:11px; font-weight:800; }
+    iframe { position:absolute; z-index:1; width:500px; height:900px; border:0; background:transparent; transform:scale(1.55); }
+    .step { position:absolute; z-index:2; right:38px; bottom:31px; color:var(--muted); font-size:12px; font-weight:700; }
+    [data-tone="rose"] { --accent:var(--rose); }
+    [data-tone="green"] { --accent:var(--green); }
+    [data-tone="amber"] { --accent:var(--amber); }
+  </style>
+</head>
+<body>
+  <main>
+    <section class="story">
+      <div class="brand"><span class="mark">C</span><div><strong>Longview</strong><span>Many ambitions. One considered path.</span></div></div>
+      <div class="eyebrow" id="eyebrow"></div>
+      <h1 id="title"></h1>
+      <p class="summary" id="summary"></p>
+      <div class="proof" id="proof"></div>
+      <div class="tech"><span>Agentic follow-through</span><span>Approval-gated writes</span><span>Versioned Goal Brief</span><span>Offline recovery</span><span>PWA prototype</span></div>
+    </section>
+    <section class="visual">
+      <iframe id="prototype" title="Longview PWA screen"></iframe>
+      <span class="step" id="step"></span>
+    </section>
+  </main>
+  <script>
+    const states = {
+      today: {route:'today',tone:'blue',eyebrow:'One calm execution surface',title:'Today shows what can actually move.',summary:'Longview turns three active Goals into bounded tasks with time, portfolio context, and conflicts visible before work begins.',proof:[['3 active Goals','Portfolio context'],['90 minutes','Capacity-aware'],['1 conflict','Proactive signal']]},
+      portfolio: {route:'portfolio',tone:'green',eyebrow:'The portfolio layer is the moat',title:'Three ambitions share one finite week.',summary:'Clara gives each Goal an operating mode, a capacity allocation, and one next action, then explains the tradeoff across all three.',proof:[['3 Goals','One portfolio'],['12 hours','Explicit allocation'],['1 recommendation','Cross-goal reasoning']]},
+      goalCreation: {route:'plan-confirm',tone:'green',eyebrow:'Structure before scheduling',title:'An ambition becomes an operable Goal.',summary:'Clara extracts the outcome, proposes a horizon and weekly allocation, and asks for confirmation before the Goal enters the portfolio.',proof:[['Oct 2026','Target horizon'],['6 hours','Weekly allocation'],['User approval','Creation boundary']]},
+      goalDetail: {route:'goal',tone:'blue',eyebrow:'Execution and reasoning stay connected',title:'Every Goal carries its working memory.',summary:'The current task, timeline, decisions, research, Goal Brief, and history stay together so Clara can reason without rebuilding context.',proof:[['1 task','Ready today'],['Goal Brief v3','Durable context'],['12 events','Execution history']]},
+      goalAchievement: {route:'goal-achievement',tone:'green',eyebrow:'Achievement becomes reusable judgment',title:'Finishing a Goal creates the next advantage.',summary:'Longview celebrates the concrete outcome, then asks the user what worked and what Clara may remember for future planning.',proof:[['14 weeks','Journey completed'],['46 actions','Follow-through'],['1 reflection','User-controlled memory']]},
+      clara: {route:'clara-home',tone:'blue',eyebrow:'Context before conversation',title:'Clara already knows what Today contains.',summary:'The assistant enters with an explicit portfolio context, then offers bounded actions or conversation without making the user repeat their situation.',proof:[['3 Goals','Attached context'],['2 tasks','Execution state'],['Preview first','Write boundary']]},
+      actions: {route:'clara-actions',tone:'green',eyebrow:'Agentic actions grouped by outcome',title:'Ask for progress, not another answer.',summary:'Clara can prepare the day, prioritize competing work, move tasks, and review progress. Every action maps to an inspectable workflow.',proof:[['4 categories','Clear capability map'],['13 actions','Bounded tools'],['0 silent writes','User approval']]},
+      chat: {route:'clara-chat',tone:'rose',eyebrow:'Reason over competing Goals',title:'Clara recommends one defensible tradeoff.',summary:'Using operating modes, deadlines, capacity, and prior decisions, Clara protects customer validation while preserving learning momentum.',proof:[['90 min','Available today'],['3 Goals','Compared together'],['1 proposal','Concrete next move']]},
+      approval: {route:'clara-preview',tone:'green',eyebrow:'Human approval is the write boundary',title:'Nothing changes until the user reviews it.',summary:'The exact task, old time, new time, rationale, and downstream effect are shown before a durable change can be applied.',proof:[['Before + after','Visible diff'],['One task','Bounded change'],['Cancel anytime','Reversible']]},
+      research: {route:'research-cards',tone:'amber',eyebrow:'Evidence becomes durable memory',title:'Research is reviewed, not blindly absorbed.',summary:'The user accepts, rejects, or defers each card. Accepted evidence creates a Goal Brief proposal instead of silently rewriting the plan.',proof:[['3 cards','Source reviewed'],['Accept / reject','User control'],['Brief proposal','Auditable memory']]},
+      brief: {route:'brief-preview',tone:'amber',eyebrow:'Persistent, explainable context',title:'Goal understanding evolves through versions.',summary:'Clara shows the current brief, proposed addition, and accepted evidence before creating a new durable version.',proof:[['v3 → v4','Versioned change'],['2 insights','Attribution'],['Not now','Deferred safely']]},
+      calendarSuccess: {route:'schedule-approved',tone:'green',eyebrow:'One approved day at a time',title:'A proposal becomes a bounded commitment.',summary:'Longview fits work to available capacity, explains the order, and saves one day only after approval. Future days remain untouched.',proof:[['90 of 120 min','Within capacity'],['2 Goals','Ordered deliberately'],['1 day','No silent expansion']]},
+      recovery: {route:'calendar',edge:'schedule-error',tone:'rose',eyebrow:'Failure without corrupted state',title:'A failed agent run leaves the day untouched.',summary:'Longview preserves the existing schedule, explains what failed, and offers bounded retry or manual recovery paths.',proof:[['0 partial writes','Atomic behavior'],['Existing day','Preserved'],['Retry / manual','Recovery paths']]}
+    };
+    const params = new URLSearchParams(location.search);
+    const key = states[params.get('state')] ? params.get('state') : 'today';
+    const data = states[key];
+    document.body.dataset.tone = data.tone;
+    document.querySelector('#eyebrow').textContent = data.eyebrow;
+    document.querySelector('#title').textContent = data.title;
+    document.querySelector('#summary').textContent = data.summary;
+    document.querySelector('#proof').innerHTML = data.proof.map(item=>`<div><b>${item[0]}</b><span>${item[1]}</span></div>`).join('');
+    document.querySelector('#step').textContent = `${Object.keys(states).indexOf(key)+1} / ${Object.keys(states).length}`;
+    const frame = document.querySelector('#prototype');
+    frame.src = `longview-pwa-interactive-mockup.html?embed=1#${data.route}`;
+    frame.addEventListener('load',()=>{ if(data.edge) frame.contentWindow.postMessage({type:'longview:edge',edge:data.edge},'*'); });
+  </script>
+</body>
+</html>

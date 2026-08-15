@@ -1,0 +1,216 @@
+# Longview PWA Product Requirements
+
+Status: In review
+
+Last updated: 2026-08-15
+
+Target: All Things Agentic hackathon PWA
+
+Visual specification: [Longview interactive PWA mockup](design/longview-pwa-interactive-mockup.html)
+
+## 1. Product definition
+
+Longview is a personal AI chief of staff for people pursuing several meaningful,
+long-running goals at once. Clara maintains continuity across goals, finite weekly
+capacity, daily tasks, research, decisions, and reflection. The product is not another
+unbounded task list: it makes tradeoffs visible and proposes one reviewable next move.
+
+**Tagline:** Many ambitions. One considered path.
+
+## 2. Problem and customer outcome
+
+People can define goals but struggle to coordinate them when deadlines, energy, and
+available time compete. Conventional planners store tasks independently and lose the
+reasoning behind changes.
+
+Longview should help a user:
+
+- keep several long-term goals active without pretending all are equally urgent;
+- understand what fits today and what is deliberately deferred;
+- approve concrete changes instead of granting an agent unbounded authority;
+- preserve research, decisions, and learning as durable goal context;
+- finish a goal with a reflection Clara may reuse only with permission.
+
+## 3. Hackathon boundary
+
+The contest build is a new PWA and a bounded **Agentic Follow-through Loop**. Concepts
+from earlier work may inform the design, but Longview receives its own repository,
+branding, implementation history, and disclosure. Android, iOS, store billing, native
+voice, and broad third-party integrations are out of scope.
+
+Longview targets the **Collaborative Partner** category. The implementation stack and
+deployment proof are specified in [Hackathon Tech Stack](TECH_STACK.md).
+
+## 4. Canonical demo portfolio
+
+The mockup and acceptance tests use one consistent account:
+
+| Goal | Operating mode | Weekly allocation | Current milestone |
+|---|---|---:|---|
+| Build SaaS Startup | Primary focus | 6 hours | Validate customer activation |
+| Learn AI / ML Application | Maintain momentum | 4 hours | Evaluate a retrieval baseline |
+| Build a House | Prepare, do not accelerate | 2 hours | Clarify land and financing constraints |
+
+Total weekly capacity is 12 hours. Clara may recommend reallocations but cannot write
+them without approval.
+
+## 5. Product language
+
+- **Goal:** a long-term outcome.
+- **Task:** an executable unit of work belonging to a Goal.
+- **Today's task:** a task scheduled for the selected day.
+- **Goal Brief:** the current versioned understanding of a Goal.
+- **Recommendation:** Clara's read-only proposed action and rationale.
+- **Approved change:** the exact preview the user accepted and Longview persisted.
+
+## 6. End-to-end journey
+
+1. The user learns that Longview coordinates several ambitions one day at a time.
+2. They continue anonymously or sign in with Google.
+3. They set available days and weekly capacity.
+4. Empty Today invites them to create their first Goal.
+5. Clara extracts the outcome and recommends target date, operating mode, and time.
+6. The user edits or confirms the Goal before it enters the portfolio.
+7. Today shows only scheduled work plus a compact Clara insight.
+8. Portfolio explains allocation and the tradeoff across all active Goals.
+9. Ask Clara exposes context-aware Quick Actions and Chat.
+10. Clara proposes a concrete schedule or task change with rationale and before/after
+    values.
+11. The user approves or rejects it; only approval creates an idempotent write.
+12. Calendar prepares and approves one day at a time, including a break path.
+13. Goal Details keeps tasks, history, decisions, research, and Goal Brief together.
+14. Accepted research creates a Goal Brief proposal; it never updates automatically.
+15. Achievement captures an optional reflection and asks what Clara may remember.
+
+## 7. Required surfaces
+
+### Onboarding
+
+- Welcome, anonymous/Google authentication, explanation, availability, Empty Today.
+- Anonymous work remains usable and can later be linked without creating a duplicate
+  workspace.
+- Authentication cancellation returns safely to Sign in.
+
+### Today and portfolio
+
+- Today shows active Goal context, task descriptions, duration, completion, and Clara.
+- Portfolio shows operating mode, allocation, milestone, next action, and one explicit
+  cross-goal recommendation.
+- No-task days show the next eligible scheduled date instead of claiming work is ready.
+
+### Clara
+
+- Today context includes every active Goal, today's tasks, capacity, and decisions.
+- Goal context is restricted to that Goal and descendants.
+- Quick Actions are grouped by outcome; Chat uses the identical context boundary.
+- Clara may explain, recommend, draft, and preview. She may not silently create, move,
+  complete, delete, or reprioritize durable data.
+- Every write preview shows the old value, new value, rationale, downstream effect,
+  and Approve/Cancel actions.
+
+### Calendar
+
+- Generate only one selected day's schedule.
+- Explain ordering and capacity conflicts.
+- Support Approve, Adjust, Try again, and Take a break today.
+- A break carries work only to each task's next eligible day and cannot overwrite a
+  user-edited future task.
+
+### Goal Details
+
+- Overview, current task, timeline, allocated time and days, execution history,
+  decisions, research cards, current Goal Brief, and version history.
+- Research cards support Accept, Reject, and Not now.
+- Accepted cards create an editable brief proposal with evidence attribution.
+- Deferred insights remain recoverable; rejected evidence remains auditable.
+
+### Achievement and reflection
+
+- Confirm the measurable outcome and summarize the journey.
+- Ask what worked, what changed, and what should happen differently next time.
+- Save only the learning the user explicitly permits Clara to remember.
+
+### Settings and subscription
+
+- Account/linking, availability, notifications, data controls, and appearance.
+- Theme palette, system/light/dark mode, reading font, and text size with live preview.
+- Web checkout uses Stripe internationally and Razorpay in India; entitlement is
+  backend-verified before paid access changes.
+
+## 8. AI and write architecture
+
+The React/TypeScript PWA is hosted on Firebase Hosting and calls a FastAPI service on
+Cloud Run. A separate Cloud Run worker receives Pub/Sub events for asynchronous
+follow-through runs. Google ADK invokes Gemini 3.5 Flash or newer through Vertex AI;
+Firestore stores run checkpoints, versions, idempotency records, and audit events.
+
+Clara receives a minimal typed context packet and returns a strict schema containing
+recommendation, rationale, confidence, clarification requirement, and optional change
+preview. Application code validates authorization, schema, invariants, and stale data.
+The model never writes Firestore directly.
+
+Approved mutations require an authenticated user, idempotency key, expected resource
+version, transactional write, and audit event. Duplicate approvals return the original
+result. Model output is advisory until deterministic application checks pass.
+
+## 9. Failure and recovery
+
+- Offline work is clearly marked pending and retries without duplicate writes.
+- A model timeout or malformed response leaves durable state unchanged.
+- Schedule generation failure preserves the current approved day.
+- Partial writes reconcile transactionally before success is shown.
+- Research failure preserves saved cards and every Goal Brief version.
+- Payment interruption leaves the existing entitlement unchanged.
+- Conflicting edits require refresh and a new preview.
+
+## 10. Privacy, accessibility, and trust
+
+- Show the context Clara is using and keep Goal-scoped conversations isolated.
+- Request permissions only at the point of need.
+- Support keyboard navigation, visible focus, semantic headings, screen readers,
+  reduced motion, contrast, and 200% text scaling without clipped controls.
+- Do not train on private content without separate explicit consent.
+- Record agent recommendations, approvals, writes, failures, and recovery outcomes.
+
+## 11. Proposed implementation slices
+
+1. **Foundation:** repository, PWA shell, design tokens, routing, CI, Firebase projects.
+2. **Identity:** anonymous auth, Google linking, account preservation, onboarding.
+3. **Goal model:** Goal creation, portfolio, Today, deterministic sample scheduling.
+4. **Clara read loop:** typed context, ADK/Gemini recommendation, clarification, chat.
+5. **Approved write loop:** preview, transactional persistence, audit, idempotency.
+6. **Async follow-through:** Pub/Sub worker, checkpoints, retries, cancellation, logs.
+7. **Goal memory:** research review, Goal Brief proposal and version history.
+8. **Completion:** achievement, reflection, consented reusable learning.
+9. **Release evidence:** failure injection, E2E tests, architecture diagram, Cloud Run
+   and Logging proof, reproducible setup, README, and unedited demo recording.
+
+Billing and advanced appearance can follow the judged agentic loop unless required for
+the submission narrative.
+
+## 12. Acceptance criteria
+
+- A judge can anonymously complete the canonical journey in a hosted installable PWA.
+- Three Goals share one visible finite-capacity portfolio.
+- Clara uses Gemini 3.5 Flash or newer through Google ADK and Vertex AI.
+- One Pub/Sub-triggered Cloud Run worker completes a checkpointed asynchronous run.
+- At least one recommendation produces a specific preview and approved durable write.
+- Rejection, duplicate approval, timeout, malformed output, offline mode, stale data,
+  and partial-write recovery cause no unintended state change.
+- Today reflects an approved change and its rationale remains inspectable.
+- Research acceptance creates a user-confirmed, attributed Goal Brief version.
+- Achievement saves only user-approved reflection memory.
+- The public README identifies the contest commit range and reused foundations.
+- The repository includes an architecture diagram, reproducible deployment steps, and
+  Cloud Run/Logging evidence shown in the approximately four-minute demo.
+- Android, iOS, and behavior from pre-existing applications are not claimed as
+  hackathon output.
+
+## 13. Deferred decisions
+
+- Final pricing and free-tier limits.
+- Calendar/email integrations and notification strategy.
+- Native clients and store billing.
+- Voice conversation and multilingual speech.
+- Automated multi-day planning or autonomous external actions.
+- Trademark, domain, App Store, and Play Store clearance for Longview and Clara.

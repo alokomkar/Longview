@@ -1,0 +1,120 @@
+1
+00:00:00,050 --> 00:00:01,261
+Hi, this is Longview.
+
+2
+00:00:01,261 --> 00:00:06,053
+It’s a mobile Web app for those times when you’re trying to make progress on several big goals at once.
+
+3
+00:00:06,053 --> 00:00:11,145
+What you’re seeing today is our interactive prototype, so let me show you the experience we’re building.
+
+4
+00:00:11,145 --> 00:00:16,782
+The problem with most planning tools is that they give every goal its own list, as if your time were unlimited.
+
+5
+00:00:16,782 --> 00:00:19,305
+Longview starts with the time you actually have.
+
+6
+00:00:19,305 --> 00:00:27,303
+In this example, I have twelve hours this week, split between building a SaaS startup, learning applied AI, and preparing to build a house.
+
+7
+00:00:27,303 --> 00:00:32,187
+I can immediately see what I’m prioritizing, and what I’m choosing not to prioritize yet.
+
+8
+00:00:32,187 --> 00:00:33,657
+Now there’s a conflict.
+
+9
+00:00:33,657 --> 00:00:38,541
+My startup interviews and my AI evaluation both want the same morning.
+
+10
+00:00:38,541 --> 00:00:43,391
+Clara looks across my goals, my available time, and the decisions I’ve already made.
+
+11
+00:00:43,391 --> 00:00:49,224
+She suggests keeping the customer interview and moving the more flexible AI task to Wednesday.
+
+12
+00:00:49,224 --> 00:00:52,152
+But Clara doesn’t just go ahead and change my calendar.
+
+13
+00:00:52,152 --> 00:00:58,333
+First, she shows me exactly what will move, where it will go, and why she thinks that’s the better tradeoff.
+
+14
+00:00:58,333 --> 00:01:01,388
+I can apply the change, adjust it, or cancel it.
+
+15
+00:01:01,388 --> 00:01:02,719
+I stay in control.
+
+16
+00:01:02,719 --> 00:01:05,405
+Once I approve it, Today updates with the new plan.
+
+17
+00:01:05,405 --> 00:01:10,740
+Longview also keeps the reason behind that change, so I don’t have to reconstruct my thinking a week later.
+
+18
+00:01:10,740 --> 00:01:14,525
+And if I tap twice, the same task won’t get moved twice.
+
+19
+00:01:14,525 --> 00:01:17,407
+Longview keeps research connected to the goal too.
+
+20
+00:01:17,407 --> 00:01:23,009
+Clara can bring me useful evidence, but I decide what to accept, reject, or save for later.
+
+21
+00:01:23,009 --> 00:01:26,736
+Anything I accept becomes a proposed update to the Goal Brief.
+
+22
+00:01:26,736 --> 00:01:29,641
+I can still edit it before it becomes part of the plan.
+
+23
+00:01:29,641 --> 00:01:33,483
+And when I finally reach a goal, Longview helps me capture what worked.
+
+24
+00:01:33,483 --> 00:01:37,256
+I choose what Clara is allowed to remember and reuse next time.
+
+25
+00:01:37,256 --> 00:01:40,416
+Nothing private is carried forward without my permission.
+
+26
+00:01:40,416 --> 00:01:42,800
+We’ve also designed for the messy moments.
+
+27
+00:01:42,800 --> 00:01:46,585
+If I’m offline, my work stays clearly marked as waiting to sync.
+
+28
+00:01:46,585 --> 00:01:52,824
+If Clara times out or returns something invalid, my last approved plan stays exactly as it was.
+
+29
+00:01:52,824 --> 00:01:58,657
+That’s Longview: a way to pursue several ambitions without pretending they all fit at once.
+
+30
+00:01:58,657 --> 00:02:04,583
+Clara helps me think across the whole picture, but I make every decision that actually changes my plan.
+

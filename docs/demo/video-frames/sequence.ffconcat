@@ -1,0 +1,22 @@
+ffconcat version 1.0
+file '01-welcome.png'
+duration 10
+file '02-portfolio.png'
+duration 14
+file '03-today-conflict.png'
+duration 11
+file '04-clara-recommendation.png'
+duration 15
+file '05-review-change.png'
+duration 14
+file '06-approved-result.png'
+duration 12
+file '07-research-evidence.png'
+duration 14
+file '08-brief-version.png'
+duration 14
+file '09-reflection-consent.png'
+duration 11
+file '10-offline-recovery.png'
+duration 10
+file '10-offline-recovery.png'

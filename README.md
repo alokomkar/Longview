@@ -7,6 +7,7 @@ changes, and preserve the reasoning behind important decisions.
 ## Product artifacts
 
 - [Product requirements](docs/PRODUCT_REQUIREMENTS.md)
+- [Implementation phases](docs/IMPLEMENTATION_PHASES.md)
 - [Hackathon tech stack](docs/TECH_STACK.md)
 - [Interactive PWA mockup](docs/design/longview-pwa-interactive-mockup.html)
 

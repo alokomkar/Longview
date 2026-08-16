@@ -18,6 +18,8 @@ the PWA shell, Firebase Auth boundary, local emulator configuration, production-
 Firestore rules, idempotent user/default-workspace provisioning, and representative
 unit/mobile E2E tests. Nothing is deployed. Local provisioning writes only to the
 Firestore emulator while Google authentication uses the configured Firebase project.
+Settings provides separate sign-out and confirmed browser-local data clearing actions;
+neither action deletes the workspace record.
 
 ## Local development
 

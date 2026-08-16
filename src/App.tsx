@@ -26,6 +26,16 @@ function WorkspaceReady({ auth, gateway }: {
     localStorage.getItem('longview:onboarding') === 'complete' ? 'today' : 'workspace'
   );
   const [hours, setHours] = useState(10);
+  const [view, setView] = useState<'today' | 'plans' | 'settings'>('today');
+  const [confirmClear, setConfirmClear] = useState(false);
+
+  const clearLocalData = async () => {
+    localStorage.clear();
+    if ('caches' in window) {
+      await Promise.all((await caches.keys()).map(name => caches.delete(name)));
+    }
+    await auth.signOut();
+  };
 
   if (workspace.snapshot.status === 'loading') {
     return <main className="shell" aria-busy="true"><p className="eyebrow">Longview</p><h1>Preparing your workspace…</h1></main>;
@@ -40,7 +50,11 @@ function WorkspaceReady({ auth, gateway }: {
   }
 
   if (stage === 'today') {
-    return <main className="app-shell"><header><p className="eyebrow">Longview</p><span className="status">{hours} hours/week</span></header><section className="empty"><span className="status">Today</span><h1>Nothing is scheduled yet.</h1><p>Create your first Plan and Longview will shape a realistic day around your availability.</p><button>Create first Plan</button></section><nav aria-label="Primary"><button aria-current="page">Today</button><button className="secondary">Plans</button><button className="secondary">Settings</button></nav></main>;
+    return <main className="app-shell"><header><p className="eyebrow">Longview</p><span className="status">{hours} hours/week</span></header>
+      {view === 'today' && <section className="empty"><span className="status">Today</span><h1>Nothing is scheduled yet.</h1><p>Create your first Plan and Longview will shape a realistic day around your availability.</p><button>Create first Plan</button></section>}
+      {view === 'plans' && <section className="empty"><span className="status">Plans</span><h1>No Plans yet.</h1><p>Your long-term priorities will appear here after you create your first Plan.</p><button>Create first Plan</button></section>}
+      {view === 'settings' && <section className="empty"><span className="status">Settings</span><h1>Account and local data</h1><p>Sign out keeps this browser’s local preferences. Clearing local data removes preferences and cached PWA files, then signs you out.</p><div className="actions"><button className="secondary" onClick={auth.signOut}>Sign out</button><button className="danger" onClick={() => setConfirmClear(true)}>Clear local data</button></div>{confirmClear && <div className="notice" role="alert"><p>This removes Longview data stored by this browser. Cloud and emulator workspace records are not deleted.</p><div className="actions"><button className="danger" onClick={clearLocalData}>Confirm clear local data</button><button className="secondary" onClick={() => setConfirmClear(false)}>Cancel</button></div></div>}</section>}
+      <nav aria-label="Primary"><button aria-current={view === 'today' ? 'page' : undefined} className={view === 'today' ? '' : 'secondary'} onClick={() => setView('today')}>Today</button><button aria-current={view === 'plans' ? 'page' : undefined} className={view === 'plans' ? '' : 'secondary'} onClick={() => setView('plans')}>Plans</button><button aria-current={view === 'settings' ? 'page' : undefined} className={view === 'settings' ? '' : 'secondary'} onClick={() => setView('settings')}>Settings</button></nav></main>;
   }
 
   return (

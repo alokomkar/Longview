@@ -53,3 +53,6 @@ keeps the authenticated session, exposes retry, and never creates a second works
 The local PWA foundation now gates Vite startup on Firestore Emulator readiness,
 lazy-loads Firestore after authentication, exposes offline/update status, captures a
 realistic weekly availability budget, and lands on Empty Today with mobile navigation.
+Settings includes explicit sign-out and confirmed local-data clearing. Local clearing
+removes browser preferences and cached PWA files, then signs out; it never deletes the
+cloud or emulator workspace.

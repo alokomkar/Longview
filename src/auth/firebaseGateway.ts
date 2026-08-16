@@ -3,7 +3,8 @@ import {
   linkWithPopup,
   onAuthStateChanged,
   signInAnonymously,
-  signInWithPopup
+  signInWithPopup,
+  signOut
 } from 'firebase/auth';
 import { auth } from '../firebase/config';
 import type { AuthGateway, AuthUser } from './types';
@@ -27,5 +28,8 @@ export const firebaseAuthGateway: AuthGateway = {
   },
   async signInGoogle() {
     await signInWithPopup(auth, new GoogleAuthProvider());
+  },
+  async signOut() {
+    await signOut(auth);
   }
 };

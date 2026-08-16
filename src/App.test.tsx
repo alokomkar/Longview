@@ -19,7 +19,8 @@ function gateway(initial: AuthUser | null, failure?: { code: string }) {
       listener({ uid: 'anon-1', isAnonymous: true, displayName: null });
     }),
     signInGoogle: vi.fn(async () => { if (failure) throw failure; }),
-    linkGoogle: vi.fn(async () => { if (failure) throw failure; })
+    linkGoogle: vi.fn(async () => { if (failure) throw failure; }),
+    signOut: vi.fn(async () => listener(null))
   };
   return mock;
 }
@@ -66,7 +67,8 @@ describe('authentication journey', () => {
       observe(next) { listener = next; queueMicrotask(() => next({ uid: 'stable-uid', isAnonymous: true, displayName: null })); return () => undefined; },
       signInAnonymously: vi.fn(),
       signInGoogle: vi.fn(),
-      linkGoogle: vi.fn(async () => listener({ uid: 'stable-uid', isAnonymous: false, displayName: 'Owner' }))
+      linkGoogle: vi.fn(async () => listener({ uid: 'stable-uid', isAnonymous: false, displayName: 'Owner' })),
+      signOut: vi.fn(async () => listener(null))
     };
     const ensure = vi.fn(async (user: AuthUser) => ({ id: 'default' as const, ownerUid: user.uid, schemaVersion: 1 as const }));
     render(<App gateway={authGateway} workspaceGateway={{ ensure }} />);
@@ -82,5 +84,27 @@ describe('authentication journey', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Save availability' }));
     expect(await screen.findByRole('heading', { name: 'Nothing is scheduled yet.' })).toBeVisible();
     expect(screen.getByText('15 hours/week')).toBeVisible();
+  });
+
+  it('signs out from Settings without clearing saved onboarding', async () => {
+    localStorage.setItem('longview:onboarding', 'complete');
+    const mock = gateway({ uid: 'owner', isAnonymous: false, displayName: 'Owner' });
+    render(<App gateway={mock} workspaceGateway={workspaceGateway} />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Settings' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Sign out' }));
+    expect(await screen.findByRole('button', { name: 'Continue with Google' })).toBeVisible();
+    expect(localStorage.getItem('longview:onboarding')).toBe('complete');
+  });
+
+  it('requires confirmation before clearing browser-local data', async () => {
+    localStorage.setItem('longview:onboarding', 'complete');
+    const mock = gateway({ uid: 'owner', isAnonymous: false, displayName: 'Owner' });
+    render(<App gateway={mock} workspaceGateway={workspaceGateway} />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Settings' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Clear local data' }));
+    expect(screen.getByRole('alert')).toHaveTextContent('not deleted');
+    fireEvent.click(screen.getByRole('button', { name: 'Confirm clear local data' }));
+    expect(await screen.findByRole('button', { name: 'Continue with Google' })).toBeVisible();
+    expect(localStorage.getItem('longview:onboarding')).toBeNull();
   });
 });

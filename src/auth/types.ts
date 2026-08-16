@@ -21,4 +21,5 @@ export interface AuthGateway {
   signInAnonymously(): Promise<void>;
   linkGoogle(): Promise<void>;
   signInGoogle(): Promise<void>;
+  signOut(): Promise<void>;
 }

@@ -1,7 +1,7 @@
 # Longview Implementation Phases
 
-Status: Initial v0.1 - subject to change  
-Updated: 2026-08-15  
+Status: Phase 1 implementation started - subject to change
+Updated: 2026-08-16
 Links: [PRD](PRODUCT_REQUIREMENTS.md) | [Mockup](design/longview-pwa-interactive-mockup.html) | [Stack](TECH_STACK.md)
 
 ## Rules
@@ -38,5 +38,18 @@ Links: [PRD](PRODUCT_REQUIREMENTS.md) | [Mockup](design/longview-pwa-interactive
 
 ## First review gate
 
-Approve Phase 1 states before coding. Implement emulator-backed anonymous continuity
-and one mobile Playwright test first; account linking follows as a separate slice.
+Product-owner authorization to begin local implementation was received on 2026-08-16.
+The first slice implements emulator-backed anonymous continuity, a mobile Playwright
+contract, explicit authentication failures, and owner-scoped Firestore rules. Google
+linking is a separate boundary: cancellation, blocked popups, offline failures, and
+account collisions must preserve the anonymous workspace. No Cloud deployment is
+authorized by this approval.
+
+The second slice provisions `/users/{uid}` and `/users/{uid}/workspaces/default` in
+one idempotent transaction after authentication. Anonymous-to-Google linking retains
+the Firebase UID, so the same workspace remains authoritative. Provisioning failure
+keeps the authenticated session, exposes retry, and never creates a second workspace.
+
+The local PWA foundation now gates Vite startup on Firestore Emulator readiness,
+lazy-loads Firestore after authentication, exposes offline/update status, captures a
+realistic weekly availability budget, and lands on Empty Today with mobile navigation.

@@ -13,7 +13,25 @@ changes, and preserve the reasoning behind important decisions.
 
 ## Current status
 
-Design and product specification only. No production implementation has started.
+Phase 1 local implementation has started on `feature/authentication-phases`. It includes
+the PWA shell, Firebase Auth boundary, local emulator configuration, production-safe
+Firestore rules, idempotent user/default-workspace provisioning, and representative
+unit/mobile E2E tests. Nothing is deployed. Local provisioning writes only to the
+Firestore emulator while Google authentication uses the configured Firebase project.
+
+## Local development
+
+1. Install Node.js 22 and Java 21+ for the current Firebase Emulator Suite. Java 17
+   may remain installed for Android tooling.
+2. Run `npm install`.
+3. Copy `.env.example` to `.env.local`; production Firebase values remain local. Set
+   `VITE_USE_FIREBASE_EMULATORS=false` to test the real Google account chooser, or
+   `true` for deterministic emulator tests.
+4. Run `npm run dev:local`; it waits for Firestore Emulator before starting Vite.
+5. Open `http://127.0.0.1:5173`. Google Auth is real; Firestore remains local.
+
+Verification: `npm test`, `npm run test:rules`, `npm run build`, and
+`npm run test:e2e`. The emulator requires Java 21+ compiled for the host CPU.
 
 ## Review the mockup
 

@@ -4,5 +4,9 @@ export const lazyFirebasePlanGateway: PlanGateway = {
   async create(user, draft) {
     const { firebasePlanGateway } = await import('./firebasePlanGateway');
     return firebasePlanGateway.create(user, draft);
+  },
+  async list(user) {
+    const { firebasePlanGateway } = await import('./firebasePlanGateway');
+    return firebasePlanGateway.list(user);
   }
 };

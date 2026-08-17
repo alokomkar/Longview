@@ -19,6 +19,7 @@ export type Plan = PlanDraft & {
 
 export interface PlanGateway {
   create(user: AuthUser, draft: PlanDraft): Promise<Plan>;
+  list(user: AuthUser): Promise<Plan[]>;
 }
 
 export type PlanErrors = Partial<Record<keyof Omit<PlanDraft, 'clientRequestId'>, string>>;

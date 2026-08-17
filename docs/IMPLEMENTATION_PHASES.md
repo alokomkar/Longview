@@ -1,6 +1,6 @@
 # Longview Implementation Phases
 
-Status: Authentication slice deployed - subject to change
+Status: Day 1 Slice 2 implemented - subject to change
 Updated: 2026-08-17
 Links: [PRD](PRODUCT_REQUIREMENTS.md) | [Mockup](design/longview-pwa-interactive-mockup.html) | [Stack](TECH_STACK.md)
 
@@ -79,6 +79,13 @@ beyond the MVP; the underlying workspace is not silently deleted.
    validation, cancellation, failed saves, retries, ownership, and immutable creation
    are tested. This PR deliberately stops before Plans listing and Today scheduling.
 2. **Plans list:** Load owner-scoped Plans and replace empty states without expanding
-   into editing, deletion, or collaboration.
+   into editing, deletion, or collaboration. Loading, empty, populated, and failed
+   reads have explicit mobile states; failed reads preserve data and offer retry.
 3. **First Today step:** Derive one deterministic, reviewable next step from the saved
    Plan. Model-generated recommendations remain a separate Day 2 boundary.
+
+Slice 1 was accepted and merged on 2026-08-17. Slice 2 reads the authenticated
+owner's Plans only when the Plans tab opens, orders them by creation time, and keeps
+read failures non-destructive. Firestore rules test owner listing plus unauthenticated
+and cross-owner denial. The linked mockup exposes populated, loading, empty, and
+failed-list states under Long-term Plans.

@@ -1,4 +1,4 @@
-import { doc, runTransaction, serverTimestamp } from 'firebase/firestore';
+import { collection, doc, getDocs, orderBy, query, runTransaction, serverTimestamp } from 'firebase/firestore';
 import { db } from '../firebase/firestore';
 import type { Plan, PlanGateway } from './types';
 
@@ -23,5 +23,10 @@ export const firebasePlanGateway: PlanGateway = {
       transaction.set(planRef, { ...plan, createdAt: serverTimestamp(), updatedAt: serverTimestamp() });
       return plan;
     });
+  },
+  async list(user) {
+    const plans = collection(db, 'users', user.uid, 'workspaces', 'default', 'plans');
+    const snapshot = await getDocs(query(plans, orderBy('createdAt', 'desc')));
+    return snapshot.docs.map(plan => plan.data() as Plan);
   }
 };

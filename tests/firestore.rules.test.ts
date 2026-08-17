@@ -7,7 +7,7 @@ import {
   initializeTestEnvironment,
   type RulesTestEnvironment
 } from '@firebase/rules-unit-testing';
-import { deleteDoc, doc, getDoc, setDoc } from 'firebase/firestore';
+import { collection, deleteDoc, doc, getDoc, getDocs, setDoc } from 'firebase/firestore';
 
 let environment: RulesTestEnvironment;
 
@@ -93,5 +93,23 @@ describe('Firestore ownership rules', () => {
     await assertFails(setDoc(doc(owner, path), { ...base, title: 'No' }));
     await assertFails(setDoc(doc(owner, path), { ...base, weeklyHours: 41 }));
     await assertFails(setDoc(doc(owner, path), { ...base, unexpected: true }));
+  });
+
+  it('allows only the owner to list their Plans', async () => {
+    await environment.withSecurityRulesDisabled(async context => {
+      await setDoc(doc(context.firestore(), 'users/owner/workspaces/default/plans/plan-1'), {
+        id: 'plan-1', clientRequestId: 'plan-1', ownerUid: 'owner', workspaceId: 'default',
+        title: 'Launch a useful product', outcome: 'Release a tested product to real users.',
+        why: 'Learn which problem is worth solving well.', targetDate: '2026-09-30',
+        weeklyHours: 10, status: 'active', schemaVersion: 1,
+        createdAt: new Date(), updatedAt: new Date()
+      });
+    });
+    const ownerPlans = collection(environment.authenticatedContext('owner').firestore(), 'users/owner/workspaces/default/plans');
+    const otherPlans = collection(environment.authenticatedContext('other').firestore(), 'users/owner/workspaces/default/plans');
+    const publicPlans = collection(environment.unauthenticatedContext().firestore(), 'users/owner/workspaces/default/plans');
+    await assertSucceeds(getDocs(ownerPlans));
+    await assertFails(getDocs(otherPlans));
+    await assertFails(getDocs(publicPlans));
   });
 });

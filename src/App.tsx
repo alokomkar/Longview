@@ -6,6 +6,7 @@ import type { WorkspaceGateway } from './workspace/types';
 import { useWorkspace } from './workspace/useWorkspace';
 import { lazyFirebasePlanGateway } from './plan/lazyPlanGateway';
 import { validatePlanDraft, type PlanDraft, type PlanErrors, type PlanGateway } from './plan/types';
+import { usePlans } from './plan/usePlans';
 import { useState } from 'react';
 import './styles.css';
 
@@ -46,6 +47,7 @@ function WorkspaceReady({ auth, gateway, planGateway }: {
   const [planErrors, setPlanErrors] = useState<PlanErrors>({});
   const [savingPlan, setSavingPlan] = useState(false);
   const [planSaveFailed, setPlanSaveFailed] = useState(false);
+  const plans = usePlans(snapshot.user, planGateway, stage === 'today' && view === 'plans');
 
   const updatePlan = (field: keyof PlanDraft, value: string | number) => {
     setPlanDraft(current => ({ ...current, [field]: value }));
@@ -117,7 +119,12 @@ function WorkspaceReady({ auth, gateway, planGateway }: {
   if (stage === 'today') {
     return <main className="app-shell"><header><p className="eyebrow">Longview</p><span className="status">{hours} hours/week</span></header>
       {view === 'today' && <section className="empty"><span className="status">Today</span><h1>Nothing is scheduled yet.</h1><p>Create your first Plan and Longview will shape a realistic day around your availability.</p><button onClick={() => setStage('plan-create')}>Create first Plan</button></section>}
-      {view === 'plans' && <section className="empty"><span className="status">Plans</span><h1>No Plans yet.</h1><p>Your long-term priorities will appear here after you create your first Plan.</p><button onClick={() => setStage('plan-create')}>Create first Plan</button></section>}
+      {view === 'plans' && <section className="plans-view" aria-busy={plans.snapshot.status === 'loading'}><span className="status">Plans</span>
+        {plans.snapshot.status === 'loading' && <div className="empty"><h1>Loading your Plans…</h1><p>Bringing your priorities into view.</p></div>}
+        {plans.snapshot.status === 'error' && <div className="empty"><h1>Your Plans couldn’t be loaded.</h1><p>Check your connection and try again. Nothing has been changed.</p><button onClick={plans.retry}>Try again</button></div>}
+        {plans.snapshot.status === 'ready' && plans.snapshot.plans.length === 0 && <div className="empty"><h1>No Plans yet.</h1><p>Your long-term priorities will appear here after you create your first Plan.</p><button onClick={() => setStage('plan-create')}>Create first Plan</button></div>}
+        {plans.snapshot.status === 'ready' && plans.snapshot.plans.length > 0 && <><div className="plans-heading"><div><h1>Your Plans</h1><p>Keep your meaningful outcomes in one place.</p></div><button onClick={() => setStage('plan-create')}>Create Plan</button></div><div className="plan-grid">{plans.snapshot.plans.map(plan => <article className="plan-card" key={plan.id}><span className="status">{plan.status}</span><h2>{plan.title}</h2><p>{plan.outcome}</p><dl><dt>Target</dt><dd>{plan.targetDate}</dd><dt>Weekly time</dt><dd>{plan.weeklyHours} hours</dd></dl></article>)}</div></>}
+      </section>}
       {view === 'settings' && <section className="empty"><span className="status">Settings</span><h1>Account and this device</h1><p>Sign out to switch accounts, or clear this device to remove Longview’s saved settings.</p>{snapshot.user.isAnonymous && !confirmSignOut && !confirmClear && <button onClick={auth.linkGoogle} disabled={snapshot.linking}>{snapshot.linking ? 'Opening Google…' : 'Link Google account'}</button>}<div className="actions"><button className="secondary" onClick={() => snapshot.user.isAnonymous ? setConfirmSignOut(true) : auth.signOut()}>Sign out</button><button className="danger" onClick={() => setConfirmClear(true)}>Clear this device</button></div>{snapshot.failure && <div className="notice" role="alert">{failureCopy[snapshot.failure]}{snapshot.failure === 'account-conflict' && snapshot.user.isAnonymous && <button onClick={auth.useExistingGoogle}>Use existing Google workspace</button>}</div>}{confirmSignOut && <div className="notice" role="alert"><p>If you sign out now, you won’t be able to return to this workspace. Link a Google account first if you want to keep access.</p><div className="actions"><button onClick={auth.linkGoogle}>Link Google account</button><button className="danger" onClick={auth.signOut}>Sign out and lose access</button><button className="secondary" onClick={() => setConfirmSignOut(false)}>Cancel</button></div></div>}{confirmClear && <div className="notice" role="alert"><p>{snapshot.user.isAnonymous ? 'Clearing this device will sign you out. Because you’re using Longview without an account, you won’t be able to return to this workspace. Link Google first to keep access.' : 'This removes Longview’s saved settings from this device and signs you out. Your workspace will still be available when you sign in again.'}</p><div className="actions">{snapshot.user.isAnonymous && <button onClick={auth.linkGoogle}>Link Google account</button>}<button className="danger" onClick={clearLocalData}>Clear this device and sign out</button><button className="secondary" onClick={() => setConfirmClear(false)}>Cancel</button></div></div>}</section>}
       <nav aria-label="Primary"><button aria-current={view === 'today' ? 'page' : undefined} className={view === 'today' ? '' : 'secondary'} onClick={() => setView('today')}>Today</button><button aria-current={view === 'plans' ? 'page' : undefined} className={view === 'plans' ? '' : 'secondary'} onClick={() => setView('plans')}>Plans</button><button aria-current={view === 'settings' ? 'page' : undefined} className={view === 'settings' ? '' : 'secondary'} onClick={() => setView('settings')}>Settings</button></nav></main>;
   }

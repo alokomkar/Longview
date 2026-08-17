@@ -5,6 +5,7 @@ import type { AuthGateway, AuthUser } from './auth/types';
 import type { WorkspaceGateway } from './workspace/types';
 import type { PlanGateway } from './plan/types';
 import type { TodayGateway } from './today/types';
+import type { ClaraGateway } from './clara/types';
 
 const workspaceGateway: WorkspaceGateway = {
   ensure: vi.fn(async (user: AuthUser) => ({ id: 'default' as const, ownerUid: user.uid, schemaVersion: 1 as const }))
@@ -321,5 +322,49 @@ describe('authentication journey', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
     expect(await screen.findByRole('button', { name: 'Mark step complete' })).toBeVisible();
     expect(get).toHaveBeenCalledTimes(2);
+  });
+
+  it('shows a scoped read-only Clara recommendation without writing', async () => {
+    localStorage.setItem('longview:onboarding', 'complete');
+    const list = vi.fn(async () => [{
+      id: 'plan-1', clientRequestId: 'plan-1', ownerUid: 'owner', workspaceId: 'default' as const,
+      title: 'Launch Longview', outcome: 'Release a tested PWA to real users.', why: 'Validate the product direction.',
+      targetDate: '2026-08-20', weeklyHours: 4, status: 'active' as const, schemaVersion: 1 as const
+    }]);
+    const recommend = vi.fn(async context => ({
+      schemaVersion: 1, requestId: context.requestId, sourcePlanId: context.plan.id,
+      headline: 'Protect the smallest proof', recommendation: 'Finish this step before adding new work.',
+      rationale: 'It creates evidence for the nearest active target.', confidence: 'medium',
+      requiresClarification: false, sourceFacts: ['Plan: Launch Longview', 'Today step: 60 minutes'], proposedChange: null
+    }));
+    const complete = vi.fn(todayGateway.complete);
+    render(<App gateway={gateway({ uid: 'owner', isAnonymous: false, displayName: 'Owner' })} workspaceGateway={workspaceGateway} planGateway={{ ...planGateway, list }} todayGateway={{ get: vi.fn(async () => null), complete }} claraGateway={{ recommend }} />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Ask Clara about this step' }));
+    expect(await screen.findByRole('heading', { name: 'Protect the smallest proof' })).toBeVisible();
+    expect(screen.getByText('Preview adapter · Nothing was changed.')).toBeVisible();
+    expect(recommend.mock.calls[0][0].plan).toMatchObject({ id: 'plan-1', title: 'Launch Longview' });
+    expect(complete).not.toHaveBeenCalled();
+  });
+
+  it('fails closed on invalid Clara output and retries safely', async () => {
+    localStorage.setItem('longview:onboarding', 'complete');
+    const list = vi.fn(async () => [{
+      id: 'plan-1', clientRequestId: 'plan-1', ownerUid: 'owner', workspaceId: 'default' as const,
+      title: 'Launch Longview', outcome: 'Release a tested PWA to real users.', why: 'Validate the product direction.',
+      targetDate: '2026-08-20', weeklyHours: 4, status: 'active' as const, schemaVersion: 1 as const
+    }]);
+    const recommend = vi.fn().mockResolvedValueOnce({ proposedChange: { unsafe: true } }).mockImplementation(async context => ({
+      schemaVersion: 1, requestId: context.requestId, sourcePlanId: context.plan.id,
+      headline: 'Protect the smallest proof', recommendation: 'Finish this step before adding new work.',
+      rationale: 'It creates evidence for the nearest active target.', confidence: 'medium',
+      requiresClarification: false, sourceFacts: ['Plan: Launch Longview'], proposedChange: null
+    }));
+    const claraGateway: ClaraGateway = { recommend };
+    render(<App gateway={gateway({ uid: 'owner', isAnonymous: false, displayName: 'Owner' })} workspaceGateway={workspaceGateway} planGateway={{ ...planGateway, list }} todayGateway={todayGateway} claraGateway={claraGateway} />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Ask Clara about this step' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('response could not be used');
+    fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
+    expect(await screen.findByRole('heading', { name: 'Protect the smallest proof' })).toBeVisible();
+    expect(recommend).toHaveBeenCalledTimes(2);
   });
 });

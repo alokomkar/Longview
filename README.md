@@ -13,7 +13,7 @@ changes, and preserve the reasoning behind important decisions.
 
 ## Current status
 
-Phase 1 authentication implementation is available on Firebase Hosting. It includes
+Authentication and Day 1 Plan creation are available on Firebase Hosting. They include
 the PWA shell, Firebase Auth boundary, local emulator configuration, production-safe
 Firestore rules, idempotent user/default-workspace provisioning, and representative
 unit/mobile E2E tests. Local development writes only to the Firestore emulator while
@@ -24,9 +24,10 @@ Anonymous users can complete onboarding without linking Google; linking remains 
 optional cross-device access action.
 Because MVP recovery is unavailable, anonymous sign-out warns about losing access and
 offers Google linking before confirmation.
-The next review slice adds validated Plan creation, explicit review, and idempotent
-owner-scoped Firestore persistence. Plans listing and Today scheduling remain separate
-stacked changes.
+Validated Plan creation uses an explicit review and idempotent owner-scoped Firestore
+write. The Plans tab now loads the owner's saved Plans with loading, empty, failure,
+retry, and populated states. Editing, deletion, collaboration, and Today scheduling
+remain outside this slice.
 
 ## Local development
 

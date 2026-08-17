@@ -30,7 +30,7 @@
     ['Account', ['settings','appearance','plans','checkout','stripe','razorpay','payment-success','manage']]
   ];
   const edgeCases = {
-    normal:'Normal journey', 'auth-error':'Authentication failed', 'auth-popup':'Sign-in popup blocked', 'auth-conflict':'Account-link conflict', 'workspace-error':'Workspace setup failed', 'plan-save-error':'Plan save failed', offline:'Offline + pending sync', 'no-task':'No task scheduled today', 'draft-error':'Clara task draft failed',
+    normal:'Normal journey', 'auth-error':'Authentication failed', 'auth-popup':'Sign-in popup blocked', 'auth-conflict':'Account-link conflict', 'workspace-error':'Workspace setup failed', 'plan-save-error':'Plan save failed', 'plans-loading':'Plans loading', 'plans-empty':'No Plans yet', 'plans-load-error':'Plans failed to load', offline:'Offline + pending sync', 'no-task':'No task scheduled today', 'draft-error':'Clara task draft failed',
     'schedule-error':'Schedule generation failed', 'research-error':'Research unavailable', 'payment-error':'Payment failed', grace:'Subscription grace period', 'clara-error':'Clara unavailable'
   };
   const appState = {
@@ -135,6 +135,9 @@
       ['Learn AI / ML Application','Maintain momentum','4h this week','Ship one applied portfolio project · Nov 2026','Implement and evaluate the retrieval baseline','33','blue'],
       ['Build a House','Prepare, don’t accelerate','2h this week','Construction-ready plan · 2028','Compare land, financing, and contractor constraints','17','amber']
     ];
+    if(appState.edge==='plans-loading') return `<section class="screen">${top('Long-term Plans','Your meaningful outcomes in one place.','',true)}<div class="loading"><div class="spinner"></div>Loading your Plans…</div></section>`;
+    if(appState.edge==='plans-empty') return `<section class="screen">${top('Long-term Plans','Your meaningful outcomes in one place.','',true)}<div class="empty" style="margin-top:34px"><div class="empty-icon">I</div><h2>No Plans yet</h2><p>Create your first Plan and it will appear here.</p>${btn('Create a Plan','plan-create','primary')}</div></section>`;
+    if(appState.edge==='plans-load-error') return `<section class="screen">${top('Long-term Plans','Your meaningful outcomes in one place.','',true)}<div class="empty" style="margin-top:34px"><div class="empty-icon">!</div><h2>Your Plans couldn’t be loaded</h2><p>Check your connection and try again. Nothing has been changed.</p><button class="btn primary" data-action="clear-edge">Try again</button>${btn('Return to Today','today','ghost')}</div></section>`;
     return `<section class="screen">${top('Long-term Plans','Three outcomes sharing one finite week.',{label:'Ask Clara',go:'clara-chat'},true)}<div class="portfolio-capacity"><div><b>12h</b><span>weekly capacity</span></div><div><b>6 / 4 / 2</b><span>hours allocated</span></div><div><b>1</b><span>active tradeoff</span></div></div><div class="notice portfolio-insight"><span class="clara-mark">C</span><div><strong>Protect startup validation this week</strong><span>Keep AI/ML moving with one build block. Hold house work to decision preparation until financing assumptions are clearer.</span></div></div><div class="portfolio-list">${plans.map(plan=>`<button class="portfolio-plan" data-go="goal"><div class="portfolio-head"><div><span class="badge ${plan[6]}">${plan[1]}</span><h2>${plan[0]}</h2></div><strong>${plan[2]}</strong></div><p>${plan[3]}</p><div class="portfolio-next"><span>Next</span>${plan[4]}</div><div class="portfolio-progress"><i style="width:${plan[5]}%"></i></div></button>`).join('')}</div><p class="meta portfolio-foot">Clara can recommend allocation changes, but each schedule change still requires approval.</p></section>`;
   }
 
@@ -219,7 +222,7 @@
   function toast(msg) { appState.toast=msg;render();setTimeout(()=>{if(appState.toast===msg){appState.toast='';render();}},1800); }
   function setEdge(edge) {
     appState.edge=edge;appState.demoMenu='';
-    const target={'auth-error':'auth','auth-popup':'auth','auth-conflict':'auth','workspace-error':'auth','plan-save-error':'plan-confirm',offline:'today','no-task':'today','draft-error':'reveal','schedule-error':'calendar','research-error':'research','payment-error':'checkout',grace:'manage','clara-error':'clara-chat'}[edge];
+    const target={'auth-error':'auth','auth-popup':'auth','auth-conflict':'auth','workspace-error':'auth','plan-save-error':'plan-confirm','plans-loading':'portfolio','plans-empty':'portfolio','plans-load-error':'portfolio',offline:'today','no-task':'today','draft-error':'reveal','schedule-error':'calendar','research-error':'research','payment-error':'checkout',grace:'manage','clara-error':'clara-chat'}[edge];
     if(target) appState.route=target; render();
   }
   function reset() { Object.assign(appState,{route:'welcome',stack:[],edge:'normal',signedIn:false,anonymous:false,planCreated:false,taskDone:false,scheduleApproved:false,breakTaken:false,researchAccepted:0,briefVersion:3,subscription:'free',palette:'ocean',mode:'dark',font:'lora',size:'default',toast:'',planTitle:'Build SaaS Startup',planWhy:'Create a sustainable product business around a validated customer problem.'});render(); }

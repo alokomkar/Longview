@@ -9,14 +9,14 @@ test.beforeEach(async ({ page }) => {
   await page.reload();
 });
 
-test('all 55 acceptance cases load an interactive product state', async ({ page }) => {
+test('all 56 acceptance cases load an interactive product state', async ({ page }) => {
   const pageErrors: string[] = [];
   page.on('pageerror', (error) => pageErrors.push(error.message));
 
-  await expect(page.getByText('0 / 55 reviewed')).toBeVisible();
-  await expect(page.locator('.case')).toHaveCount(55);
+  await expect(page.getByText('0 / 56 reviewed')).toBeVisible();
+  await expect(page.locator('.case')).toHaveCount(56);
 
-  for (let index = 0; index < 55; index += 1) {
+  for (let index = 0; index < 56; index += 1) {
     await page.locator(`[data-index="${index}"]`).click();
     await expect(page.locator('#prototype')).toHaveAttribute('src', /acceptance=/);
     await expect(page.frameLocator('#prototype').locator('body')).not.toBeEmpty();
@@ -27,9 +27,9 @@ test('all 55 acceptance cases load an interactive product state', async ({ page 
 
 test('review state persists and risk filters isolate missing P0 cases', async ({ page }) => {
   await page.getByRole('button', { name: 'Mark reviewed' }).click();
-  await expect(page.getByText('1 / 55 reviewed')).toBeVisible();
+  await expect(page.getByText('1 / 56 reviewed')).toBeVisible();
   await page.reload();
-  await expect(page.getByText('1 / 55 reviewed')).toBeVisible();
+  await expect(page.getByText('1 / 56 reviewed')).toBeVisible();
 
   await page.getByRole('button', { name: 'Missing', exact: true }).click();
   await page.getByRole('button', { name: 'P0', exact: true }).click();

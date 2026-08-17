@@ -12,6 +12,8 @@ Acceptance simulation: [Longview hackathon acceptance demo](design/longview-hack
 
 Delivery evidence: [Hackathon readiness ledger](HACKATHON_READINESS.md)
 
+Pending delivery: [Pending feature ledger](PENDING_FEATURES.md)
+
 ## 1. Product definition
 
 Longview is a personal AI chief of staff for people pursuing several meaningful,

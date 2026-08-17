@@ -1,6 +1,6 @@
 # Longview Implementation Phases
 
-Status: Day 2 Slice 2 implemented - subject to change
+Status: Day 2 Slice 3 implemented locally, awaiting acceptance - subject to change
 Updated: 2026-08-17
 Links: [PRD](PRODUCT_REQUIREMENTS.md) | [Mockup](design/longview-pwa-interactive-mockup.html) | [Stack](TECH_STACK.md)
 
@@ -124,6 +124,12 @@ Slice 1 was accepted and merged on 2026-08-17.
 4. **Plan Details:** Make every Plan card navigable and show the saved outcome,
    rationale, target, weekly allocation, working days, and current Today status.
    Loading, malformed data, missing Plan, and failed-read recovery are explicit.
+
+Slice 2 was accepted and merged on 2026-08-17. Slice 3 now persists working days,
+weekly capacity, and preferred time in the owner workspace. Versioned transactions
+reject stale concurrent saves; invalid or failed saves retain the last accepted value.
+Settings reopens the same schedule for editing. This slice does not yet make Today
+skip ineligible days; that remains tracked in [Pending features](PENDING_FEATURES.md).
 
 The remaining judged surfaces and the replacement status of every gallery asset are
 tracked in [Hackathon readiness](HACKATHON_READINESS.md).

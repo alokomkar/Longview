@@ -8,6 +8,7 @@ changes, and preserve the reasoning behind important decisions.
 
 - [Product requirements](docs/PRODUCT_REQUIREMENTS.md)
 - [Implementation phases](docs/IMPLEMENTATION_PHASES.md)
+- [Pending feature ledger](docs/PENDING_FEATURES.md)
 - [Hackathon tech stack](docs/TECH_STACK.md)
 - [Hackathon readiness ledger](docs/HACKATHON_READINESS.md)
 - [Interactive PWA mockup](docs/design/longview-pwa-interactive-mockup.html)

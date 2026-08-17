@@ -1,6 +1,6 @@
 import { doc, runTransaction, serverTimestamp } from 'firebase/firestore';
 import { db } from '../firebase/firestore';
-import type { WorkspaceGateway } from './types';
+import { profileIdentityChanged, type WorkspaceGateway } from './types';
 
 export const firebaseWorkspaceGateway: WorkspaceGateway = {
   async ensure(user) {
@@ -22,7 +22,7 @@ export const firebaseWorkspaceGateway: WorkspaceGateway = {
           createdAt: serverTimestamp(),
           updatedAt: serverTimestamp()
         });
-      } else {
+      } else if (profileIdentityChanged(profile.data(), user)) {
         transaction.update(profileRef, {
           displayName: user.displayName,
           authMode: user.isAnonymous ? 'anonymous' : 'google',

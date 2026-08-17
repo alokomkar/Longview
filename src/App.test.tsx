@@ -34,7 +34,7 @@ function gateway(initial: AuthUser | null, failure?: { code: string }) {
 describe('authentication journey', () => {
   it('continues anonymously and preserves the returned identity', async () => {
     const mock = gateway(null);
-    render(<App gateway={mock} workspaceGateway={workspaceGateway} />);
+    render(<App gateway={mock} workspaceGateway={workspaceGateway} planGateway={planGateway} />);
     fireEvent.click(await screen.findByRole('button', { name: 'Continue anonymously' }));
     expect(await screen.findByText('You’re continuing privately.')).toBeVisible();
     expect(mock.signInAnonymously).toHaveBeenCalledOnce();
@@ -47,7 +47,7 @@ describe('authentication journey', () => {
     ['auth/popup-blocked', 'blocked the sign-in window'],
     ['auth/network-request-failed', 'appear to be offline']
   ])('recovers safely from %s', async (code, message) => {
-    render(<App gateway={gateway(null, { code })} workspaceGateway={workspaceGateway} />);
+    render(<App gateway={gateway(null, { code })} workspaceGateway={workspaceGateway} planGateway={planGateway} />);
     fireEvent.click(await screen.findByRole('button', { name: 'Continue with Google' }));
     expect(await screen.findByRole('alert')).toHaveTextContent(message);
     expect(screen.getByRole('button', { name: 'Continue anonymously' })).toBeEnabled();
@@ -55,7 +55,7 @@ describe('authentication journey', () => {
 
   it('keeps the anonymous workspace when account linking conflicts', async () => {
     const user = { uid: 'anon-1', isAnonymous: true, displayName: null };
-    render(<App gateway={gateway(user, { code: 'auth/credential-already-in-use' })} workspaceGateway={workspaceGateway} />);
+    render(<App gateway={gateway(user, { code: 'auth/credential-already-in-use' })} workspaceGateway={workspaceGateway} planGateway={planGateway} />);
     fireEvent.click(await screen.findByRole('button', { name: 'Link Google account' }));
     await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent('workspace was not changed'));
     expect(screen.getByText('You’re continuing privately.')).toBeVisible();
@@ -86,7 +86,7 @@ describe('authentication journey', () => {
   });
 
   it('moves from workspace confirmation to availability and Empty Today', async () => {
-    render(<App gateway={gateway({ uid: 'owner', isAnonymous: false, displayName: 'Owner' })} workspaceGateway={workspaceGateway} />);
+    render(<App gateway={gateway({ uid: 'owner', isAnonymous: false, displayName: 'Owner' })} workspaceGateway={workspaceGateway} planGateway={planGateway} />);
     fireEvent.click(await screen.findByRole('button', { name: 'Continue setup' }));
     fireEvent.click(screen.getByRole('button', { name: '15 hours' }));
     fireEvent.click(screen.getByRole('button', { name: 'Save availability' }));
@@ -97,7 +97,7 @@ describe('authentication journey', () => {
   it('signs out from Settings without clearing saved onboarding', async () => {
     localStorage.setItem('longview:onboarding', 'complete');
     const mock = gateway({ uid: 'owner', isAnonymous: false, displayName: 'Owner' });
-    render(<App gateway={mock} workspaceGateway={workspaceGateway} />);
+    render(<App gateway={mock} workspaceGateway={workspaceGateway} planGateway={planGateway} />);
     fireEvent.click(await screen.findByRole('button', { name: 'Settings' }));
     fireEvent.click(screen.getByRole('button', { name: 'Sign out' }));
     expect(await screen.findByRole('button', { name: 'Continue with Google' })).toBeVisible();
@@ -107,7 +107,7 @@ describe('authentication journey', () => {
   it('warns anonymous users and offers account linking before sign-out', async () => {
     localStorage.setItem('longview:onboarding', 'complete');
     const mock = gateway({ uid: 'anon-1', isAnonymous: true, displayName: null });
-    render(<App gateway={mock} workspaceGateway={workspaceGateway} />);
+    render(<App gateway={mock} workspaceGateway={workspaceGateway} planGateway={planGateway} />);
     fireEvent.click(await screen.findByRole('button', { name: 'Settings' }));
     fireEvent.click(screen.getByRole('button', { name: 'Sign out' }));
     expect(screen.getByRole('alert')).toHaveTextContent('won’t be able to return to this workspace');
@@ -120,7 +120,7 @@ describe('authentication journey', () => {
   it('requires confirmation before clearing browser-local data', async () => {
     localStorage.setItem('longview:onboarding', 'complete');
     const mock = gateway({ uid: 'owner', isAnonymous: false, displayName: 'Owner' });
-    render(<App gateway={mock} workspaceGateway={workspaceGateway} />);
+    render(<App gateway={mock} workspaceGateway={workspaceGateway} planGateway={planGateway} />);
     fireEvent.click(await screen.findByRole('button', { name: 'Settings' }));
     fireEvent.click(screen.getByRole('button', { name: 'Clear this device' }));
     expect(screen.getByRole('alert')).toHaveTextContent('workspace will still be available');
@@ -132,7 +132,7 @@ describe('authentication journey', () => {
   it('keeps Google linking available in Settings after anonymous onboarding', async () => {
     localStorage.setItem('longview:onboarding', 'complete');
     const mock = gateway({ uid: 'anon-1', isAnonymous: true, displayName: null });
-    render(<App gateway={mock} workspaceGateway={workspaceGateway} />);
+    render(<App gateway={mock} workspaceGateway={workspaceGateway} planGateway={planGateway} />);
     fireEvent.click(await screen.findByRole('button', { name: 'Settings' }));
     fireEvent.click(screen.getByRole('button', { name: 'Link Google account' }));
     expect(mock.linkGoogle).toHaveBeenCalledOnce();
@@ -148,7 +148,7 @@ describe('authentication journey', () => {
       signInGoogle: vi.fn(async () => listener({ uid: 'google-1', isAnonymous: false, displayName: 'Owner' })),
       signOut: vi.fn()
     };
-    render(<App gateway={mock} workspaceGateway={workspaceGateway} />);
+    render(<App gateway={mock} workspaceGateway={workspaceGateway} planGateway={planGateway} />);
     fireEvent.click(await screen.findByRole('button', { name: 'Settings' }));
     fireEvent.click(screen.getByRole('button', { name: 'Link Google account' }));
     fireEvent.click(await screen.findByRole('button', { name: 'Use existing Google workspace' }));
@@ -227,5 +227,19 @@ describe('authentication journey', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
     expect(await screen.findByRole('heading', { name: 'No Plans yet.' })).toBeVisible();
     expect(list).toHaveBeenCalledTimes(2);
+  });
+
+  it('prepares one deterministic Today step from a saved Plan', async () => {
+    localStorage.setItem('longview:onboarding', 'complete');
+    const list = vi.fn(async () => [{
+      id: 'plan-1', clientRequestId: 'plan-1', ownerUid: 'owner', workspaceId: 'default' as const,
+      title: 'Launch Longview', outcome: 'Release a tested PWA to real users.', why: 'Validate the product direction.',
+      targetDate: '2026-08-20', weeklyHours: 3, status: 'active' as const, schemaVersion: 1 as const
+    }]);
+    render(<App gateway={gateway({ uid: 'owner', isAnonymous: false, displayName: 'Owner' })} workspaceGateway={workspaceGateway} planGateway={{ ...planGateway, list }} />);
+    expect(await screen.findByRole('heading', { name: 'One useful step is enough.' })).toBeVisible();
+    expect(screen.getByRole('heading', { name: 'Define the first proof of progress' })).toBeVisible();
+    expect(screen.getByText('45 minutes')).toBeVisible();
+    expect(screen.getByText('From Launch Longview')).toBeVisible();
   });
 });

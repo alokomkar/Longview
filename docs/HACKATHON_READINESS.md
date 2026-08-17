@@ -41,6 +41,7 @@ Sources: [PRD](PRODUCT_REQUIREMENTS.md) | [Implementation phases](IMPLEMENTATION
 - Owner-scoped workspace provisioning and Firestore rules.
 - Reviewed, validated, idempotent Plan creation and owner-scoped Plans list.
 - Deterministic Today step and confirmed immutable completion.
+- No-task Today guidance names the next eligible scheduled Plan day.
 - Typed read-only recommendation preview with cancellation, timeout, offline,
   unavailable, malformed-response, and retry handling.
 - Versioned Plan working days and weekly allocation with Plan Details editing,

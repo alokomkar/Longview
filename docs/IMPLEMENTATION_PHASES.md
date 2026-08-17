@@ -1,6 +1,6 @@
 # Longview Implementation Phases
 
-Status: Day 2 Slice 6 accepted and merged; Slice 7 review artifacts ready
+Status: Calendar break merged; Today duplicate proof review artifacts ready
 Updated: 2026-08-17
 Links: [PRD](PRODUCT_REQUIREMENTS.md) | [Mockup](design/longview-pwa-interactive-mockup.html) | [Stack](TECH_STACK.md)
 
@@ -184,6 +184,17 @@ Slice 6 was accepted and merged on 2026-08-17.
    retry lineage, and interrupted finalization must preserve the existing approved day.
    The run publishes an advisory proposal only; Calendar approval is the next slice.
    See [the review contract](CHECKPOINTED_ASYNC_RUN.md).
+
+The checkpointed run, approved-day, and Calendar break slices are implemented and
+merged locally. Production Cloud evidence remains separate from local acceptance.
+
+8. **Today duplicate completion proof:** Return the original deterministic completion
+   when a retry or concurrent tab submits the same step again. Show user-friendly proof
+   that progress was saved once, reject malformed existing records without overwrite,
+   and preserve confirmation and failed-save retry behavior. Offline pending sync stays
+   in the next slice. See [the review contract](TODAY_DUPLICATE_COMPLETION.md).
+
+Implementation waits for product-owner review of the linked interactive state.
 
 The remaining judged surfaces and the replacement status of every gallery asset are
 tracked in [Hackathon readiness](HACKATHON_READINESS.md).

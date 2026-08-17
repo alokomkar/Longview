@@ -20,10 +20,10 @@ Sources: [PRD](PRODUCT_REQUIREMENTS.md) | [Implementation phases](IMPLEMENTATION
 
 | # | Submitted screenshot | Required product proof | Current PWA status | Remaining work |
 |---:|---|---|---|---|
-| 1 | Today | Capacity-aware work and conflict | Partial | Plan working days drive eligibility; add multi-Plan capacity and visible conflict reasoning. |
-| 2 | Portfolio | Three Plans sharing finite capacity | Partial | Add operating modes, allocations, milestones, next actions, and cross-Plan recommendation. |
+| 1 | Today | Capacity-aware work and conflict | Partial | Portfolio capacity is visible; time-based conflict detection remains post-hackathon unless time permits. |
+| 2 | Portfolio | Three Plans sharing finite capacity | Implemented | Committed hours, operating modes, allocation shares, milestones, and deterministic guidance are visible. |
 | 3 | Plan creation | Reviewed structured Plan | Partial | Working-day selection is implemented; advisor-assisted suggestions remain. |
-| 4 | Plan details | One Plan with execution and context | Partial | Overview and editable schedule are implemented; current step, history, decisions, research, and brief entry points remain. |
+| 4 | Plan details | One Plan with execution and context | Partial | Authoritative details, current step, schedule, and context entry points exist; persisted history, decisions, research, and brief content remain. |
 | 5 | Plan achievement | Outcome and consented reflection | Missing | Add completion evidence, reflection, and explicit reusable-memory consent. |
 | 6 | Clara context | Visible bounded context | Partial | Current preview uses one Plan and Today step; add deployed managed API and multi-Plan context where required. |
 | 7 | Agentic actions | Bounded action catalogue | Missing | Add judged quick actions backed by typed agent tools. |
@@ -45,16 +45,17 @@ Sources: [PRD](PRODUCT_REQUIREMENTS.md) | [Implementation phases](IMPLEMENTATION
   unavailable, malformed-response, and retry handling.
 - Versioned Plan working days and weekly allocation with Plan Details editing,
   validation, retry, stale-save rejection, and owner-scoped rules.
+- Finite portfolio allocation summary plus the Plan Details shell with safe
+  loading, missing, malformed, failed-read, retry, and context-empty states.
 
 ## Deadline delivery order
 
-1. Add navigable Plan Details with the stored Plan, working days, and current step.
-2. Add three-Plan portfolio capacity and the minimal managed recommendation API.
-3. Add exact recommendation preview, approval/rejection, idempotent write, and audit record.
-4. Add one checkpointed asynchronous run plus Cloud logs and recovery evidence.
-5. Add the calendar success/failure path required by the demo.
-6. Add research review, versioned brief, achievement, and consented reflection.
-7. Re-capture all 13 screenshots from verified PWA states and record the final PWA demo.
+1. Add the minimal managed recommendation API.
+2. Add exact recommendation preview, approval/rejection, idempotent write, and audit record.
+3. Add one checkpointed asynchronous run plus Cloud logs and recovery evidence.
+4. Add the calendar success/failure path required by the demo.
+5. Add research review, versioned brief, achievement, and consented reflection.
+6. Re-capture all 13 screenshots from verified PWA states and record the final PWA demo.
 
 No prototype screenshot or narration claim is implementation proof. Final submission
 copy must distinguish verified PWA behavior, managed cloud behavior, and design-only

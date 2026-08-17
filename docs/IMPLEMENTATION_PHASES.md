@@ -125,11 +125,23 @@ Slice 1 was accepted and merged on 2026-08-17.
    rationale, target, weekly allocation, working days, and current Today status.
    Loading, malformed data, missing Plan, and failed-read recovery are explicit.
 
+   This slice also summarizes the portfolio's total committed weekly hours. It derives
+   Focus, Maintain, and Prepare modes deterministically from target order rather than
+   persisting an unreviewed recommendation. Plan Details reads the selected Plan again
+   from its owner-scoped path, never displays stale details after a missing/failed read,
+   and presents honest empty states for history, decisions, research, and brief work
+   that later slices will populate.
+
 Slice 2 was accepted and merged on 2026-08-17. The product owner replaced the initial
 workspace-availability design before merge. Slice 3 now stores working days and weekly
 allocation on each Plan, applies eligible days to Today, and edits the versioned
 schedule from Plan Details. Existing unscheduled Plans are preserved and clearly ask
 for a schedule. Clock time and per-day allocation remain out of scope.
+
+Slice 4 is implemented on `feature/plan-details` pending acceptance. It totals committed
+weekly hours, derives target-ordered Focus/Maintain/Prepare modes, and shows one
+deterministic non-writing portfolio recommendation. Selecting a Plan performs a fresh
+owner-scoped read and exposes current-step, context-empty, missing, and retry states.
 
 The remaining judged surfaces and the replacement status of every gallery asset are
 tracked in [Hackathon readiness](HACKATHON_READINESS.md).

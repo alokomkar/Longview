@@ -200,6 +200,43 @@ describe('authentication journey', () => {
     expect(create.mock.calls[0][1].clientRequestId).toBeTruthy();
   });
 
+  it('starts a blank draft with a new request id after a Plan is saved', async () => {
+    localStorage.setItem('longview:onboarding', 'complete');
+    const create = vi.fn(planGateway.create);
+    const list = vi.fn(async () => [scheduledPlan()]);
+    render(<App gateway={gateway({ uid: 'owner', isAnonymous: false, displayName: 'Owner' })} workspaceGateway={workspaceGateway} planGateway={{ ...planGateway, create, list }} />);
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Plans' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Create Plan' }));
+    fireEvent.change(screen.getByLabelText('Plan title'), { target: { value: 'First new Plan' } });
+    fireEvent.change(screen.getByLabelText('Desired outcome'), { target: { value: 'Reach the first saved outcome.' } });
+    fireEvent.change(screen.getByLabelText('Why this matters'), { target: { value: 'Keep the first reason with its Plan.' } });
+    fireEvent.change(screen.getByLabelText('Target date'), { target: { value: '2026-09-30' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Review Plan' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Create Plan' }));
+    expect(await screen.findByText('Your Plan is ready. Longview will use it to shape your next useful step.')).toBeVisible();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Return to Today' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Plans' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Create Plan' }));
+    expect(screen.getByLabelText('Plan title')).toHaveValue('');
+    expect(screen.getByLabelText('Desired outcome')).toHaveValue('');
+    expect(screen.getByLabelText('Why this matters')).toHaveValue('');
+    expect(screen.getByLabelText('Target date')).not.toHaveValue('2026-09-30');
+    expect(screen.getByLabelText('Hours for this Plan each week')).toHaveValue(5);
+
+    fireEvent.change(screen.getByLabelText('Plan title'), { target: { value: 'Second new Plan' } });
+    fireEvent.change(screen.getByLabelText('Desired outcome'), { target: { value: 'Reach a distinct second outcome.' } });
+    fireEvent.change(screen.getByLabelText('Why this matters'), { target: { value: 'Keep the second reason separate.' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Review Plan' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
+    expect(screen.getByLabelText('Plan title')).toHaveValue('Second new Plan');
+    fireEvent.click(screen.getByRole('button', { name: 'Review Plan' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Create Plan' }));
+    await waitFor(() => expect(create).toHaveBeenCalledTimes(2));
+    expect(create.mock.calls[0][1].clientRequestId).not.toBe(create.mock.calls[1][1].clientRequestId);
+  });
+
   it('keeps the same Plan request id when save is retried', async () => {
     localStorage.setItem('longview:onboarding', 'complete');
     const create = vi.fn().mockRejectedValueOnce(new Error('offline')).mockImplementation(planGateway.create);

@@ -77,7 +77,9 @@ beyond the MVP; the underlying workspace is not silently deleted.
 1. **Plan creation:** A typed form captures title, desired outcome, rationale, target
    date, and weekly capacity. Users review before an idempotent Firestore transaction;
    validation, cancellation, failed saves, retries, ownership, and immutable creation
-   are tested. This PR deliberately stops before Plans listing and Today scheduling.
+   are tested. Every new Create Plan entry resets the form and idempotency key, while
+   Review → Edit and failed-save retry preserve the active draft. This PR deliberately
+   stops before Plans listing and Today scheduling.
 2. **Plans list:** Load owner-scoped Plans and replace empty states without expanding
    into editing, deletion, or collaboration. Loading, empty, populated, and failed
    reads have explicit mobile states; failed reads preserve data and offer retry.

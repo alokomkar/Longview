@@ -108,6 +108,8 @@ them without approval.
 - Today shows active Goal context, task descriptions, duration, completion, and Clara.
 - Portfolio shows operating mode, allocation, milestone, next action, and one explicit
   cross-goal recommendation.
+- Starting Create Plan from Today or Portfolio always opens a fresh draft with a new
+  idempotency key. Only Review → Edit and failed-save retry retain the current draft.
 - No-task days show the next eligible scheduled date instead of claiming work is ready.
 
 ### Clara

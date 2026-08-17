@@ -1,6 +1,6 @@
 # Longview Implementation Phases
 
-Status: Day 2 Slice 3 implemented locally, awaiting acceptance - subject to change
+Status: Day 2 Slice 5 implemented locally, awaiting acceptance - subject to change
 Updated: 2026-08-17
 Links: [PRD](PRODUCT_REQUIREMENTS.md) | [Mockup](design/longview-pwa-interactive-mockup.html) | [Stack](TECH_STACK.md)
 
@@ -151,6 +151,12 @@ owner-scoped read and exposes current-step, context-empty, missing, and retry st
    validation, timeout, unavailable, malformed-output, cancellation, and clarification
    paths remain read-only. The preview adapter stays available only when a managed API
    URL is not configured. Deployment and Cloud evidence require explicit approval.
+
+The Slice 5 local implementation verifies Firebase ID tokens, enforces strict request
+and response schemas, invokes an ADK runner behind an eight-second timeout, and applies
+an exact browser-origin allowlist. Backend and PWA adapters are tested without using
+production credentials. A real Vertex response and Cloud Run revision are not yet
+claimed; both remain part of the deployment acceptance gate.
 
 The remaining judged surfaces and the replacement status of every gallery asset are
 tracked in [Hackathon readiness](HACKATHON_READINESS.md).

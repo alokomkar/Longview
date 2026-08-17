@@ -478,7 +478,7 @@ describe('authentication journey', () => {
     render(<App gateway={gateway({ uid: 'owner', isAnonymous: false, displayName: 'Owner' })} workspaceGateway={workspaceGateway} planGateway={{ ...planGateway, list }} todayGateway={{ get: vi.fn(async () => null), complete }} claraGateway={{ recommend }} />);
     fireEvent.click(await screen.findByRole('button', { name: 'Ask Clara about this step' }));
     expect(await screen.findByRole('heading', { name: 'Protect the smallest proof' })).toBeVisible();
-    expect(screen.getByText('Preview adapter · Nothing was changed.')).toBeVisible();
+    expect(screen.getByText('Recommendation only · Nothing was changed.')).toBeVisible();
     expect(recommend.mock.calls[0][0].plan).toMatchObject({ id: 'plan-1', title: 'Launch Longview' });
     expect(complete).not.toHaveBeenCalled();
   });

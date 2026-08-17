@@ -36,6 +36,8 @@ background run, or claim a deployed Cloud Run revision.
   preview adapter.
 - Cloud Run uses Application Default Credentials with `GOOGLE_CLOUD_PROJECT`,
   `GOOGLE_CLOUD_LOCATION=global`, and `GOOGLE_GENAI_USE_VERTEXAI=TRUE`.
+- `CLARA_ALLOWED_ORIGINS` is a comma-separated exact allowlist. It defaults to the
+  Firebase Hosting production origin; local origins must be opted in explicitly.
 
 Deployment, IAM grants, API enablement, Firebase Hosting rewrites, Cloud Logging proof,
 and production endpoint evidence require a separate explicit deployment approval.

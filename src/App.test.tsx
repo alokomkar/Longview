@@ -6,6 +6,14 @@ import type { WorkspaceGateway } from './workspace/types';
 import type { PlanGateway } from './plan/types';
 import type { TodayGateway } from './today/types';
 import type { ClaraGateway } from './clara/types';
+import type { AvailabilityGateway } from './availability/types';
+
+vi.mock('./availability/lazyAvailabilityGateway', () => ({
+  lazyFirebaseAvailabilityGateway: {
+    load: vi.fn(async () => null),
+    save: vi.fn(async (_user, draft, expectedVersion) => ({ ...draft, schemaVersion: 1, version: expectedVersion + 1 }))
+  }
+}));
 
 const workspaceGateway: WorkspaceGateway = {
   ensure: vi.fn(async (user: AuthUser) => ({ id: 'default' as const, ownerUid: user.uid, schemaVersion: 1 as const }))
@@ -23,6 +31,11 @@ const todayGateway: TodayGateway = {
     stepKey: 'first-proof-v1' as const, completedDate: step.date, durationMinutes: step.durationMinutes,
     status: 'completed' as const, schemaVersion: 1 as const
   }))
+};
+
+const availabilityGateway: AvailabilityGateway = {
+  load: vi.fn(async () => null),
+  save: vi.fn(async (_user, draft, expectedVersion) => ({ ...draft, schemaVersion: 1, version: expectedVersion + 1 }))
 };
 
 beforeEach(() => localStorage.clear());
@@ -97,12 +110,39 @@ describe('authentication journey', () => {
   });
 
   it('moves from workspace confirmation to availability and Empty Today', async () => {
-    render(<App gateway={gateway({ uid: 'owner', isAnonymous: false, displayName: 'Owner' })} workspaceGateway={workspaceGateway} planGateway={planGateway} />);
+    render(<App gateway={gateway({ uid: 'owner', isAnonymous: false, displayName: 'Owner' })} workspaceGateway={workspaceGateway} availabilityGateway={availabilityGateway} planGateway={planGateway} />);
     fireEvent.click(await screen.findByRole('button', { name: 'Continue setup' }));
     fireEvent.click(screen.getByRole('button', { name: '15 hours' }));
     fireEvent.click(screen.getByRole('button', { name: 'Save availability' }));
     expect(await screen.findByRole('heading', { name: 'Nothing is scheduled yet.' })).toBeVisible();
     expect(screen.getByText('15 hours/week')).toBeVisible();
+  });
+
+  it('requires a working day and does not write an invalid schedule', async () => {
+    const save = vi.fn(availabilityGateway.save);
+    render(<App gateway={gateway({ uid: 'owner', isAnonymous: false, displayName: 'Owner' })} workspaceGateway={workspaceGateway} availabilityGateway={{ ...availabilityGateway, save }} planGateway={planGateway} />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Continue setup' }));
+    for (const day of ['Mon', 'Wed', 'Fri']) fireEvent.click(screen.getByRole('button', { name: day }));
+    fireEvent.click(screen.getByRole('button', { name: 'Save availability' }));
+    expect(screen.getByRole('alert')).toHaveTextContent('Choose at least one working day');
+    expect(save).not.toHaveBeenCalled();
+  });
+
+  it('restores and edits accepted availability from Settings', async () => {
+    localStorage.setItem('longview:onboarding', 'complete');
+    const accepted = { workingDays: ['tue', 'thu'] as const, weeklyHours: 10, preferredTime: 'afternoon' as const, schemaVersion: 1 as const, version: 3 };
+    const save = vi.fn(async (_user, draft) => ({ ...draft, schemaVersion: 1 as const, version: 4 }));
+    render(<App gateway={gateway({ uid: 'owner', isAnonymous: false, displayName: 'Owner' })} workspaceGateway={workspaceGateway} availabilityGateway={{ load: vi.fn(async () => ({ ...accepted, workingDays: [...accepted.workingDays] })), save }} planGateway={planGateway} />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Settings' }));
+    expect(await screen.findByRole('heading', { name: 'Tue, Thu' })).toBeVisible();
+    fireEvent.click(screen.getByRole('button', { name: 'Edit availability' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Sat' }));
+    fireEvent.click(screen.getByRole('button', { name: '15 hours' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Evening' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Save availability' }));
+    expect(await screen.findByRole('heading', { name: 'Tue, Thu, Sat' })).toBeVisible();
+    expect(screen.getByText('15 hours/week · evening')).toBeVisible();
+    expect(save).toHaveBeenCalledWith(expect.objectContaining({ uid: 'owner' }), expect.objectContaining({ weeklyHours: 15, preferredTime: 'evening' }), 3);
   });
 
   it('signs out from Settings without clearing saved onboarding', async () => {

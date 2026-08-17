@@ -7,7 +7,7 @@ import {
   initializeTestEnvironment,
   type RulesTestEnvironment
 } from '@firebase/rules-unit-testing';
-import { collection, deleteDoc, doc, getDoc, getDocs, setDoc } from 'firebase/firestore';
+import { collection, deleteDoc, doc, getDoc, getDocs, setDoc, updateDoc } from 'firebase/firestore';
 
 let environment: RulesTestEnvironment;
 
@@ -59,6 +59,34 @@ describe('Firestore ownership rules', () => {
     await assertFails(setDoc(doc(other, 'users/owner/workspaces/other'), { id: 'other', ownerUid: 'other' }));
     await assertFails(setDoc(workspace, { id: 'changed', ownerUid: 'owner' }));
     await assertFails(deleteDoc(workspace));
+  });
+
+  it('allows only versioned owner availability updates', async () => {
+    const owner = environment.authenticatedContext('owner').firestore();
+    const other = environment.authenticatedContext('other').firestore();
+    const path = 'users/owner/workspaces/default';
+    await environment.withSecurityRulesDisabled(async context => {
+      await setDoc(doc(context.firestore(), path), {
+        id: 'default', ownerUid: 'owner', schemaVersion: 1, availability: null,
+        availabilityVersion: 0, createdAt: new Date(), updatedAt: new Date()
+      });
+    });
+    const valid = {
+      workingDays: ['mon', 'wed', 'fri'], weeklyHours: 10, preferredTime: 'morning',
+      schemaVersion: 1, version: 1
+    };
+    await assertSucceeds(updateDoc(doc(owner, path), {
+      availability: valid, availabilityVersion: 1, updatedAt: new Date()
+    }));
+    await assertFails(updateDoc(doc(owner, path), {
+      availability: valid, availabilityVersion: 1, updatedAt: new Date()
+    }));
+    await assertFails(updateDoc(doc(owner, path), {
+      availability: { ...valid, workingDays: [], version: 2 }, availabilityVersion: 2, updatedAt: new Date()
+    }));
+    await assertFails(updateDoc(doc(other, path), {
+      availability: { ...valid, version: 2 }, availabilityVersion: 2, updatedAt: new Date()
+    }));
   });
 
   it('allows owners to create valid immutable Plans', async () => {

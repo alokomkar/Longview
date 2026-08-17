@@ -14,6 +14,16 @@ import { useTodayCompletion } from './today/useTodayCompletion';
 import { buildClaraContext, type ClaraGateway } from './clara/types';
 import { previewClaraGateway } from './clara/previewGateway';
 import { useClaraRecommendation, type ClaraFailure } from './clara/useClaraRecommendation';
+import { lazyFirebaseAvailabilityGateway } from './availability/lazyAvailabilityGateway';
+import { useAvailability } from './availability/useAvailability';
+import {
+  validateAvailabilityDraft,
+  workingDays,
+  type AvailabilityDraft,
+  type AvailabilityErrors,
+  type AvailabilityGateway,
+  type WorkingDay
+} from './availability/types';
 import { useEffect, useMemo, useState } from 'react';
 import './styles.css';
 
@@ -32,6 +42,14 @@ const localDate = () => {
 };
 
 const requestId = () => globalThis.crypto?.randomUUID?.() ?? `plan-${Date.now()}`;
+const dayLabels: Record<WorkingDay, string> = {
+  mon: 'Mon', tue: 'Tue', wed: 'Wed', thu: 'Thu', fri: 'Fri', sat: 'Sat', sun: 'Sun'
+};
+const defaultAvailability: AvailabilityDraft = {
+  workingDays: ['mon', 'wed', 'fri'],
+  weeklyHours: 10,
+  preferredTime: 'morning'
+};
 const claraFailureCopy: Record<ClaraFailure, [string, string]> = {
   offline: ['You’re offline.', 'Reconnect and try again. Your step and Plan are unchanged.'],
   timeout: ['Clara took too long.', 'The request stopped safely. Your step and Plan are unchanged.'],
@@ -57,9 +75,10 @@ function ClaraPanel({ clara, onClose }: {
   return null;
 }
 
-function WorkspaceReady({ auth, gateway, planGateway, todayGateway, claraGateway }: {
+function WorkspaceReady({ auth, gateway, availabilityGateway, planGateway, todayGateway, claraGateway }: {
   auth: ReturnType<typeof useAuth>;
   gateway: WorkspaceGateway;
+  availabilityGateway: AvailabilityGateway;
   planGateway: PlanGateway;
   todayGateway: TodayGateway;
   claraGateway: ClaraGateway;
@@ -67,10 +86,15 @@ function WorkspaceReady({ auth, gateway, planGateway, todayGateway, claraGateway
   const snapshot = auth.snapshot;
   if (snapshot.status !== 'authenticated') return null;
   const workspace = useWorkspace(snapshot.user, gateway);
+  const availability = useAvailability(snapshot.user, availabilityGateway);
   const [stage, setStage] = useState<'workspace' | 'availability' | 'today' | 'plan-create' | 'plan-review' | 'plan-saved'>(() =>
     localStorage.getItem('longview:onboarding') === 'complete' ? 'today' : 'workspace'
   );
-  const [hours, setHours] = useState(10);
+  const [hours, setHours] = useState(defaultAvailability.weeklyHours);
+  const [availabilityDraft, setAvailabilityDraft] = useState<AvailabilityDraft>(defaultAvailability);
+  const [availabilityErrors, setAvailabilityErrors] = useState<AvailabilityErrors>({});
+  const [availabilityInitialized, setAvailabilityInitialized] = useState(false);
+  const [availabilityReturnToSettings, setAvailabilityReturnToSettings] = useState(false);
   const [view, setView] = useState<'today' | 'plans' | 'settings'>('today');
   const [confirmClear, setConfirmClear] = useState(false);
   const [confirmSignOut, setConfirmSignOut] = useState(false);
@@ -87,6 +111,15 @@ function WorkspaceReady({ auth, gateway, planGateway, todayGateway, claraGateway
   const selectedPlan = useMemo(() => plans.snapshot.plans.find(plan => plan.id === todayStep?.planId) ?? null, [plans.snapshot.plans, todayStep?.planId]);
   const completion = useTodayCompletion(snapshot.user, todayStep, todayGateway, stage === 'today' && view === 'today' && plans.snapshot.status === 'ready');
   const clara = useClaraRecommendation(claraGateway);
+
+  useEffect(() => {
+    if (availability.snapshot.status !== 'ready' || availabilityInitialized) return;
+    if (availability.snapshot.availability) {
+      setAvailabilityDraft(availability.snapshot.availability);
+      setHours(availability.snapshot.availability.weeklyHours);
+    }
+    setAvailabilityInitialized(true);
+  }, [availability.snapshot, availabilityInitialized]);
 
   useEffect(() => {
     setShowClara(false);
@@ -124,6 +157,41 @@ function WorkspaceReady({ auth, gateway, planGateway, todayGateway, claraGateway
     }
   };
 
+  const openAvailability = (returnToSettings: boolean) => {
+    if (availability.snapshot.status === 'ready' && availability.snapshot.availability) {
+      setAvailabilityDraft(availability.snapshot.availability);
+    }
+    setAvailabilityErrors({});
+    setAvailabilityReturnToSettings(returnToSettings);
+    setStage('availability');
+  };
+
+  const continueSetup = () => {
+    if (availability.snapshot.status === 'ready' && availability.snapshot.availability) {
+      localStorage.setItem('longview:onboarding', 'complete');
+      setHours(availability.snapshot.availability.weeklyHours);
+      setStage('today');
+      return;
+    }
+    openAvailability(false);
+  };
+
+  const saveAvailability = async () => {
+    const errors = validateAvailabilityDraft(availabilityDraft);
+    setAvailabilityErrors(errors);
+    if (Object.keys(errors).length > 0) return;
+    if (!await availability.save(availabilityDraft)) return;
+    setHours(availabilityDraft.weeklyHours);
+    localStorage.setItem('longview:onboarding', 'complete');
+    setStage('today');
+    setView(availabilityReturnToSettings ? 'settings' : 'today');
+  };
+
+  const reloadAvailability = () => {
+    setAvailabilityInitialized(false);
+    void availability.retry();
+  };
+
   const clearLocalData = async () => {
     localStorage.clear();
     if ('serviceWorker' in navigator) {
@@ -144,7 +212,16 @@ function WorkspaceReady({ auth, gateway, planGateway, todayGateway, claraGateway
   }
 
   if (stage === 'availability') {
-    return <main className="shell"><p className="eyebrow">Longview</p><section className="card"><span className="status">Your availability</span><h1>Protect time you can actually keep.</h1><p>Choose a realistic weekly planning budget. You can change this later.</p><div className="choices" role="group" aria-label="Weekly availability">{[5, 10, 15].map(value => <button key={value} className={hours === value ? '' : 'secondary'} onClick={() => setHours(value)}>{value} hours</button>)}</div><button onClick={() => { localStorage.setItem('longview:onboarding', 'complete'); setStage('today'); }}>Save availability</button></section></main>;
+    if (availability.snapshot.status === 'loading') return <main className="shell" aria-busy="true"><p className="eyebrow">Longview</p><h1>Loading your availability…</h1></main>;
+    if (availability.snapshot.status === 'error') return <main className="shell"><p className="eyebrow">Longview</p><section className="card"><span className="status">Availability unavailable</span><h1>Your saved schedule is safe.</h1><p>Longview could not load it. Check your connection and try again.</p><div className="actions"><button onClick={reloadAvailability}>Try again</button>{availabilityReturnToSettings && <button className="secondary" onClick={() => { setStage('today'); setView('settings'); }}>Return to Settings</button>}</div></section></main>;
+    return <main className="shell"><p className="eyebrow">Longview</p><section className="card"><span className="status">Your availability</span><h1>Protect time you can actually keep.</h1><p>Choose at least one usual working day, a weekly budget, and the time you prefer.</p>
+      <fieldset><legend>Usual working days</legend><div className="day-choices">{workingDays.map(day => <button type="button" key={day} aria-pressed={availabilityDraft.workingDays.includes(day)} className={availabilityDraft.workingDays.includes(day) ? '' : 'secondary'} onClick={() => { setAvailabilityDraft(current => ({ ...current, workingDays: current.workingDays.includes(day) ? current.workingDays.filter(value => value !== day) : [...current.workingDays, day] })); setAvailabilityErrors(current => ({ ...current, workingDays: undefined })); }}>{dayLabels[day]}</button>)}</div></fieldset>{availabilityErrors.workingDays && <small role="alert">{availabilityErrors.workingDays}</small>}
+      <fieldset><legend>Hours available each week</legend><div className="choices">{[5, 10, 15].map(value => <button type="button" key={value} aria-pressed={availabilityDraft.weeklyHours === value} className={availabilityDraft.weeklyHours === value ? '' : 'secondary'} onClick={() => setAvailabilityDraft(current => ({ ...current, weeklyHours: value }))}>{value} hours</button>)}</div></fieldset>
+      <fieldset><legend>Preferred time</legend><div className="choices">{(['morning', 'afternoon', 'evening'] as const).map(value => <button type="button" key={value} aria-pressed={availabilityDraft.preferredTime === value} className={availabilityDraft.preferredTime === value ? '' : 'secondary'} onClick={() => setAvailabilityDraft(current => ({ ...current, preferredTime: value }))}>{value[0].toUpperCase() + value.slice(1)}</button>)}</div></fieldset>
+      {availability.saveFailure === 'unavailable' && <div className="notice" role="alert">Your changes weren’t saved. Your previous availability is unchanged. Check your connection and try again.</div>}
+      {availability.saveFailure === 'conflict' && <div className="notice" role="alert">Your availability changed in another session. Your changes weren’t saved. Reload the latest schedule before editing again.<button onClick={reloadAvailability}>Reload availability</button></div>}
+      <div className="actions"><button onClick={saveAvailability} disabled={availability.saving}>{availability.saving ? 'Saving availability…' : 'Save availability'}</button><button className="secondary" onClick={() => { setStage(availabilityReturnToSettings ? 'today' : 'workspace'); if (availabilityReturnToSettings) setView('settings'); }} disabled={availability.saving}>Cancel</button></div>
+    </section></main>;
   }
 
   if (stage === 'plan-create') {
@@ -182,7 +259,7 @@ function WorkspaceReady({ auth, gateway, planGateway, todayGateway, claraGateway
         {plans.snapshot.status === 'ready' && plans.snapshot.plans.length === 0 && <div className="empty"><h1>No Plans yet.</h1><p>Your long-term priorities will appear here after you create your first Plan.</p><button onClick={() => setStage('plan-create')}>Create first Plan</button></div>}
         {plans.snapshot.status === 'ready' && plans.snapshot.plans.length > 0 && <><div className="plans-heading"><div><h1>Your Plans</h1><p>Keep your meaningful outcomes in one place.</p></div><button onClick={() => setStage('plan-create')}>Create Plan</button></div><div className="plan-grid">{plans.snapshot.plans.map(plan => <article className="plan-card" key={plan.id}><span className="status">{plan.status}</span><h2>{plan.title}</h2><p>{plan.outcome}</p><dl><dt>Target</dt><dd>{plan.targetDate}</dd><dt>Weekly time</dt><dd>{plan.weeklyHours} hours</dd></dl></article>)}</div></>}
       </section>}
-      {view === 'settings' && <section className="empty"><span className="status">Settings</span><h1>Account and this device</h1><p>Sign out to switch accounts, or clear this device to remove Longview’s saved settings.</p>{snapshot.user.isAnonymous && !confirmSignOut && !confirmClear && <button onClick={auth.linkGoogle} disabled={snapshot.linking}>{snapshot.linking ? 'Opening Google…' : 'Link Google account'}</button>}<div className="actions"><button className="secondary" onClick={() => snapshot.user.isAnonymous ? setConfirmSignOut(true) : auth.signOut()}>Sign out</button><button className="danger" onClick={() => setConfirmClear(true)}>Clear this device</button></div>{snapshot.failure && <div className="notice" role="alert">{failureCopy[snapshot.failure]}{snapshot.failure === 'account-conflict' && snapshot.user.isAnonymous && <button onClick={auth.useExistingGoogle}>Use existing Google workspace</button>}</div>}{confirmSignOut && <div className="notice" role="alert"><p>If you sign out now, you won’t be able to return to this workspace. Link a Google account first if you want to keep access.</p><div className="actions"><button onClick={auth.linkGoogle}>Link Google account</button><button className="danger" onClick={auth.signOut}>Sign out and lose access</button><button className="secondary" onClick={() => setConfirmSignOut(false)}>Cancel</button></div></div>}{confirmClear && <div className="notice" role="alert"><p>{snapshot.user.isAnonymous ? 'Clearing this device will sign you out. Because you’re using Longview without an account, you won’t be able to return to this workspace. Link Google first to keep access.' : 'This removes Longview’s saved settings from this device and signs you out. Your workspace will still be available when you sign in again.'}</p><div className="actions">{snapshot.user.isAnonymous && <button onClick={auth.linkGoogle}>Link Google account</button>}<button className="danger" onClick={clearLocalData}>Clear this device and sign out</button><button className="secondary" onClick={() => setConfirmClear(false)}>Cancel</button></div></div>}</section>}
+      {view === 'settings' && <section className="empty"><span className="status">Settings</span><h1>Account and availability</h1><p>Adjust when Longview may plan for you, switch accounts, or clear this device.</p>{availability.snapshot.status === 'loading' && <p aria-busy="true">Loading planning availability…</p>}{availability.snapshot.status === 'error' && <div className="notice" role="alert">Planning availability could not be loaded. Your saved schedule is unchanged.<button onClick={reloadAvailability}>Try again</button></div>}{availability.snapshot.status === 'ready' && availability.snapshot.availability && <article className="plan-card availability-summary"><span className="status">Planning availability</span><h2>{availability.snapshot.availability.workingDays.map(day => dayLabels[day]).join(', ')}</h2><p>{availability.snapshot.availability.weeklyHours} hours/week · {availability.snapshot.availability.preferredTime}</p><button onClick={() => openAvailability(true)}>Edit availability</button></article>}{snapshot.user.isAnonymous && !confirmSignOut && !confirmClear && <button onClick={auth.linkGoogle} disabled={snapshot.linking}>{snapshot.linking ? 'Opening Google…' : 'Link Google account'}</button>}<div className="actions"><button className="secondary" onClick={() => snapshot.user.isAnonymous ? setConfirmSignOut(true) : auth.signOut()}>Sign out</button><button className="danger" onClick={() => setConfirmClear(true)}>Clear this device</button></div>{snapshot.failure && <div className="notice" role="alert">{failureCopy[snapshot.failure]}{snapshot.failure === 'account-conflict' && snapshot.user.isAnonymous && <button onClick={auth.useExistingGoogle}>Use existing Google workspace</button>}</div>}{confirmSignOut && <div className="notice" role="alert"><p>If you sign out now, you won’t be able to return to this workspace. Link a Google account first if you want to keep access.</p><div className="actions"><button onClick={auth.linkGoogle}>Link Google account</button><button className="danger" onClick={auth.signOut}>Sign out and lose access</button><button className="secondary" onClick={() => setConfirmSignOut(false)}>Cancel</button></div></div>}{confirmClear && <div className="notice" role="alert"><p>{snapshot.user.isAnonymous ? 'Clearing this device will sign you out. Because you’re using Longview without an account, you won’t be able to return to this workspace. Link Google first to keep access.' : 'This removes Longview’s saved settings from this device and signs you out. Your workspace will still be available when you sign in again.'}</p><div className="actions">{snapshot.user.isAnonymous && <button onClick={auth.linkGoogle}>Link Google account</button>}<button className="danger" onClick={clearLocalData}>Clear this device and sign out</button><button className="secondary" onClick={() => setConfirmClear(false)}>Cancel</button></div></div>}</section>}
       <nav aria-label="Primary"><button aria-current={view === 'today' ? 'page' : undefined} className={view === 'today' ? '' : 'secondary'} onClick={() => setView('today')}>Today</button><button aria-current={view === 'plans' ? 'page' : undefined} className={view === 'plans' ? '' : 'secondary'} onClick={() => setView('plans')}>Plans</button><button aria-current={view === 'settings' ? 'page' : undefined} className={view === 'settings' ? '' : 'secondary'} onClick={() => setView('settings')}>Settings</button></nav></main>;
   }
 
@@ -197,14 +274,14 @@ function WorkspaceReady({ auth, gateway, planGateway, todayGateway, claraGateway
           : 'Your workspace is protected by your Google account.'}</p>
         {snapshot.failure && <div className="notice" role="alert">{failureCopy[snapshot.failure]}</div>}
         {snapshot.failure === 'account-conflict' && snapshot.user.isAnonymous && <button onClick={auth.useExistingGoogle}>Use existing Google workspace</button>}
-        {snapshot.user.isAnonymous && <div className="actions"><button onClick={() => setStage('availability')}>Continue setup</button><button className="secondary" onClick={auth.linkGoogle} disabled={snapshot.linking}>{snapshot.linking ? 'Opening Google…' : 'Link Google account'}</button></div>}
-        {!snapshot.user.isAnonymous && <button onClick={() => setStage('availability')}>Continue setup</button>}
+        {snapshot.user.isAnonymous && <div className="actions"><button onClick={continueSetup} disabled={availability.snapshot.status === 'loading'}>Continue setup</button><button className="secondary" onClick={auth.linkGoogle} disabled={snapshot.linking}>{snapshot.linking ? 'Opening Google…' : 'Link Google account'}</button></div>}
+        {!snapshot.user.isAnonymous && <button onClick={continueSetup} disabled={availability.snapshot.status === 'loading'}>Continue setup</button>}
       </section>
     </main>
   );
 }
 
-export function App({ gateway = firebaseAuthGateway, workspaceGateway = lazyFirebaseWorkspaceGateway, planGateway = lazyFirebasePlanGateway, todayGateway = lazyFirebaseTodayGateway, claraGateway = previewClaraGateway }: { gateway?: AuthGateway; workspaceGateway?: WorkspaceGateway; planGateway?: PlanGateway; todayGateway?: TodayGateway; claraGateway?: ClaraGateway }) {
+export function App({ gateway = firebaseAuthGateway, workspaceGateway = lazyFirebaseWorkspaceGateway, availabilityGateway = lazyFirebaseAvailabilityGateway, planGateway = lazyFirebasePlanGateway, todayGateway = lazyFirebaseTodayGateway, claraGateway = previewClaraGateway }: { gateway?: AuthGateway; workspaceGateway?: WorkspaceGateway; availabilityGateway?: AvailabilityGateway; planGateway?: PlanGateway; todayGateway?: TodayGateway; claraGateway?: ClaraGateway }) {
   const auth = useAuth(gateway);
   const { snapshot } = auth;
 
@@ -213,7 +290,7 @@ export function App({ gateway = firebaseAuthGateway, workspaceGateway = lazyFire
   }
 
   if (snapshot.status === 'authenticated') {
-    return <WorkspaceReady auth={auth} gateway={workspaceGateway} planGateway={planGateway} todayGateway={todayGateway} claraGateway={claraGateway} />;
+    return <WorkspaceReady auth={auth} gateway={workspaceGateway} availabilityGateway={availabilityGateway} planGateway={planGateway} todayGateway={todayGateway} claraGateway={claraGateway} />;
   }
 
   return (

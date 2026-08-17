@@ -22,11 +22,43 @@ service cloud.firestore {
         allow read: if owns(uid);
         allow create: if owns(uid)
           && request.resource.data.ownerUid == uid
-          && request.resource.data.id == workspaceId;
+          && request.resource.data.id == workspaceId
+          && request.resource.data.keys().hasOnly([
+            'id', 'ownerUid', 'schemaVersion', 'createdAt', 'updatedAt',
+            'availability', 'availabilityVersion'
+          ]);
         allow update: if owns(uid)
           && request.resource.data.ownerUid == resource.data.ownerUid
           && request.resource.data.ownerUid == uid
-          && request.resource.data.id == resource.data.id;
+          && request.resource.data.id == resource.data.id
+          && request.resource.data.schemaVersion == resource.data.schemaVersion
+          && request.resource.data.keys().hasOnly([
+            'id', 'ownerUid', 'schemaVersion', 'createdAt', 'updatedAt',
+            'availability', 'availabilityVersion'
+          ])
+          && request.resource.data.diff(resource.data).affectedKeys()
+            .hasOnly(['availability', 'availabilityVersion', 'updatedAt'])
+          && request.resource.data.availabilityVersion is int
+          && request.resource.data.availabilityVersion == (
+            resource.data.keys().hasAll(['availabilityVersion'])
+              ? resource.data.availabilityVersion + 1
+              : 1
+          )
+          && request.resource.data.availability is map
+          && request.resource.data.availability.keys().hasOnly([
+            'workingDays', 'weeklyHours', 'preferredTime', 'schemaVersion', 'version'
+          ])
+          && request.resource.data.availability.workingDays is list
+          && request.resource.data.availability.workingDays.size() >= 1
+          && request.resource.data.availability.workingDays.size() <= 7
+          && request.resource.data.availability.workingDays
+            .hasOnly(['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'])
+          && request.resource.data.availability.weeklyHours is int
+          && request.resource.data.availability.weeklyHours >= 1
+          && request.resource.data.availability.weeklyHours <= 40
+          && request.resource.data.availability.preferredTime in ['morning', 'afternoon', 'evening']
+          && request.resource.data.availability.schemaVersion == 1
+          && request.resource.data.availability.version == request.resource.data.availabilityVersion;
         allow delete: if false;
 
         match /plans/{planId} {

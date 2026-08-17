@@ -1,6 +1,6 @@
 import { collection, doc, getDocs, orderBy, query, runTransaction, serverTimestamp } from 'firebase/firestore';
 import { db } from '../firebase/firestore';
-import type { Plan, PlanGateway } from './types';
+import { parseStoredPlan, type Plan, type PlanGateway } from './types';
 
 export const firebasePlanGateway: PlanGateway = {
   async create(user, draft) {
@@ -27,6 +27,10 @@ export const firebasePlanGateway: PlanGateway = {
   async list(user) {
     const plans = collection(db, 'users', user.uid, 'workspaces', 'default', 'plans');
     const snapshot = await getDocs(query(plans, orderBy('createdAt', 'desc')));
-    return snapshot.docs.map(plan => plan.data() as Plan);
+    return snapshot.docs.map(document => {
+      const plan = parseStoredPlan(document.data(), document.id, user.uid);
+      if (!plan) throw new Error('Stored Plan failed validation.');
+      return plan;
+    });
   }
 };

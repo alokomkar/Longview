@@ -7,6 +7,7 @@ import { useWorkspace } from './workspace/useWorkspace';
 import { lazyFirebasePlanGateway } from './plan/lazyPlanGateway';
 import { validatePlanDraft, type PlanDraft, type PlanErrors, type PlanGateway } from './plan/types';
 import { usePlans } from './plan/usePlans';
+import { deriveTodayStep } from './today/deriveTodayStep';
 import { useState } from 'react';
 import './styles.css';
 
@@ -47,7 +48,8 @@ function WorkspaceReady({ auth, gateway, planGateway }: {
   const [planErrors, setPlanErrors] = useState<PlanErrors>({});
   const [savingPlan, setSavingPlan] = useState(false);
   const [planSaveFailed, setPlanSaveFailed] = useState(false);
-  const plans = usePlans(snapshot.user, planGateway, stage === 'today' && view === 'plans');
+  const plans = usePlans(snapshot.user, planGateway, stage === 'today' && view !== 'settings');
+  const todayStep = deriveTodayStep(plans.snapshot.plans);
 
   const updatePlan = (field: keyof PlanDraft, value: string | number) => {
     setPlanDraft(current => ({ ...current, [field]: value }));
@@ -118,9 +120,14 @@ function WorkspaceReady({ auth, gateway, planGateway }: {
 
   if (stage === 'today') {
     return <main className="app-shell"><header><p className="eyebrow">Longview</p><span className="status">{hours} hours/week</span></header>
-      {view === 'today' && <section className="empty"><span className="status">Today</span><h1>Nothing is scheduled yet.</h1><p>Create your first Plan and Longview will shape a realistic day around your availability.</p><button onClick={() => setStage('plan-create')}>Create first Plan</button></section>}
+      {view === 'today' && <section className="today-view" aria-busy={plans.snapshot.status === 'idle' || plans.snapshot.status === 'loading'}><span className="status">Today</span>
+        {(plans.snapshot.status === 'idle' || plans.snapshot.status === 'loading') && <div className="empty"><h1>Preparing Today…</h1><p>Finding one useful step from your saved Plans.</p></div>}
+        {plans.snapshot.status === 'error' && <div className="empty"><h1>Today couldn’t be prepared.</h1><p>Your Plans are unchanged. Check your connection and try again.</p><button onClick={plans.retry}>Try again</button></div>}
+        {plans.snapshot.status === 'ready' && !todayStep && <div className="empty"><h1>Nothing is scheduled yet.</h1><p>Create your first Plan and Longview will shape a realistic day around your availability.</p><button onClick={() => setStage('plan-create')}>Create first Plan</button></div>}
+        {plans.snapshot.status === 'ready' && todayStep && <div className="today-content"><h1>One useful step is enough.</h1><p>Start with the nearest active Plan. You can refine the step later.</p><article className="plan-card today-card"><span className="status">From {todayStep.planTitle}</span><h2>{todayStep.title}</h2><p>{todayStep.description}</p><dl><dt>Time</dt><dd>{todayStep.durationMinutes} minutes</dd><dt>Plan target</dt><dd>{todayStep.targetDate}</dd></dl><small>Prepared from your saved Plan. Nothing was changed.</small></article><button className="secondary" onClick={() => setView('plans')}>View all Plans</button></div>}
+      </section>}
       {view === 'plans' && <section className="plans-view" aria-busy={plans.snapshot.status === 'loading'}><span className="status">Plans</span>
-        {plans.snapshot.status === 'loading' && <div className="empty"><h1>Loading your Plans…</h1><p>Bringing your priorities into view.</p></div>}
+        {(plans.snapshot.status === 'idle' || plans.snapshot.status === 'loading') && <div className="empty"><h1>Loading your Plans…</h1><p>Bringing your priorities into view.</p></div>}
         {plans.snapshot.status === 'error' && <div className="empty"><h1>Your Plans couldn’t be loaded.</h1><p>Check your connection and try again. Nothing has been changed.</p><button onClick={plans.retry}>Try again</button></div>}
         {plans.snapshot.status === 'ready' && plans.snapshot.plans.length === 0 && <div className="empty"><h1>No Plans yet.</h1><p>Your long-term priorities will appear here after you create your first Plan.</p><button onClick={() => setStage('plan-create')}>Create first Plan</button></div>}
         {plans.snapshot.status === 'ready' && plans.snapshot.plans.length > 0 && <><div className="plans-heading"><div><h1>Your Plans</h1><p>Keep your meaningful outcomes in one place.</p></div><button onClick={() => setStage('plan-create')}>Create Plan</button></div><div className="plan-grid">{plans.snapshot.plans.map(plan => <article className="plan-card" key={plan.id}><span className="status">{plan.status}</span><h2>{plan.title}</h2><p>{plan.outcome}</p><dl><dt>Target</dt><dd>{plan.targetDate}</dd><dt>Weekly time</dt><dd>{plan.weeklyHours} hours</dd></dl></article>)}</div></>}

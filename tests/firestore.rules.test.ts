@@ -92,6 +92,7 @@ describe('Firestore ownership rules', () => {
     await assertFails(setDoc(doc(owner, path), { ...base, ownerUid: 'other' }));
     await assertFails(setDoc(doc(owner, path), { ...base, title: 'No' }));
     await assertFails(setDoc(doc(owner, path), { ...base, weeklyHours: 41 }));
+    await assertFails(setDoc(doc(owner, path), { ...base, targetDate: 'not-a-date' }));
     await assertFails(setDoc(doc(owner, path), { ...base, unexpected: true }));
   });
 

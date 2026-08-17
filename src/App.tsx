@@ -71,7 +71,7 @@ function WorkspaceReady({ auth, gateway }: {
           : 'Your workspace is protected by your Google account.'}</p>
         {snapshot.failure && <div className="notice" role="alert">{failureCopy[snapshot.failure]}</div>}
         {snapshot.failure === 'account-conflict' && snapshot.user.isAnonymous && <button onClick={auth.useExistingGoogle}>Use existing Google workspace</button>}
-        {snapshot.user.isAnonymous && <button onClick={auth.linkGoogle} disabled={snapshot.linking}>{snapshot.linking ? 'Opening Google…' : 'Link Google account'}</button>}
+        {snapshot.user.isAnonymous && <div className="actions"><button onClick={() => setStage('availability')}>Continue setup</button><button className="secondary" onClick={auth.linkGoogle} disabled={snapshot.linking}>{snapshot.linking ? 'Opening Google…' : 'Link Google account'}</button></div>}
         {!snapshot.user.isAnonymous && <button onClick={() => setStage('availability')}>Continue setup</button>}
       </section>
     </main>

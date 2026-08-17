@@ -32,6 +32,8 @@ describe('authentication journey', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Continue anonymously' }));
     expect(await screen.findByText('You’re continuing privately.')).toBeVisible();
     expect(mock.signInAnonymously).toHaveBeenCalledOnce();
+    fireEvent.click(screen.getByRole('button', { name: 'Continue setup' }));
+    expect(screen.getByRole('heading', { name: 'Protect time you can actually keep.' })).toBeVisible();
   });
 
   it.each([

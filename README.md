@@ -20,6 +20,8 @@ unit/mobile E2E tests. Local development writes only to the Firestore emulator w
 the hosted build uses production Firestore rules and Google authentication.
 Settings provides separate sign-out and confirmed browser-local data clearing actions;
 neither action deletes the workspace record.
+Anonymous users can complete onboarding without linking Google; linking remains an
+optional cross-device access action.
 
 ## Local development
 

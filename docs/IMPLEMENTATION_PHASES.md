@@ -65,3 +65,6 @@ When a Google identity already owns a workspace, Longview never merges silently.
 preserves the anonymous workspace and offers an explicit switch to the existing Google
 workspace. Local-data clearing also unregisters the service worker before deleting its
 caches to prevent a controlled page from referencing an empty cache.
+Anonymous authentication never gates onboarding on account linking. Workspace-ready
+users can continue directly to availability and Today, while Google linking remains an
+optional secondary action available again from Settings.

@@ -1,6 +1,6 @@
 # Longview Implementation Phases
 
-Status: Day 2 Slice 2 in implementation - subject to change
+Status: Day 2 Slice 2 implemented - subject to change
 Updated: 2026-08-17
 Links: [PRD](PRODUCT_REQUIREMENTS.md) | [Mockup](design/longview-pwa-interactive-mockup.html) | [Stack](TECH_STACK.md)
 
@@ -108,6 +108,9 @@ Slice 3 was accepted and merged on 2026-08-17, completing the planned Day 1 slic
    Cancellation and failed saves leave the step open. Completing a step does not edit
    the Plan, prepare another task, or change the schedule. The linked mockup includes
    confirmation, failed-save recovery, and completed states.
+
+Slice 1 was accepted and merged on 2026-08-17.
+
 2. **Clara read recommendation:** Build a minimal typed context from the selected
    Plan and Today step and return one read-only recommendation with rationale,
    confidence, and visible source facts. Cancellation, timeout, offline, unavailable,

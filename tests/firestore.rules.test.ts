@@ -61,48 +61,70 @@ describe('Firestore ownership rules', () => {
     await assertFails(deleteDoc(workspace));
   });
 
-  it('allows only versioned owner availability updates', async () => {
-    const owner = environment.authenticatedContext('owner').firestore();
-    const other = environment.authenticatedContext('other').firestore();
-    const path = 'users/owner/workspaces/default';
-    await environment.withSecurityRulesDisabled(async context => {
-      await setDoc(doc(context.firestore(), path), {
-        id: 'default', ownerUid: 'owner', schemaVersion: 1, availability: null,
-        availabilityVersion: 0, createdAt: new Date(), updatedAt: new Date()
-      });
-    });
-    const valid = {
-      workingDays: ['mon', 'wed', 'fri'], weeklyHours: 10, preferredTime: 'morning',
-      schemaVersion: 1, version: 1
-    };
-    await assertSucceeds(updateDoc(doc(owner, path), {
-      availability: valid, availabilityVersion: 1, updatedAt: new Date()
-    }));
-    await assertFails(updateDoc(doc(owner, path), {
-      availability: valid, availabilityVersion: 1, updatedAt: new Date()
-    }));
-    await assertFails(updateDoc(doc(owner, path), {
-      availability: { ...valid, workingDays: [], version: 2 }, availabilityVersion: 2, updatedAt: new Date()
-    }));
-    await assertFails(updateDoc(doc(other, path), {
-      availability: { ...valid, version: 2 }, availabilityVersion: 2, updatedAt: new Date()
-    }));
-  });
-
-  it('allows owners to create valid immutable Plans', async () => {
+  it('allows owners to create valid Plans with a schedule', async () => {
     const owner = environment.authenticatedContext('owner').firestore();
     const plan = doc(owner, 'users/owner/workspaces/default/plans/plan-1');
     const valid = {
       id: 'plan-1', clientRequestId: 'plan-1', ownerUid: 'owner', workspaceId: 'default',
       title: 'Launch a useful product', outcome: 'Release a tested product to real users.',
       why: 'Learn which problem is worth solving well.', targetDate: '2026-09-30',
-      weeklyHours: 10, status: 'active', schemaVersion: 1,
+      weeklyHours: 10, workingDays: ['mon', 'wed', 'fri'], status: 'active', schemaVersion: 2,
+      scheduleVersion: 1,
       createdAt: new Date(), updatedAt: new Date()
     };
     await assertSucceeds(setDoc(plan, valid));
     await assertSucceeds(getDoc(plan));
-    await assertFails(setDoc(plan, { ...valid, title: 'Changed title' }));
+    await assertFails(updateDoc(plan, { title: 'Changed title', updatedAt: new Date() }));
     await assertFails(deleteDoc(plan));
+  });
+
+  it('allows only versioned owner Plan schedule updates', async () => {
+    const owner = environment.authenticatedContext('owner').firestore();
+    const other = environment.authenticatedContext('other').firestore();
+    const path = 'users/owner/workspaces/default/plans/plan-1';
+    const valid = {
+      id: 'plan-1', clientRequestId: 'plan-1', ownerUid: 'owner', workspaceId: 'default',
+      title: 'Launch a useful product', outcome: 'Release a tested product to real users.',
+      why: 'Learn which problem is worth solving well.', targetDate: '2026-09-30',
+      weeklyHours: 10, workingDays: ['mon'], status: 'active', schemaVersion: 2,
+      scheduleVersion: 1, createdAt: new Date(), updatedAt: new Date()
+    };
+    await environment.withSecurityRulesDisabled(async context => setDoc(doc(context.firestore(), path), valid));
+    await assertSucceeds(updateDoc(doc(owner, path), {
+      workingDays: ['tue', 'thu'], weeklyHours: 8, schemaVersion: 2,
+      scheduleVersion: 2, updatedAt: new Date()
+    }));
+    await assertFails(updateDoc(doc(owner, path), {
+      workingDays: ['fri'], weeklyHours: 6, schemaVersion: 2,
+      scheduleVersion: 2, updatedAt: new Date()
+    }));
+    await assertFails(updateDoc(doc(owner, path), {
+      workingDays: [], weeklyHours: 6, schemaVersion: 2,
+      scheduleVersion: 3, updatedAt: new Date()
+    }));
+    await assertFails(updateDoc(doc(other, path), {
+      workingDays: ['fri'], weeklyHours: 6, schemaVersion: 2,
+      scheduleVersion: 3, updatedAt: new Date()
+    }));
+  });
+
+  it('adds a schedule to a legacy Plan without changing its content', async () => {
+    const owner = environment.authenticatedContext('owner').firestore();
+    const path = 'users/owner/workspaces/default/plans/legacy-plan';
+    const legacy = {
+      id: 'legacy-plan', clientRequestId: 'legacy-plan', ownerUid: 'owner', workspaceId: 'default',
+      title: 'Keep an existing Plan', outcome: 'Preserve this Plan while adding its schedule.',
+      why: 'Existing work must never be silently discarded.', targetDate: '2026-09-30',
+      weeklyHours: 5, status: 'active', schemaVersion: 1,
+      createdAt: new Date(), updatedAt: new Date()
+    };
+    await environment.withSecurityRulesDisabled(async context => setDoc(doc(context.firestore(), path), legacy));
+    await assertSucceeds(updateDoc(doc(owner, path), {
+      workingDays: ['tue', 'thu'], weeklyHours: 5, schemaVersion: 2,
+      scheduleVersion: 1, updatedAt: new Date()
+    }));
+    const saved = (await getDoc(doc(owner, path))).data();
+    expect(saved).toMatchObject({ title: legacy.title, workingDays: ['tue', 'thu'], scheduleVersion: 1 });
   });
 
   it('rejects forged, malformed, and cross-user Plans', async () => {
@@ -113,13 +135,16 @@ describe('Firestore ownership rules', () => {
       id: 'plan-1', clientRequestId: 'plan-1', ownerUid: 'owner', workspaceId: 'default',
       title: 'Launch a useful product', outcome: 'Release a tested product to real users.',
       why: 'Learn which problem is worth solving well.', targetDate: '2026-09-30',
-      weeklyHours: 10, status: 'active', schemaVersion: 1,
+      weeklyHours: 10, workingDays: ['mon'], status: 'active', schemaVersion: 2,
+      scheduleVersion: 1,
       createdAt: new Date(), updatedAt: new Date()
     };
     await assertFails(setDoc(doc(other, path), base));
     await assertFails(setDoc(doc(owner, path), { ...base, ownerUid: 'other' }));
     await assertFails(setDoc(doc(owner, path), { ...base, title: 'No' }));
     await assertFails(setDoc(doc(owner, path), { ...base, weeklyHours: 41 }));
+    await assertFails(setDoc(doc(owner, path), { ...base, workingDays: [] }));
+    await assertFails(setDoc(doc(owner, path), { ...base, workingDays: ['mon', 'mon'] }));
     await assertFails(setDoc(doc(owner, path), { ...base, targetDate: 'not-a-date' }));
     await assertFails(setDoc(doc(owner, path), { ...base, unexpected: true }));
   });
@@ -130,7 +155,8 @@ describe('Firestore ownership rules', () => {
         id: 'plan-1', clientRequestId: 'plan-1', ownerUid: 'owner', workspaceId: 'default',
         title: 'Launch a useful product', outcome: 'Release a tested product to real users.',
         why: 'Learn which problem is worth solving well.', targetDate: '2026-09-30',
-        weeklyHours: 10, status: 'active', schemaVersion: 1,
+        weeklyHours: 10, workingDays: ['mon'], status: 'active', schemaVersion: 2,
+        scheduleVersion: 1,
         createdAt: new Date(), updatedAt: new Date()
       });
     });
@@ -150,7 +176,8 @@ describe('Firestore ownership rules', () => {
         id: 'plan-1', clientRequestId: 'plan-1', ownerUid: 'owner', workspaceId: 'default',
         title: 'Launch a useful product', outcome: 'Release a tested product to real users.',
         why: 'Learn which problem is worth solving well.', targetDate: '2026-09-30',
-        weeklyHours: 10, status: 'active', schemaVersion: 1,
+        weeklyHours: 10, workingDays: ['mon'], status: 'active', schemaVersion: 2,
+        scheduleVersion: 1,
         createdAt: new Date(), updatedAt: new Date()
       });
     });

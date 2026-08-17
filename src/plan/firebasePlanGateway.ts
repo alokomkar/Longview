@@ -1,6 +1,6 @@
 import { collection, doc, getDocs, orderBy, query, runTransaction, serverTimestamp } from 'firebase/firestore';
 import { db } from '../firebase/firestore';
-import { parseStoredPlan, type Plan, type PlanGateway } from './types';
+import { orderWorkingDays, parseStoredPlan, PlanScheduleConflictError, type Plan, type PlanGateway } from './types';
 
 export const firebasePlanGateway: PlanGateway = {
   async create(user, draft) {
@@ -11,6 +11,7 @@ export const firebasePlanGateway: PlanGateway = {
 
       const plan: Plan = {
         ...draft,
+        workingDays: orderWorkingDays(draft.workingDays),
         title: draft.title.trim(),
         outcome: draft.outcome.trim(),
         why: draft.why.trim(),
@@ -18,7 +19,8 @@ export const firebasePlanGateway: PlanGateway = {
         ownerUid: user.uid,
         workspaceId: 'default',
         status: 'active',
-        schemaVersion: 1
+        schemaVersion: 2,
+        scheduleVersion: 1
       };
       transaction.set(planRef, { ...plan, createdAt: serverTimestamp(), updatedAt: serverTimestamp() });
       return plan;
@@ -31,6 +33,30 @@ export const firebasePlanGateway: PlanGateway = {
       const plan = parseStoredPlan(document.data(), document.id, user.uid);
       if (!plan) throw new Error('Stored Plan failed validation.');
       return plan;
+    });
+  },
+  async updateSchedule(user, planId, draft, expectedVersion) {
+    const planRef = doc(db, 'users', user.uid, 'workspaces', 'default', 'plans', planId);
+    return runTransaction(db, async transaction => {
+      const snapshot = await transaction.get(planRef);
+      const current = snapshot.exists() ? parseStoredPlan(snapshot.data(), snapshot.id, user.uid) : null;
+      if (!current) throw new Error('Plan not found or malformed.');
+      if (current.scheduleVersion !== expectedVersion) throw new PlanScheduleConflictError('Plan schedule changed.');
+      const updated: Plan = {
+        ...current,
+        workingDays: orderWorkingDays(draft.workingDays),
+        weeklyHours: draft.weeklyHours,
+        schemaVersion: 2,
+        scheduleVersion: expectedVersion + 1
+      };
+      transaction.update(planRef, {
+        workingDays: updated.workingDays,
+        weeklyHours: updated.weeklyHours,
+        schemaVersion: updated.schemaVersion,
+        scheduleVersion: updated.scheduleVersion,
+        updatedAt: serverTimestamp()
+      });
+      return updated;
     });
   }
 };

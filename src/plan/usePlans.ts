@@ -23,5 +23,11 @@ export function usePlans(user: AuthUser, gateway: PlanGateway, enabled: boolean)
   }, [attempt, enabled, gateway, user]);
 
   const retry = useCallback(() => setAttempt(value => value + 1), []);
-  return { snapshot, retry };
+  const replace = useCallback((plan: Plan) => {
+    setSnapshot(current => ({
+      ...current,
+      plans: current.plans.map(existing => existing.id === plan.id ? plan : existing)
+    }));
+  }, []);
+  return { snapshot, retry, replace };
 }

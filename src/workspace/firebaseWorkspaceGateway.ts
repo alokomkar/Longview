@@ -35,8 +35,6 @@ export const firebaseWorkspaceGateway: WorkspaceGateway = {
           id: 'default',
           ownerUid: user.uid,
           schemaVersion: 1,
-          availability: null,
-          availabilityVersion: 0,
           createdAt: serverTimestamp(),
           updatedAt: serverTimestamp()
         });

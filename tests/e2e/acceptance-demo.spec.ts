@@ -41,10 +41,10 @@ test('review state persists and risk filters isolate missing P0 cases', async ({
 test('critical recovery states and mobile layout remain usable', async ({ page }) => {
   await page.getByRole('button', { name: /No working day selected/ }).click();
   await expect(
-    page.frameLocator('#prototype').getByText('Longview needs at least one working day')
+    page.frameLocator('#prototype').getByText('Choose at least one working day')
   ).toBeVisible();
 
-  await page.getByRole('button', { name: /Plan Details/ }).click();
+  await page.getByRole('button', { name: /Plan Details PLAN-07/ }).click();
   await expect(page.frameLocator('#prototype').getByText('Why it matters')).toBeVisible();
   await expect(page.frameLocator('#prototype').getByText(/Mon, Tue, Thu/)).toBeVisible();
 

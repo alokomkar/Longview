@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import type { Plan } from '../plan/types';
-import { deriveTodayStep } from './deriveTodayStep';
+import { deriveTodayStep, findNextScheduledDate } from './deriveTodayStep';
 
 const plan = (change: Partial<Plan> = {}): Plan => ({
   id: 'plan-1', clientRequestId: 'plan-1', ownerUid: 'owner', workspaceId: 'default',
   title: 'Launch Longview', outcome: 'Release a tested PWA to real users.',
   why: 'Validate the product direction.', targetDate: '2026-09-30', weeklyHours: 4,
-  status: 'active', schemaVersion: 1, ...change
+  workingDays: ['mon'], status: 'active', schemaVersion: 2, scheduleVersion: 1, ...change
 });
 
 describe('deriveTodayStep', () => {
@@ -34,5 +34,15 @@ describe('deriveTodayStep', () => {
 
   it('uses a stable date-and-Plan completion id', () => {
     expect(deriveTodayStep([plan()], '2026-08-17')?.completionId).toBe('2026-08-17_plan-1_first-proof-v1');
+  });
+
+  it('ignores unscheduled and ineligible Plans', () => {
+    expect(deriveTodayStep([plan({ workingDays: null })], '2026-08-17')).toBeNull();
+    expect(deriveTodayStep([plan({ workingDays: ['tue'] })], '2026-08-17')).toBeNull();
+  });
+
+  it('finds the next eligible Plan day without changing schedules', () => {
+    expect(findNextScheduledDate([plan({ workingDays: ['wed'] })], '2026-08-17')).toBe('2026-08-19');
+    expect(findNextScheduledDate([plan({ workingDays: null })], '2026-08-17')).toBeNull();
   });
 });

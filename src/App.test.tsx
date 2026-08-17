@@ -3,26 +3,31 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { App } from './App';
 import type { AuthGateway, AuthUser } from './auth/types';
 import type { WorkspaceGateway } from './workspace/types';
-import type { PlanGateway } from './plan/types';
+import { PlanScheduleConflictError, type Plan, type PlanGateway } from './plan/types';
 import type { TodayGateway } from './today/types';
 import type { ClaraGateway } from './clara/types';
-import type { AvailabilityGateway } from './availability/types';
-
-vi.mock('./availability/lazyAvailabilityGateway', () => ({
-  lazyFirebaseAvailabilityGateway: {
-    load: vi.fn(async () => null),
-    save: vi.fn(async (_user, draft, expectedVersion) => ({ ...draft, schemaVersion: 1, version: expectedVersion + 1 }))
-  }
-}));
 
 const workspaceGateway: WorkspaceGateway = {
   ensure: vi.fn(async (user: AuthUser) => ({ id: 'default' as const, ownerUid: user.uid, schemaVersion: 1 as const }))
 };
 
 const planGateway: PlanGateway = {
-  create: vi.fn(async (user, draft) => ({ ...draft, id: draft.clientRequestId, ownerUid: user.uid, workspaceId: 'default' as const, status: 'active' as const, schemaVersion: 1 as const })),
-  list: vi.fn(async () => [])
+  create: vi.fn(async (user, draft) => ({ ...draft, id: draft.clientRequestId, ownerUid: user.uid, workspaceId: 'default' as const, status: 'active' as const, schemaVersion: 2 as const, scheduleVersion: 1 })),
+  list: vi.fn(async () => []),
+  updateSchedule: vi.fn(async (_user, _planId, draft, expectedVersion) => ({
+    id: 'plan-1', clientRequestId: 'plan-1', ownerUid: 'owner', workspaceId: 'default' as const,
+    title: 'Launch Longview', outcome: 'Release a tested PWA to real users.', why: 'Validate the product direction.',
+    targetDate: '2026-08-20', ...draft, status: 'active' as const, schemaVersion: 2 as const,
+    scheduleVersion: expectedVersion + 1
+  }))
 };
+
+const scheduledPlan = (weeklyHours = 4): Plan => ({
+  id: 'plan-1', clientRequestId: 'plan-1', ownerUid: 'owner', workspaceId: 'default' as const,
+  title: 'Launch Longview', outcome: 'Release a tested PWA to real users.', why: 'Validate the product direction.',
+  targetDate: '2026-08-20', weeklyHours, workingDays: ['mon'], status: 'active',
+  schemaVersion: 2, scheduleVersion: 1
+});
 
 const todayGateway: TodayGateway = {
   get: vi.fn(async () => null),
@@ -31,11 +36,6 @@ const todayGateway: TodayGateway = {
     stepKey: 'first-proof-v1' as const, completedDate: step.date, durationMinutes: step.durationMinutes,
     status: 'completed' as const, schemaVersion: 1 as const
   }))
-};
-
-const availabilityGateway: AvailabilityGateway = {
-  load: vi.fn(async () => null),
-  save: vi.fn(async (_user, draft, expectedVersion) => ({ ...draft, schemaVersion: 1, version: expectedVersion + 1 }))
 };
 
 beforeEach(() => localStorage.clear());
@@ -63,7 +63,7 @@ describe('authentication journey', () => {
     expect(await screen.findByText('You’re continuing privately.')).toBeVisible();
     expect(mock.signInAnonymously).toHaveBeenCalledOnce();
     fireEvent.click(screen.getByRole('button', { name: 'Continue setup' }));
-    expect(screen.getByRole('heading', { name: 'Protect time you can actually keep.' })).toBeVisible();
+    expect(await screen.findByRole('heading', { name: 'Nothing is scheduled yet.' })).toBeVisible();
   });
 
   it.each([
@@ -109,48 +109,14 @@ describe('authentication journey', () => {
     expect(ensure.mock.calls.map(([user]) => user.uid)).toEqual(['stable-uid', 'stable-uid']);
   });
 
-  it('moves from workspace confirmation to availability and Empty Today', async () => {
-    render(<App gateway={gateway({ uid: 'owner', isAnonymous: false, displayName: 'Owner' })} workspaceGateway={workspaceGateway} availabilityGateway={availabilityGateway} planGateway={planGateway} />);
+  it('moves directly from workspace confirmation to Empty Today', async () => {
+    render(<App gateway={gateway({ uid: 'owner', isAnonymous: false, displayName: 'Owner' })} workspaceGateway={workspaceGateway} planGateway={planGateway} />);
     fireEvent.click(await screen.findByRole('button', { name: 'Continue setup' }));
-    fireEvent.click(screen.getByRole('button', { name: '15 hours' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Save availability' }));
     expect(await screen.findByRole('heading', { name: 'Nothing is scheduled yet.' })).toBeVisible();
-    expect(screen.getByText('15 hours/week')).toBeVisible();
-  });
-
-  it('requires a working day and does not write an invalid schedule', async () => {
-    const save = vi.fn(availabilityGateway.save);
-    render(<App gateway={gateway({ uid: 'owner', isAnonymous: false, displayName: 'Owner' })} workspaceGateway={workspaceGateway} availabilityGateway={{ ...availabilityGateway, save }} planGateway={planGateway} />);
-    fireEvent.click(await screen.findByRole('button', { name: 'Continue setup' }));
-    for (const day of ['Mon', 'Wed', 'Fri']) fireEvent.click(screen.getByRole('button', { name: day }));
-    fireEvent.click(screen.getByRole('button', { name: 'Save availability' }));
-    expect(screen.getByRole('alert')).toHaveTextContent('Choose at least one working day');
-    expect(save).not.toHaveBeenCalled();
-  });
-
-  it('restores and edits accepted availability from Settings', async () => {
-    localStorage.setItem('longview:onboarding', 'complete');
-    const accepted = { workingDays: ['tue', 'thu'] as const, weeklyHours: 10, preferredTime: 'afternoon' as const, schemaVersion: 1 as const, version: 3 };
-    const save = vi.fn(async (_user, draft) => ({ ...draft, schemaVersion: 1 as const, version: 4 }));
-    render(<App gateway={gateway({ uid: 'owner', isAnonymous: false, displayName: 'Owner' })} workspaceGateway={workspaceGateway} availabilityGateway={{ load: vi.fn(async () => ({ ...accepted, workingDays: [...accepted.workingDays] })), save }} planGateway={planGateway} />);
-    fireEvent.click(await screen.findByRole('button', { name: 'Settings' }));
-    expect(await screen.findByRole('heading', { name: 'Tue, Thu' })).toBeVisible();
-    fireEvent.click(screen.getByRole('button', { name: 'Edit availability' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Sat' }));
-    fireEvent.click(screen.getByRole('button', { name: '15 hours' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Evening' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Save availability' }));
-    expect(await screen.findByRole('heading', { name: 'Tue, Thu, Sat' })).toBeVisible();
-    expect(screen.getByText('15 hours/week · evening')).toBeVisible();
-    expect(save).toHaveBeenCalledWith(expect.objectContaining({ uid: 'owner' }), expect.objectContaining({ weeklyHours: 15, preferredTime: 'evening' }), 3);
-  });
-
-  it('lets an existing workspace set availability from Settings', async () => {
-    localStorage.setItem('longview:onboarding', 'complete');
-    render(<App gateway={gateway({ uid: 'owner', isAnonymous: false, displayName: 'Owner' })} workspaceGateway={workspaceGateway} availabilityGateway={availabilityGateway} planGateway={planGateway} />);
-    fireEvent.click(await screen.findByRole('button', { name: 'Settings' }));
-    fireEvent.click(await screen.findByRole('button', { name: 'Set availability' }));
-    expect(screen.getByRole('heading', { name: 'Protect time you can actually keep.' })).toBeVisible();
+    expect(screen.queryByText(/workspace availability/i)).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Settings' }));
+    expect(screen.getByRole('heading', { name: 'Account and privacy' })).toBeVisible();
+    expect(screen.queryByRole('button', { name: /availability/i })).not.toBeInTheDocument();
   });
 
   it('signs out from Settings without clearing saved onboarding', async () => {
@@ -224,7 +190,7 @@ describe('authentication journey', () => {
     fireEvent.change(screen.getByLabelText('Desired outcome'), { target: { value: 'Release a tested product to real users.' } });
     fireEvent.change(screen.getByLabelText('Why this matters'), { target: { value: 'Learn which problem is worth solving well.' } });
     fireEvent.change(screen.getByLabelText('Target date'), { target: { value: '2026-09-30' } });
-    fireEvent.change(screen.getByLabelText('Hours available each week'), { target: { value: '10' } });
+    fireEvent.change(screen.getByLabelText('Hours for this Plan each week'), { target: { value: '10' } });
     fireEvent.click(screen.getByRole('button', { name: 'Review Plan' }));
     expect(screen.getByRole('heading', { name: 'Launch a useful product' })).toBeVisible();
     fireEvent.click(screen.getByRole('button', { name: 'Create Plan' }));
@@ -250,19 +216,74 @@ describe('authentication journey', () => {
     expect(create.mock.calls[0][1].clientRequestId).toBe(create.mock.calls[1][1].clientRequestId);
   });
 
+  it('requires at least one working day before reviewing a Plan', async () => {
+    localStorage.setItem('longview:onboarding', 'complete');
+    const create = vi.fn(planGateway.create);
+    render(<App gateway={gateway({ uid: 'owner', isAnonymous: false, displayName: 'Owner' })} workspaceGateway={workspaceGateway} planGateway={{ ...planGateway, create }} />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Create first Plan' }));
+    fireEvent.change(screen.getByLabelText('Plan title'), { target: { value: 'Launch a useful product' } });
+    fireEvent.change(screen.getByLabelText('Desired outcome'), { target: { value: 'Release a tested product to real users.' } });
+    fireEvent.change(screen.getByLabelText('Why this matters'), { target: { value: 'Learn which problem is worth solving well.' } });
+    fireEvent.change(screen.getByLabelText('Target date'), { target: { value: '2026-09-30' } });
+    for (const day of ['Mon', 'Wed', 'Fri']) fireEvent.click(screen.getByRole('button', { name: day }));
+    fireEvent.click(screen.getByRole('button', { name: 'Review Plan' }));
+    expect(screen.getByRole('alert')).toHaveTextContent('Choose at least one working day');
+    expect(create).not.toHaveBeenCalled();
+  });
+
   it('loads and presents owner Plans when the Plans tab opens', async () => {
     localStorage.setItem('longview:onboarding', 'complete');
-    const list = vi.fn(async () => [{
-      id: 'plan-1', clientRequestId: 'plan-1', ownerUid: 'owner', workspaceId: 'default' as const,
-      title: 'Launch Longview', outcome: 'Release a tested PWA to real users.', why: 'Validate the product direction.',
-      targetDate: '2026-08-20', weeklyHours: 10, status: 'active' as const, schemaVersion: 1 as const
-    }]);
+    const list = vi.fn(async () => [scheduledPlan(10)]);
     render(<App gateway={gateway({ uid: 'owner', isAnonymous: false, displayName: 'Owner' })} workspaceGateway={workspaceGateway} planGateway={{ ...planGateway, list }} todayGateway={todayGateway} />);
     fireEvent.click(await screen.findByRole('button', { name: 'Plans' }));
     expect(await screen.findByRole('heading', { name: 'Launch Longview' })).toBeVisible();
     expect(screen.getByText('Release a tested PWA to real users.')).toBeVisible();
     expect(screen.getByText('10 hours')).toBeVisible();
     expect(list).toHaveBeenCalledOnce();
+  });
+
+  it('adds a schedule to an existing unscheduled Plan from Plan Details', async () => {
+    localStorage.setItem('longview:onboarding', 'complete');
+    const legacy = { ...scheduledPlan(), workingDays: null, schemaVersion: 1 as const, scheduleVersion: 0 };
+    const updateSchedule = vi.fn(async (_user, _planId, draft) => ({ ...legacy, ...draft, schemaVersion: 2 as const, scheduleVersion: 1 }));
+    render(<App gateway={gateway({ uid: 'owner', isAnonymous: false, displayName: 'Owner' })} workspaceGateway={workspaceGateway} planGateway={{ ...planGateway, list: vi.fn(async () => [legacy]), updateSchedule }} />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Plans' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'View Plan details' }));
+    expect(screen.getByText('Schedule not set')).toBeVisible();
+    fireEvent.click(screen.getByRole('button', { name: 'Add schedule' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Save schedule' }));
+    expect(await screen.findByText('Mon, Wed, Fri')).toBeVisible();
+    expect(updateSchedule).toHaveBeenCalledWith(expect.objectContaining({ uid: 'owner' }), 'plan-1', expect.objectContaining({ workingDays: ['mon', 'wed', 'fri'] }), 0);
+  });
+
+  it('retains a Plan schedule draft after a failed save and retries safely', async () => {
+    localStorage.setItem('longview:onboarding', 'complete');
+    const current = scheduledPlan();
+    const updateSchedule = vi.fn().mockRejectedValueOnce(new Error('offline')).mockImplementation(async (_user, _planId, draft) => ({ ...current, ...draft, scheduleVersion: 2 }));
+    render(<App gateway={gateway({ uid: 'owner', isAnonymous: false, displayName: 'Owner' })} workspaceGateway={workspaceGateway} planGateway={{ ...planGateway, list: vi.fn(async () => [current]), updateSchedule }} />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Plans' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'View Plan details' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Edit schedule' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Tue' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Save schedule' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('existing Plan is unchanged');
+    expect(screen.getByRole('button', { name: 'Tue' })).toHaveAttribute('aria-pressed', 'true');
+    fireEvent.click(screen.getByRole('button', { name: 'Save schedule' }));
+    expect(await screen.findByText('Mon, Tue')).toBeVisible();
+    expect(updateSchedule).toHaveBeenCalledTimes(2);
+  });
+
+  it('blocks a stale Plan schedule edit and offers reload', async () => {
+    localStorage.setItem('longview:onboarding', 'complete');
+    const current = scheduledPlan();
+    const updateSchedule = vi.fn(async () => { throw new PlanScheduleConflictError('stale'); });
+    render(<App gateway={gateway({ uid: 'owner', isAnonymous: false, displayName: 'Owner' })} workspaceGateway={workspaceGateway} planGateway={{ ...planGateway, list: vi.fn(async () => [current]), updateSchedule }} />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Plans' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'View Plan details' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Edit schedule' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Save schedule' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('updated in another session');
+    expect(screen.getByRole('button', { name: 'Reload Plan' })).toBeVisible();
   });
 
   it('shows the empty Plans action only after loading finishes', async () => {
@@ -290,11 +311,7 @@ describe('authentication journey', () => {
 
   it('prepares one deterministic Today step from a saved Plan', async () => {
     localStorage.setItem('longview:onboarding', 'complete');
-    const list = vi.fn(async () => [{
-      id: 'plan-1', clientRequestId: 'plan-1', ownerUid: 'owner', workspaceId: 'default' as const,
-      title: 'Launch Longview', outcome: 'Release a tested PWA to real users.', why: 'Validate the product direction.',
-      targetDate: '2026-08-20', weeklyHours: 3, status: 'active' as const, schemaVersion: 1 as const
-    }]);
+    const list = vi.fn(async () => [scheduledPlan(3)]);
     render(<App gateway={gateway({ uid: 'owner', isAnonymous: false, displayName: 'Owner' })} workspaceGateway={workspaceGateway} planGateway={{ ...planGateway, list }} />);
     expect(await screen.findByRole('heading', { name: 'One useful step is enough.' })).toBeVisible();
     expect(screen.getByRole('heading', { name: 'Define the first proof of progress' })).toBeVisible();
@@ -304,11 +321,7 @@ describe('authentication journey', () => {
 
   it('requires confirmation before recording Today completion', async () => {
     localStorage.setItem('longview:onboarding', 'complete');
-    const list = vi.fn(async () => [{
-      id: 'plan-1', clientRequestId: 'plan-1', ownerUid: 'owner', workspaceId: 'default' as const,
-      title: 'Launch Longview', outcome: 'Release a tested PWA to real users.', why: 'Validate the product direction.',
-      targetDate: '2026-08-20', weeklyHours: 4, status: 'active' as const, schemaVersion: 1 as const
-    }]);
+    const list = vi.fn(async () => [scheduledPlan()]);
     const complete = vi.fn(todayGateway.complete);
     render(<App gateway={gateway({ uid: 'owner', isAnonymous: false, displayName: 'Owner' })} workspaceGateway={workspaceGateway} planGateway={{ ...planGateway, list }} todayGateway={{ get: vi.fn(async () => null), complete }} />);
     fireEvent.click(await screen.findByRole('button', { name: 'Mark step complete' }));
@@ -325,11 +338,7 @@ describe('authentication journey', () => {
 
   it('keeps the same completion id when a failed save is retried', async () => {
     localStorage.setItem('longview:onboarding', 'complete');
-    const list = vi.fn(async () => [{
-      id: 'plan-1', clientRequestId: 'plan-1', ownerUid: 'owner', workspaceId: 'default' as const,
-      title: 'Launch Longview', outcome: 'Release a tested PWA to real users.', why: 'Validate the product direction.',
-      targetDate: '2026-08-20', weeklyHours: 4, status: 'active' as const, schemaVersion: 1 as const
-    }]);
+    const list = vi.fn(async () => [scheduledPlan()]);
     const complete = vi.fn().mockRejectedValueOnce(new Error('offline')).mockImplementation(todayGateway.complete);
     render(<App gateway={gateway({ uid: 'owner', isAnonymous: false, displayName: 'Owner' })} workspaceGateway={workspaceGateway} planGateway={{ ...planGateway, list }} todayGateway={{ get: vi.fn(async () => null), complete }} />);
     fireEvent.click(await screen.findByRole('button', { name: 'Mark step complete' }));
@@ -347,11 +356,7 @@ describe('authentication journey', () => {
       planId: 'plan-1', stepKey: 'first-proof-v1' as const, completedDate: '2026-08-17',
       durationMinutes: 60, status: 'completed' as const, schemaVersion: 1 as const
     };
-    const list = vi.fn(async () => [{
-      id: 'plan-1', clientRequestId: 'plan-1', ownerUid: 'owner', workspaceId: 'default' as const,
-      title: 'Launch Longview', outcome: 'Release a tested PWA to real users.', why: 'Validate the product direction.',
-      targetDate: '2026-08-20', weeklyHours: 4, status: 'active' as const, schemaVersion: 1 as const
-    }]);
+    const list = vi.fn(async () => [scheduledPlan()]);
     render(<App gateway={gateway({ uid: 'owner', isAnonymous: false, displayName: 'Owner' })} workspaceGateway={workspaceGateway} planGateway={{ ...planGateway, list }} todayGateway={{ get: vi.fn(async () => saved), complete: vi.fn(todayGateway.complete) }} />);
     expect(await screen.findByRole('heading', { name: 'Today’s step is complete.' })).toBeVisible();
     expect(screen.queryByRole('button', { name: 'Mark step complete' })).not.toBeInTheDocument();
@@ -359,11 +364,7 @@ describe('authentication journey', () => {
 
   it('retries completion-state loading without changing the step', async () => {
     localStorage.setItem('longview:onboarding', 'complete');
-    const list = vi.fn(async () => [{
-      id: 'plan-1', clientRequestId: 'plan-1', ownerUid: 'owner', workspaceId: 'default' as const,
-      title: 'Launch Longview', outcome: 'Release a tested PWA to real users.', why: 'Validate the product direction.',
-      targetDate: '2026-08-20', weeklyHours: 4, status: 'active' as const, schemaVersion: 1 as const
-    }]);
+    const list = vi.fn(async () => [scheduledPlan()]);
     const get = vi.fn().mockRejectedValueOnce(new Error('offline')).mockResolvedValueOnce(null);
     render(<App gateway={gateway({ uid: 'owner', isAnonymous: false, displayName: 'Owner' })} workspaceGateway={workspaceGateway} planGateway={{ ...planGateway, list }} todayGateway={{ get, complete: vi.fn(todayGateway.complete) }} />);
     expect(await screen.findByRole('alert')).toHaveTextContent('Progress couldn’t be checked');
@@ -374,11 +375,7 @@ describe('authentication journey', () => {
 
   it('shows a scoped read-only Clara recommendation without writing', async () => {
     localStorage.setItem('longview:onboarding', 'complete');
-    const list = vi.fn(async () => [{
-      id: 'plan-1', clientRequestId: 'plan-1', ownerUid: 'owner', workspaceId: 'default' as const,
-      title: 'Launch Longview', outcome: 'Release a tested PWA to real users.', why: 'Validate the product direction.',
-      targetDate: '2026-08-20', weeklyHours: 4, status: 'active' as const, schemaVersion: 1 as const
-    }]);
+    const list = vi.fn(async () => [scheduledPlan()]);
     const recommend = vi.fn(async context => ({
       schemaVersion: 1, requestId: context.requestId, sourcePlanId: context.plan.id,
       headline: 'Protect the smallest proof', recommendation: 'Finish this step before adding new work.',
@@ -396,11 +393,7 @@ describe('authentication journey', () => {
 
   it('fails closed on invalid Clara output and retries safely', async () => {
     localStorage.setItem('longview:onboarding', 'complete');
-    const list = vi.fn(async () => [{
-      id: 'plan-1', clientRequestId: 'plan-1', ownerUid: 'owner', workspaceId: 'default' as const,
-      title: 'Launch Longview', outcome: 'Release a tested PWA to real users.', why: 'Validate the product direction.',
-      targetDate: '2026-08-20', weeklyHours: 4, status: 'active' as const, schemaVersion: 1 as const
-    }]);
+    const list = vi.fn(async () => [scheduledPlan()]);
     const recommend = vi.fn().mockResolvedValueOnce({ proposedChange: { unsafe: true } }).mockImplementation(async context => ({
       schemaVersion: 1, requestId: context.requestId, sourcePlanId: context.plan.id,
       headline: 'Protect the smallest proof', recommendation: 'Finish this step before adding new work.',

@@ -26,8 +26,10 @@ Because MVP recovery is unavailable, anonymous sign-out warns about losing acces
 offers Google linking before confirmation.
 Validated Plan creation uses an explicit review and idempotent owner-scoped Firestore
 write. The Plans tab now loads the owner's saved Plans with loading, empty, failure,
-retry, and populated states. Editing, deletion, collaboration, and Today scheduling
-remain outside this slice.
+retry, and populated states. Today deterministically selects the nearest active target
+and prepares one bounded 30–60 minute proof-of-progress step. Stored Plans are checked
+at runtime before use, and this step performs no automatic write. Editing, deletion,
+collaboration, completion tracking, and model recommendations remain outside this slice.
 
 ## Local development
 

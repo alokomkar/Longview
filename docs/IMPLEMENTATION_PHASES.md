@@ -1,6 +1,6 @@
 # Longview Implementation Phases
 
-Status: Day 1 Slice 2 implemented - subject to change
+Status: Day 1 Slice 3 implemented - subject to change
 Updated: 2026-08-17
 Links: [PRD](PRODUCT_REQUIREMENTS.md) | [Mockup](design/longview-pwa-interactive-mockup.html) | [Stack](TECH_STACK.md)
 
@@ -82,10 +82,18 @@ beyond the MVP; the underlying workspace is not silently deleted.
    into editing, deletion, or collaboration. Loading, empty, populated, and failed
    reads have explicit mobile states; failed reads preserve data and offer retry.
 3. **First Today step:** Derive one deterministic, reviewable next step from the saved
-   Plan. Model-generated recommendations remain a separate Day 2 boundary.
+   Plan. Model-generated recommendations remain a separate Day 2 boundary. The nearest
+   active target wins with stable tie-breaking; weekly capacity bounds the step to
+   30–60 minutes. This slice performs no automatic write.
 
 Slice 1 was accepted and merged on 2026-08-17. Slice 2 reads the authenticated
 owner's Plans only when the Plans tab opens, orders them by creation time, and keeps
 read failures non-destructive. Firestore rules test owner listing plus unauthenticated
 and cross-owner denial. The linked mockup exposes populated, loading, empty, and
 failed-list states under Long-term Plans.
+
+Slice 2 was accepted and merged on 2026-08-17. Slice 3 validates stored Plan data at
+runtime, fails closed on malformed records, and prepares one deterministic Today step.
+The result identifies its source Plan and explains that nothing was changed. Empty,
+loading, read-failure/retry, and ready states remain explicit. The linked mockup's first
+step and Today failure states reflect this non-model, non-writing boundary.

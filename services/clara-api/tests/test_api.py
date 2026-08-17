@@ -6,7 +6,8 @@ from clara_api.auth import AuthenticationError
 from clara_api.approval import ApprovalConflictError, ApprovalNotFoundError, ApprovalUnavailableError
 from clara_api.engine import EngineUnavailableError
 from clara_api.main import create_app
-from clara_api.models import ApprovalResponse
+from clara_api.models import ApprovalResponse, ScheduleRun
+from clara_api.schedule_runs import ScheduleRunNotFoundError, ScheduleRunUnavailableError
 
 
 REQUEST = {
@@ -51,6 +52,19 @@ PROPOSAL = {
     "rationale": "A midweek checkpoint reduces the gap between sessions.",
     "downstreamEffect": "Today can select this Plan on Wednesday without changing weekly time.",
 }
+SCHEDULE_REQUEST = {
+    "schemaVersion": 1, "requestId": "schedule-request-1", "selectedDate": "2026-08-17",
+    "capacityMinutes": 120, "retryOf": None,
+    "plans": [{"id": "plan-1", "title": "Launch Longview", "targetDate": "2026-08-20",
+               "weeklyHours": 4, "workingDays": ["mon", "fri"], "mode": "Focus"}],
+    "steps": [{"planId": "plan-1", "planTitle": "Launch Longview", "title": "Define the first proof",
+               "description": "Write one observable result.", "durationMinutes": 60}],
+}
+SCHEDULE_RUN = ScheduleRun.model_validate({
+    "schemaVersion": 1, "runId": "run-1", "requestId": "schedule-request-1",
+    "selectedDate": "2026-08-17", "status": "queued", "checkpoint": 1,
+    "checkpointLabel": "Run queued", "retryOf": None, "proposal": None, "failure": None,
+})
 
 
 class Verifier:
@@ -89,10 +103,31 @@ class ApprovalRepository:
         return self.result
 
 
-def client(verifier=None, engine=None, timeout=8, approval_repository=None):
+class ScheduleCoordinator:
+    def __init__(self, result=SCHEDULE_RUN, error=None):
+        self.result, self.error, self.calls = result, error, []
+
+    async def create(self, user_id, request):
+        self.calls.append(("create", user_id, request))
+        if self.error: raise self.error
+        return self.result
+
+    async def get(self, user_id, run_id):
+        self.calls.append(("get", user_id, run_id))
+        if self.error: raise self.error
+        return self.result
+
+    async def cancel(self, user_id, run_id):
+        self.calls.append(("cancel", user_id, run_id))
+        if self.error: raise self.error
+        return ScheduleRun.model_validate({**self.result.model_dump(by_alias=True), "status": "cancelled"})
+
+
+def client(verifier=None, engine=None, timeout=8, approval_repository=None, schedule_run_coordinator=None):
     return TestClient(create_app(
         verifier=verifier or Verifier(), engine=engine or Engine(),
-        approval_repository=approval_repository, timeout_seconds=timeout
+        approval_repository=approval_repository, schedule_run_coordinator=schedule_run_coordinator,
+        timeout_seconds=timeout
     ))
 
 
@@ -118,6 +153,42 @@ def test_cors_allows_only_the_configured_pwa_origin():
     assert allowed.status_code == 200
     assert allowed.headers["access-control-allow-origin"] == "https://longview.example.test"
     assert "access-control-allow-origin" not in denied.headers
+
+
+def test_schedule_run_create_poll_and_cancel_are_owner_scoped():
+    coordinator = ScheduleCoordinator()
+    api = client(schedule_run_coordinator=coordinator)
+    headers = {"Authorization": "Bearer token"}
+    assert api.post("/v1/clara/schedule-runs", json=SCHEDULE_REQUEST, headers=headers).status_code == 202
+    assert api.get("/v1/clara/schedule-runs/run-1", headers=headers).status_code == 200
+    cancelled = api.post("/v1/clara/schedule-runs/run-1/cancel", headers=headers)
+    assert cancelled.json()["status"] == "cancelled"
+    assert [(call[0], call[1]) for call in coordinator.calls] == [
+        ("create", "owner-1"), ("get", "owner-1"), ("cancel", "owner-1")
+    ]
+
+
+def test_schedule_run_rejects_malformed_context_before_work():
+    coordinator = ScheduleCoordinator()
+    response = client(schedule_run_coordinator=coordinator).post(
+        "/v1/clara/schedule-runs",
+        json={**SCHEDULE_REQUEST, "steps": [{**SCHEDULE_REQUEST["steps"][0], "planId": "missing"}]},
+        headers={"Authorization": "Bearer token"},
+    )
+    assert response.status_code == 422
+    assert coordinator.calls == []
+
+
+def test_schedule_run_maps_missing_and_unavailable_without_leaking_details():
+    headers = {"Authorization": "Bearer token"}
+    missing = client(schedule_run_coordinator=ScheduleCoordinator(error=ScheduleRunNotFoundError())).get(
+        "/v1/clara/schedule-runs/missing", headers=headers
+    )
+    unavailable = client(schedule_run_coordinator=ScheduleCoordinator(error=ScheduleRunUnavailableError())).post(
+        "/v1/clara/schedule-runs", json=SCHEDULE_REQUEST, headers=headers
+    )
+    assert missing.status_code == 404
+    assert unavailable.status_code == 503
 
 
 def test_verifies_token_and_returns_strict_read_only_response():

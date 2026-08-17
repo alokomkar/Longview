@@ -126,3 +126,92 @@ class ApprovalResponse(StrictModel):
     weekly_hours: int = Field(alias="weeklyHours", ge=1, le=40)
     audit_event_id: str = Field(alias="auditEventId", min_length=1, max_length=128)
     duplicate: bool
+
+
+class ScheduleRunPlanContext(StrictModel):
+    id: str = Field(min_length=1, max_length=128)
+    title: str = Field(min_length=3, max_length=80)
+    target_date: date = Field(alias="targetDate")
+    weekly_hours: int = Field(alias="weeklyHours", ge=1, le=40)
+    working_days: list[Literal["mon", "tue", "wed", "thu", "fri", "sat", "sun"]] = Field(
+        alias="workingDays", min_length=1, max_length=7
+    )
+    mode: Literal["Focus", "Maintain", "Prepare"]
+
+    @model_validator(mode="after")
+    def validate_working_days(self):
+        _validate_working_days(self.working_days)
+        return self
+
+
+class ScheduleRunStepContext(StrictModel):
+    plan_id: str = Field(alias="planId", min_length=1, max_length=128)
+    plan_title: str = Field(alias="planTitle", min_length=3, max_length=80)
+    title: str = Field(min_length=3, max_length=120)
+    description: str = Field(min_length=3, max_length=500)
+    duration_minutes: int = Field(alias="durationMinutes", ge=1, le=480)
+
+
+class CreateScheduleRunRequest(StrictModel):
+    schema_version: Literal[1] = Field(alias="schemaVersion")
+    request_id: str = Field(alias="requestId", min_length=1, max_length=128)
+    selected_date: date = Field(alias="selectedDate")
+    capacity_minutes: int = Field(alias="capacityMinutes", ge=30, le=480)
+    plans: list[ScheduleRunPlanContext] = Field(min_length=1, max_length=10)
+    steps: list[ScheduleRunStepContext] = Field(min_length=1, max_length=10)
+    retry_of: str | None = Field(default=None, alias="retryOf", max_length=128)
+
+    @model_validator(mode="after")
+    def validate_plan_references(self):
+        plan_ids = {plan.id for plan in self.plans}
+        if len(plan_ids) != len(self.plans):
+            raise ValueError("plan ids must be unique")
+        if any(step.plan_id not in plan_ids for step in self.steps):
+            raise ValueError("every step must reference a supplied plan")
+        return self
+
+
+class ScheduleBlock(StrictModel):
+    plan_id: str = Field(alias="planId", min_length=1, max_length=128)
+    plan_title: str = Field(alias="planTitle", min_length=3, max_length=80)
+    title: str = Field(min_length=3, max_length=120)
+    duration_minutes: int = Field(alias="durationMinutes", ge=1, le=480)
+
+
+class ScheduleProposal(StrictModel):
+    selected_date: date = Field(alias="selectedDate")
+    capacity_minutes: int = Field(alias="capacityMinutes", ge=30, le=480)
+    total_minutes: int = Field(alias="totalMinutes", ge=1, le=480)
+    rationale: str = Field(min_length=10, max_length=300)
+    blocks: list[ScheduleBlock] = Field(min_length=1, max_length=10)
+
+    @model_validator(mode="after")
+    def validate_totals(self):
+        if self.total_minutes > self.capacity_minutes:
+            raise ValueError("proposal exceeds capacity")
+        if sum(block.duration_minutes for block in self.blocks) != self.total_minutes:
+            raise ValueError("proposal total must equal its blocks")
+        return self
+
+
+class ScheduleRun(StrictModel):
+    schema_version: Literal[1] = Field(alias="schemaVersion")
+    run_id: str = Field(alias="runId", min_length=1, max_length=128)
+    request_id: str = Field(alias="requestId", min_length=1, max_length=128)
+    selected_date: date = Field(alias="selectedDate")
+    status: Literal["queued", "running", "succeeded", "cancelled", "failed", "timed-out"]
+    checkpoint: int = Field(ge=1, le=4)
+    checkpoint_label: str = Field(alias="checkpointLabel", min_length=3, max_length=80)
+    retry_of: str | None = Field(default=None, alias="retryOf", max_length=128)
+    proposal: ScheduleProposal | None = None
+    failure: str | None = Field(default=None, max_length=160)
+
+    @model_validator(mode="after")
+    def validate_terminal_state(self):
+        if self.status == "succeeded" and (self.checkpoint != 4 or self.proposal is None or self.failure):
+            raise ValueError("successful runs require one published proposal")
+        if self.status != "succeeded" and self.proposal is not None:
+            raise ValueError("only successful runs may expose a proposal")
+        if self.status in {"failed", "timed-out"} and not self.failure:
+            raise ValueError("failed runs require a reason")
+        return self

@@ -43,6 +43,10 @@ dd { margin:0; color:#dce7e9; line-height:1.5; }
 .plan-card h2 { margin:12px 0 8px; font:700 1.5rem/1.15 Georgia,serif; }
 .plan-card p { margin:0 0 18px; }
 .plan-card dl { grid-template-columns:auto 1fr; margin:0; font-size:.92rem; }
+.clara-card { margin:18px 0; border-color:#3a796f; }
+.clara-card dl { display:block; margin:16px 0; }
+.clara-card dl > div { display:grid; grid-template-columns:100px 1fr; gap:12px; padding:6px 0; }
+.clara-card > button { margin-top:18px; }
 .app-shell nav { position:fixed; left:50%; bottom:18px; transform:translateX(-50%); display:flex; gap:8px; width:min(calc(100% - 32px),520px); padding:8px; border:1px solid #284458; border-radius:18px; background:#0a1b2af2; backdrop-filter:blur(12px); }
 .app-shell nav button { flex:1; min-height:44px; }
 .system-banner { position:fixed; z-index:10; top:12px; left:50%; transform:translateX(-50%); width:min(calc(100% - 24px),620px); padding:10px 14px; border-radius:12px; background:#392b13; color:#ffe8af; border:1px solid #f4c96b; text-align:center; }

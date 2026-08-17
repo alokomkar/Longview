@@ -9,7 +9,9 @@ changes, and preserve the reasoning behind important decisions.
 - [Product requirements](docs/PRODUCT_REQUIREMENTS.md)
 - [Implementation phases](docs/IMPLEMENTATION_PHASES.md)
 - [Hackathon tech stack](docs/TECH_STACK.md)
+- [Hackathon readiness ledger](docs/HACKATHON_READINESS.md)
 - [Interactive PWA mockup](docs/design/longview-pwa-interactive-mockup.html)
+- [Hackathon acceptance demo](docs/design/longview-hackathon-acceptance-demo.html)
 
 ## Current status
 
@@ -33,6 +35,9 @@ collaboration, and model recommendations remain outside this slice.
 Today-step completion now requires explicit confirmation and records one immutable,
 owner-scoped event. Retrying reuses the same completion ID, reload restores the result,
 and neither the Plan nor schedule is changed.
+A typed, read-only Clara recommendation preview now shows its source facts, rationale,
+and confidence. Its deterministic preview adapter validates the UI and failure
+contract; it is not a managed model call and cannot change durable data.
 
 ## Local development
 

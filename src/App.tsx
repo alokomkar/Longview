@@ -11,7 +11,10 @@ import { deriveTodayStep, type TodayStep } from './today/deriveTodayStep';
 import { lazyFirebaseTodayGateway } from './today/lazyTodayGateway';
 import type { TodayGateway } from './today/types';
 import { useTodayCompletion } from './today/useTodayCompletion';
-import { useMemo, useState } from 'react';
+import { buildClaraContext, type ClaraGateway } from './clara/types';
+import { previewClaraGateway } from './clara/previewGateway';
+import { useClaraRecommendation, type ClaraFailure } from './clara/useClaraRecommendation';
+import { useEffect, useMemo, useState } from 'react';
 import './styles.css';
 
 const failureCopy: Record<AuthFailure, string> = {
@@ -29,16 +32,37 @@ const localDate = () => {
 };
 
 const requestId = () => globalThis.crypto?.randomUUID?.() ?? `plan-${Date.now()}`;
+const claraFailureCopy: Record<ClaraFailure, [string, string]> = {
+  offline: ['You’re offline.', 'Reconnect and try again. Your step and Plan are unchanged.'],
+  timeout: ['Clara took too long.', 'The request stopped safely. Your step and Plan are unchanged.'],
+  malformed: ['Clara’s response could not be used.', 'It did not match the expected format, so nothing was applied.'],
+  unavailable: ['Clara is unavailable.', 'Try again shortly. Your step and Plan are unchanged.']
+};
 
 function TodayStepCard({ step, completed = false }: { step: TodayStep; completed?: boolean }) {
   return <article className={`plan-card today-card${completed ? ' success' : ''}`}><span className="status">{completed ? `Completed · ${step.planTitle}` : `From ${step.planTitle}`}</span><h2>{step.title}</h2>{!completed && <p>{step.description}</p>}<dl><dt>Time</dt><dd>{step.durationMinutes} minutes</dd><dt>{completed ? 'Completed' : 'Plan target'}</dt><dd>{completed ? step.date : step.targetDate}</dd></dl><small>{completed ? 'Your Plan stays active. No new schedule was created.' : 'Prepared from your saved Plan. Nothing was changed.'}</small></article>;
 }
 
-function WorkspaceReady({ auth, gateway, planGateway, todayGateway }: {
+function ClaraPanel({ clara, onClose }: {
+  clara: ReturnType<typeof useClaraRecommendation>;
+  onClose: () => void;
+}) {
+  const { snapshot } = clara;
+  if (snapshot.status === 'loading') return <aside className="plan-card clara-card" aria-busy="true"><span className="status">Clara · read only</span><h2>Reviewing this step…</h2><p>Using only the selected Plan and Today step.</p><button className="secondary" onClick={onClose}>Cancel</button></aside>;
+  if (snapshot.status === 'error') {
+    const [title, detail] = claraFailureCopy[snapshot.failure];
+    return <aside className="plan-card clara-card" role="alert"><span className="status">Nothing changed</span><h2>{title}</h2><p>{detail}</p><div className="actions"><button onClick={clara.retry}>Try again</button><button className="secondary" onClick={onClose}>Close</button></div></aside>;
+  }
+  if (snapshot.status === 'ready') return <aside className="plan-card clara-card"><span className="status">Read-only recommendation · {snapshot.recommendation.confidence} confidence</span><h2>{snapshot.recommendation.headline}</h2><p>{snapshot.recommendation.recommendation}</p><p><strong>Why:</strong> {snapshot.recommendation.rationale}</p><dl>{snapshot.recommendation.sourceFacts.map(fact => <div key={fact}><dt>Context used</dt><dd>{fact}</dd></div>)}</dl><small>Preview adapter · Nothing was changed.</small><button className="secondary" onClick={onClose}>Close recommendation</button></aside>;
+  return null;
+}
+
+function WorkspaceReady({ auth, gateway, planGateway, todayGateway, claraGateway }: {
   auth: ReturnType<typeof useAuth>;
   gateway: WorkspaceGateway;
   planGateway: PlanGateway;
   todayGateway: TodayGateway;
+  claraGateway: ClaraGateway;
 }) {
   const snapshot = auth.snapshot;
   if (snapshot.status !== 'authenticated') return null;
@@ -51,6 +75,7 @@ function WorkspaceReady({ auth, gateway, planGateway, todayGateway }: {
   const [confirmClear, setConfirmClear] = useState(false);
   const [confirmSignOut, setConfirmSignOut] = useState(false);
   const [confirmComplete, setConfirmComplete] = useState(false);
+  const [showClara, setShowClara] = useState(false);
   const [planDraft, setPlanDraft] = useState<PlanDraft>(() => ({
     clientRequestId: requestId(), title: '', outcome: '', why: '', targetDate: localDate(), weeklyHours: 5
   }));
@@ -59,7 +84,20 @@ function WorkspaceReady({ auth, gateway, planGateway, todayGateway }: {
   const [planSaveFailed, setPlanSaveFailed] = useState(false);
   const plans = usePlans(snapshot.user, planGateway, stage === 'today' && view !== 'settings');
   const todayStep = useMemo(() => deriveTodayStep(plans.snapshot.plans, localDate()), [plans.snapshot.plans]);
+  const selectedPlan = useMemo(() => plans.snapshot.plans.find(plan => plan.id === todayStep?.planId) ?? null, [plans.snapshot.plans, todayStep?.planId]);
   const completion = useTodayCompletion(snapshot.user, todayStep, todayGateway, stage === 'today' && view === 'today' && plans.snapshot.status === 'ready');
+  const clara = useClaraRecommendation(claraGateway);
+
+  useEffect(() => {
+    setShowClara(false);
+    clara.cancel();
+  }, [clara.cancel, todayStep?.completionId, view]);
+
+  const askClara = () => {
+    if (!selectedPlan || !todayStep) return;
+    setShowClara(true);
+    void clara.ask(buildClaraContext(selectedPlan, todayStep, requestId()));
+  };
 
   const updatePlan = (field: keyof PlanDraft, value: string | number) => {
     setPlanDraft(current => ({ ...current, [field]: value }));
@@ -136,7 +174,7 @@ function WorkspaceReady({ auth, gateway, planGateway, todayGateway }: {
         {plans.snapshot.status === 'ready' && !todayStep && <div className="empty"><h1>Nothing is scheduled yet.</h1><p>Create your first Plan and Longview will shape a realistic day around your availability.</p><button onClick={() => setStage('plan-create')}>Create first Plan</button></div>}
         {plans.snapshot.status === 'ready' && todayStep && completion.snapshot.status === 'ready' && completion.snapshot.completion && <div className="today-content"><h1>Today’s step is complete.</h1><p>You recorded meaningful progress without changing your Plan.</p><TodayStepCard step={todayStep} completed /><button className="secondary" onClick={() => setView('plans')}>View all Plans</button></div>}
         {plans.snapshot.status === 'ready' && todayStep && completion.snapshot.status !== 'ready' && <div className="today-content"><h1>One useful step is enough.</h1><p>Start with the nearest active Plan. You can refine the step later.</p><TodayStepCard step={todayStep} />{completion.snapshot.status === 'error' ? <div className="notice" role="alert">Progress couldn’t be checked. Nothing was changed.<button onClick={completion.retry}>Try again</button></div> : <button disabled>Checking progress…</button>}</div>}
-        {plans.snapshot.status === 'ready' && todayStep && completion.snapshot.status === 'ready' && !completion.snapshot.completion && <div className="today-content"><h1>One useful step is enough.</h1><p>Start with the nearest active Plan. You can refine the step later.</p><TodayStepCard step={todayStep} />{completion.saveFailed && <div className="notice" role="alert">Completion wasn’t saved. Your step is still open. Try again.</div>}{confirmComplete ? <div className="notice" role="alert"><p>Mark this step complete for today? Your Plan and schedule will stay the same.</p><div className="actions"><button onClick={async () => { if (await completion.complete()) setConfirmComplete(false); }} disabled={completion.completing}>{completion.completing ? 'Saving completion…' : 'Confirm completion'}</button><button className="secondary" onClick={() => setConfirmComplete(false)} disabled={completion.completing}>Keep working</button></div></div> : <div className="actions"><button onClick={() => setConfirmComplete(true)}>Mark step complete</button><button className="secondary" onClick={() => setView('plans')}>View all Plans</button></div>}</div>}
+        {plans.snapshot.status === 'ready' && todayStep && completion.snapshot.status === 'ready' && !completion.snapshot.completion && <div className="today-content"><h1>One useful step is enough.</h1><p>Start with the nearest active Plan. You can refine the step later.</p><TodayStepCard step={todayStep} />{showClara ? <ClaraPanel clara={clara} onClose={() => { clara.cancel(); setShowClara(false); }} /> : <button className="secondary" onClick={askClara}>Ask Clara about this step</button>}{completion.saveFailed && <div className="notice" role="alert">Completion wasn’t saved. Your step is still open. Try again.</div>}{confirmComplete ? <div className="notice" role="alert"><p>Mark this step complete for today? Your Plan and schedule will stay the same.</p><div className="actions"><button onClick={async () => { if (await completion.complete()) setConfirmComplete(false); }} disabled={completion.completing}>{completion.completing ? 'Saving completion…' : 'Confirm completion'}</button><button className="secondary" onClick={() => setConfirmComplete(false)} disabled={completion.completing}>Keep working</button></div></div> : <div className="actions"><button onClick={() => setConfirmComplete(true)}>Mark step complete</button><button className="secondary" onClick={() => setView('plans')}>View all Plans</button></div>}</div>}
       </section>}
       {view === 'plans' && <section className="plans-view" aria-busy={plans.snapshot.status === 'loading'}><span className="status">Plans</span>
         {(plans.snapshot.status === 'idle' || plans.snapshot.status === 'loading') && <div className="empty"><h1>Loading your Plans…</h1><p>Bringing your priorities into view.</p></div>}
@@ -166,7 +204,7 @@ function WorkspaceReady({ auth, gateway, planGateway, todayGateway }: {
   );
 }
 
-export function App({ gateway = firebaseAuthGateway, workspaceGateway = lazyFirebaseWorkspaceGateway, planGateway = lazyFirebasePlanGateway, todayGateway = lazyFirebaseTodayGateway }: { gateway?: AuthGateway; workspaceGateway?: WorkspaceGateway; planGateway?: PlanGateway; todayGateway?: TodayGateway }) {
+export function App({ gateway = firebaseAuthGateway, workspaceGateway = lazyFirebaseWorkspaceGateway, planGateway = lazyFirebasePlanGateway, todayGateway = lazyFirebaseTodayGateway, claraGateway = previewClaraGateway }: { gateway?: AuthGateway; workspaceGateway?: WorkspaceGateway; planGateway?: PlanGateway; todayGateway?: TodayGateway; claraGateway?: ClaraGateway }) {
   const auth = useAuth(gateway);
   const { snapshot } = auth;
 
@@ -175,7 +213,7 @@ export function App({ gateway = firebaseAuthGateway, workspaceGateway = lazyFire
   }
 
   if (snapshot.status === 'authenticated') {
-    return <WorkspaceReady auth={auth} gateway={workspaceGateway} planGateway={planGateway} todayGateway={todayGateway} />;
+    return <WorkspaceReady auth={auth} gateway={workspaceGateway} planGateway={planGateway} todayGateway={todayGateway} claraGateway={claraGateway} />;
   }
 
   return (

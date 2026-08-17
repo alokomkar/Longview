@@ -1,6 +1,6 @@
 # Longview Implementation Phases
 
-Status: Day 2 Slice 1 implemented - subject to change
+Status: Day 2 Slice 2 implemented - subject to change
 Updated: 2026-08-17
 Links: [PRD](PRODUCT_REQUIREMENTS.md) | [Mockup](design/longview-pwa-interactive-mockup.html) | [Stack](TECH_STACK.md)
 
@@ -108,3 +108,22 @@ Slice 3 was accepted and merged on 2026-08-17, completing the planned Day 1 slic
    Cancellation and failed saves leave the step open. Completing a step does not edit
    the Plan, prepare another task, or change the schedule. The linked mockup includes
    confirmation, failed-save recovery, and completed states.
+
+Slice 1 was accepted and merged on 2026-08-17.
+
+2. **Clara read recommendation:** Build a minimal typed context from the selected
+   Plan and Today step and return one read-only recommendation with rationale,
+   confidence, and visible source facts. Cancellation, timeout, offline, unavailable,
+   and malformed-response states leave all durable data unchanged. This slice uses a
+   deterministic preview adapter to validate the client contract; the managed model
+   and API adapter are the next boundary and are not claimed here.
+3. **Availability days:** Persist at least one user-selected working day with the
+   weekly budget, restore it across sessions, and make it editable from Settings.
+   Empty, invalid, offline, retry, and concurrent-session behavior must preserve the
+   last accepted availability.
+4. **Plan Details:** Make every Plan card navigable and show the saved outcome,
+   rationale, target, weekly allocation, working days, and current Today status.
+   Loading, malformed data, missing Plan, and failed-read recovery are explicit.
+
+The remaining judged surfaces and the replacement status of every gallery asset are
+tracked in [Hackathon readiness](HACKATHON_READINESS.md).

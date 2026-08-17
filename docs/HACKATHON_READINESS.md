@@ -20,10 +20,10 @@ Sources: [PRD](PRODUCT_REQUIREMENTS.md) | [Implementation phases](IMPLEMENTATION
 
 | # | Submitted screenshot | Required product proof | Current PWA status | Remaining work |
 |---:|---|---|---|---|
-| 1 | Today | Capacity-aware work and conflict | Partial | Working days are persisted; add multi-Plan capacity, eligibility, and visible conflict reasoning. |
+| 1 | Today | Capacity-aware work and conflict | Partial | Plan working days drive eligibility; add multi-Plan capacity and visible conflict reasoning. |
 | 2 | Portfolio | Three Plans sharing finite capacity | Partial | Add operating modes, allocations, milestones, next actions, and cross-Plan recommendation. |
-| 3 | Plan creation | Reviewed structured Plan | Partial | Add working-day selection and advisor-assisted suggestions; preserve explicit confirmation. |
-| 4 | Plan details | One Plan with execution and context | Missing | Make Plan cards navigable; add overview, schedule, current step, history, decisions, research, and brief entry points. |
+| 3 | Plan creation | Reviewed structured Plan | Partial | Working-day selection is implemented; advisor-assisted suggestions remain. |
+| 4 | Plan details | One Plan with execution and context | Partial | Overview and editable schedule are implemented; current step, history, decisions, research, and brief entry points remain. |
 | 5 | Plan achievement | Outcome and consented reflection | Missing | Add completion evidence, reflection, and explicit reusable-memory consent. |
 | 6 | Clara context | Visible bounded context | Partial | Current preview uses one Plan and Today step; add deployed managed API and multi-Plan context where required. |
 | 7 | Agentic actions | Bounded action catalogue | Missing | Add judged quick actions backed by typed agent tools. |
@@ -43,7 +43,7 @@ Sources: [PRD](PRODUCT_REQUIREMENTS.md) | [Implementation phases](IMPLEMENTATION
 - Deterministic Today step and confirmed immutable completion.
 - Typed read-only recommendation preview with cancellation, timeout, offline,
   unavailable, malformed-response, and retry handling.
-- Versioned working days, weekly capacity, and preferred time with Settings editing,
+- Versioned Plan working days and weekly allocation with Plan Details editing,
   validation, retry, stale-save rejection, and owner-scoped rules.
 
 ## Deadline delivery order

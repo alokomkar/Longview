@@ -1,6 +1,6 @@
 # Longview Pending Features
 
-Status: 36 acceptance cases pending after the availability slice
+Status: 36 acceptance cases pending after the Plan-schedule slice
 
 Updated: 2026-08-17
 
@@ -39,7 +39,7 @@ not. Review checkmarks in the demo are not implementation status.
 
 ## Completed boundary
 
-Identity and availability cases are implemented. Availability now persists selected
-working days, weekly capacity, preferred time, versioned conflict protection, load/save
-recovery, and Settings setup or editing even when an existing workspace has no saved
-schedule. It does not yet schedule around ineligible days.
+Identity and Plan-schedule cases are implemented. Each Plan owns its working days and
+weekly allocation with versioned conflict protection, load/save recovery, Today
+eligibility, and editing from Plan Details. Existing unscheduled Plans remain readable
+and offer Add schedule. Workspace availability and clock-time scheduling do not exist.

@@ -31,6 +31,10 @@ Validated Plan creation includes working days and a weekly time allocation, foll
 by explicit review and an idempotent owner-scoped Firestore write. Plan Details is the
 single place to inspect or change that Plan's schedule; older Plans are prompted to
 add one. The Plans tab includes loading, empty, failure, retry, and populated states.
+It also totals committed weekly hours, derives target-ordered operating modes, and
+shows one deterministic portfolio recommendation without changing any Plan. Opening a
+Plan performs a fresh owner-scoped read and exposes its current step, schedule, context
+empty states, and safe missing/read-failure recovery.
 Today deterministically selects the nearest active target from Plans scheduled for
 that day and prepares one bounded 30–60 minute proof-of-progress step. Stored Plans
 are checked at runtime before use, and this step performs no automatic write.

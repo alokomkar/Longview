@@ -1,4 +1,5 @@
 import type { ClaraGateway } from './types';
+import { formatLongDate } from '../date/formatLongDate';
 
 export const previewClaraGateway: ClaraGateway = {
   async recommend(context, signal) {
@@ -14,7 +15,7 @@ export const previewClaraGateway: ClaraGateway = {
       requiresClarification: false,
       sourceFacts: [
         `Plan: ${context.plan.title}`,
-        `Target: ${context.plan.targetDate}`,
+        `Target: ${formatLongDate(context.plan.targetDate)}`,
         `Available: ${context.plan.weeklyHours} hours/week`,
         `Today step: ${context.step.durationMinutes} minutes`
       ],

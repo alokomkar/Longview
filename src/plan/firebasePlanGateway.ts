@@ -1,4 +1,4 @@
-import { collection, doc, getDocs, orderBy, query, runTransaction, serverTimestamp } from 'firebase/firestore';
+import { collection, doc, getDoc, getDocs, orderBy, query, runTransaction, serverTimestamp } from 'firebase/firestore';
 import { db } from '../firebase/firestore';
 import { orderWorkingDays, parseStoredPlan, PlanScheduleConflictError, type Plan, type PlanGateway } from './types';
 
@@ -34,6 +34,14 @@ export const firebasePlanGateway: PlanGateway = {
       if (!plan) throw new Error('Stored Plan failed validation.');
       return plan;
     });
+  },
+  async get(user, planId) {
+    const planRef = doc(db, 'users', user.uid, 'workspaces', 'default', 'plans', planId);
+    const snapshot = await getDoc(planRef);
+    if (!snapshot.exists()) return null;
+    const plan = parseStoredPlan(snapshot.data(), snapshot.id, user.uid);
+    if (!plan) throw new Error('Stored Plan failed validation.');
+    return plan;
   },
   async updateSchedule(user, planId, draft, expectedVersion) {
     const planRef = doc(db, 'users', user.uid, 'workspaces', 'default', 'plans', planId);

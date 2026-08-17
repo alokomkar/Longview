@@ -37,6 +37,16 @@ not. Review checkmarks in the demo are not implementation status.
 4. **Achievement and consent** — MEM-05 and MEM-06: evidence, reflection, explicit
    reusable-memory permission, retry, and no memory write after failure.
 
+## Post-hackathon MVP enhancement — pick up only if time permits
+
+**Time-aware daily scheduling:** add a default start time and 30-minute duration to a
+Plan, materialize versioned daily tasks, and detect overlapping time ranges
+deterministically. A blocked task records a reason and may be moved to the next free
+slot today, the nearest free eligible slot tomorrow, a user-selected time, or skipped.
+All moves require confirmation, recheck conflicts, reject stale/duplicate carryover,
+and retain history. External calendars, per-day hour templates, task splitting,
+automatic movement of other tasks, and travel-time-zone handling remain deferred.
+
 ## Completed boundary
 
 Identity and Plan-schedule cases are implemented. Each Plan owns its working days and

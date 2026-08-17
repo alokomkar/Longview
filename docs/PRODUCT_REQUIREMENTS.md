@@ -234,3 +234,21 @@ the prototype video remain design evidence until replaced by verified PWA captur
 - Voice conversation and multilingual speech.
 - Automated multi-day planning or autonomous external actions.
 - Trademark, domain, App Store, and Play Store clearance for Longview and Clara.
+
+### Post-hackathon MVP candidate: time-aware daily scheduling
+
+If the judged path is complete with time remaining, extend each Plan schedule with a
+default start time and a duration in 30-minute increments. Materialize versioned daily
+task occurrences so deterministic application code can detect overlapping time ranges.
+The model may explain a conflict or propose a move, but it cannot decide overlap or
+persist a schedule change without confirmation.
+
+A blocked task records a structured reason plus an optional short note. The user may
+move it to the next free slot today, request tomorrow, choose another time, or skip it.
+Every move checks the destination for conflicts, rejects stale or duplicate carryover,
+and preserves the original occurrence in history. “Tomorrow” means the nearest free
+eligible slot after revalidation, not an unconditional write at the same time.
+
+The first version excludes external calendars, per-day working-hour templates, task
+splitting, automatic movement of other tasks, travel-time-zone handling, and autonomous
+rescheduling. Those boundaries keep conflict handling deterministic and reviewable.

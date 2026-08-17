@@ -133,3 +133,14 @@ for a schedule. Clock time and per-day allocation remain out of scope.
 
 The remaining judged surfaces and the replacement status of every gallery asset are
 tracked in [Hackathon readiness](HACKATHON_READINESS.md).
+
+## Post-hackathon MVP candidate — only if the judged path is complete
+
+1. Add a default start time and 30-minute duration to each Plan schedule.
+2. Materialize versioned daily task occurrences and detect overlaps deterministically.
+3. Let users mark a task blocked with a structured reason and optional note.
+4. Offer confirmed moves to the next free slot today, the nearest free eligible slot
+   tomorrow, or a chosen time; also allow Skip.
+5. Test collision, no-free-slot, stale-tab, duplicate-carryover, offline retry, and
+   history preservation. Keep external calendars, task splitting, and automatic
+   rescheduling of other tasks out of this enhancement.

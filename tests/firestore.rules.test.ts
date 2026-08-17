@@ -60,4 +60,38 @@ describe('Firestore ownership rules', () => {
     await assertFails(setDoc(workspace, { id: 'changed', ownerUid: 'owner' }));
     await assertFails(deleteDoc(workspace));
   });
+
+  it('allows owners to create valid immutable Plans', async () => {
+    const owner = environment.authenticatedContext('owner').firestore();
+    const plan = doc(owner, 'users/owner/workspaces/default/plans/plan-1');
+    const valid = {
+      id: 'plan-1', clientRequestId: 'plan-1', ownerUid: 'owner', workspaceId: 'default',
+      title: 'Launch a useful product', outcome: 'Release a tested product to real users.',
+      why: 'Learn which problem is worth solving well.', targetDate: '2026-09-30',
+      weeklyHours: 10, status: 'active', schemaVersion: 1,
+      createdAt: new Date(), updatedAt: new Date()
+    };
+    await assertSucceeds(setDoc(plan, valid));
+    await assertSucceeds(getDoc(plan));
+    await assertFails(setDoc(plan, { ...valid, title: 'Changed title' }));
+    await assertFails(deleteDoc(plan));
+  });
+
+  it('rejects forged, malformed, and cross-user Plans', async () => {
+    const owner = environment.authenticatedContext('owner').firestore();
+    const other = environment.authenticatedContext('other').firestore();
+    const path = 'users/owner/workspaces/default/plans/plan-1';
+    const base = {
+      id: 'plan-1', clientRequestId: 'plan-1', ownerUid: 'owner', workspaceId: 'default',
+      title: 'Launch a useful product', outcome: 'Release a tested product to real users.',
+      why: 'Learn which problem is worth solving well.', targetDate: '2026-09-30',
+      weeklyHours: 10, status: 'active', schemaVersion: 1,
+      createdAt: new Date(), updatedAt: new Date()
+    };
+    await assertFails(setDoc(doc(other, path), base));
+    await assertFails(setDoc(doc(owner, path), { ...base, ownerUid: 'other' }));
+    await assertFails(setDoc(doc(owner, path), { ...base, title: 'No' }));
+    await assertFails(setDoc(doc(owner, path), { ...base, weeklyHours: 41 }));
+    await assertFails(setDoc(doc(owner, path), { ...base, unexpected: true }));
+  });
 });

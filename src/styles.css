@@ -15,6 +15,15 @@ button:focus-visible { outline:3px solid #f4c96b; outline-offset:3px; }
 button:disabled { opacity:.6; cursor:wait; }
 .notice { margin:18px 0; padding:14px; border-radius:12px; border:1px solid #f4c96b; background:#392b13; color:#ffe8af; line-height:1.45; }
 small { color:#849aa6; line-height:1.5; display:block; }
+form { display:grid; gap:16px; margin-top:24px; }
+label { display:grid; gap:8px; color:#dce7e9; font-weight:700; }
+input,textarea { width:100%; border:1px solid #37576b; border-radius:12px; padding:13px 14px; color:#f7f4ec; background:#071522; font:inherit; }
+textarea { min-height:92px; resize:vertical; }
+input:focus-visible,textarea:focus-visible { outline:3px solid #f4c96b; outline-offset:2px; }
+form small[role="alert"] { color:#ffe8af; margin-top:-10px; }
+dl { display:grid; grid-template-columns:minmax(110px,.45fr) 1fr; gap:12px 18px; margin:24px 0; }
+dt { color:#79d7c5; font-weight:800; }
+dd { margin:0; color:#dce7e9; line-height:1.5; }
 .success { border-color:#387c70; }
 .choices { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin:24px 0; }
 .app-shell { width:min(100%,760px); min-height:100vh; margin:auto; padding:28px 20px 96px; }

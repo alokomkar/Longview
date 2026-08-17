@@ -28,6 +28,38 @@ service cloud.firestore {
           && request.resource.data.ownerUid == uid
           && request.resource.data.id == resource.data.id;
         allow delete: if false;
+
+        match /plans/{planId} {
+          allow read: if owns(uid);
+          allow create: if owns(uid)
+            && workspaceId == 'default'
+            && request.resource.data.keys().hasOnly([
+              'id', 'ownerUid', 'workspaceId', 'clientRequestId', 'title',
+              'outcome', 'why', 'targetDate', 'weeklyHours', 'status',
+              'schemaVersion', 'createdAt', 'updatedAt'
+            ])
+            && request.resource.data.id == planId
+            && request.resource.data.clientRequestId == planId
+            && request.resource.data.ownerUid == uid
+            && request.resource.data.workspaceId == workspaceId
+            && request.resource.data.schemaVersion == 1
+            && request.resource.data.status == 'active'
+            && request.resource.data.title is string
+            && request.resource.data.title.size() >= 3
+            && request.resource.data.title.size() <= 80
+            && request.resource.data.outcome is string
+            && request.resource.data.outcome.size() >= 10
+            && request.resource.data.outcome.size() <= 300
+            && request.resource.data.why is string
+            && request.resource.data.why.size() >= 10
+            && request.resource.data.why.size() <= 300
+            && request.resource.data.targetDate is string
+            && request.resource.data.targetDate.size() == 10
+            && request.resource.data.weeklyHours is int
+            && request.resource.data.weeklyHours >= 1
+            && request.resource.data.weeklyHours <= 40;
+          allow update, delete: if false;
+        }
       }
     }
 

@@ -30,7 +30,7 @@
     ['Account', ['settings','appearance','plans','checkout','stripe','razorpay','payment-success','manage']]
   ];
   const edgeCases = {
-    normal:'Normal journey', 'auth-error':'Authentication failed', 'auth-popup':'Sign-in popup blocked', 'auth-conflict':'Account-link conflict', 'workspace-error':'Workspace setup failed', offline:'Offline + pending sync', 'no-task':'No task scheduled today', 'draft-error':'Clara task draft failed',
+    normal:'Normal journey', 'auth-error':'Authentication failed', 'auth-popup':'Sign-in popup blocked', 'auth-conflict':'Account-link conflict', 'workspace-error':'Workspace setup failed', 'plan-save-error':'Plan save failed', offline:'Offline + pending sync', 'no-task':'No task scheduled today', 'draft-error':'Clara task draft failed',
     'schedule-error':'Schedule generation failed', 'research-error':'Research unavailable', 'payment-error':'Payment failed', grace:'Subscription grace period', 'clara-error':'Clara unavailable'
   };
   const appState = {
@@ -202,6 +202,9 @@
     if(appState.route==='settings' && appState.anonymous) {
       root.querySelector('.screen')?.insertAdjacentHTML('beforeend','<div class="notice"><div><strong>Keep access to this workspace</strong><span>Link a Google account before signing out so you can return later.</span></div></div>');
     }
+    if(appState.route==='plan-confirm' && appState.edge==='plan-save-error') {
+      root.querySelector('[data-action="create-plan"]')?.insertAdjacentHTML('beforebegin','<div class="notice" style="border-color:var(--rose)"><div><strong>Your Plan wasn’t saved</strong><span>Check your connection and try again. Your review is still here.</span></div></div>');
+    }
     root.querySelectorAll('[data-action]').forEach(el=>el.onclick=e=>{e.stopPropagation();performAction(el.dataset.action,el);});
     window.history.replaceState(null,'',`#${appState.route}`);
     parent.postMessage({type:'longview:route',platform,route:appState.route},'*');
@@ -216,7 +219,7 @@
   function toast(msg) { appState.toast=msg;render();setTimeout(()=>{if(appState.toast===msg){appState.toast='';render();}},1800); }
   function setEdge(edge) {
     appState.edge=edge;appState.demoMenu='';
-    const target={'auth-error':'auth','auth-popup':'auth','auth-conflict':'auth','workspace-error':'auth',offline:'today','no-task':'today','draft-error':'reveal','schedule-error':'calendar','research-error':'research','payment-error':'checkout',grace:'manage','clara-error':'clara-chat'}[edge];
+    const target={'auth-error':'auth','auth-popup':'auth','auth-conflict':'auth','workspace-error':'auth','plan-save-error':'plan-confirm',offline:'today','no-task':'today','draft-error':'reveal','schedule-error':'calendar','research-error':'research','payment-error':'checkout',grace:'manage','clara-error':'clara-chat'}[edge];
     if(target) appState.route=target; render();
   }
   function reset() { Object.assign(appState,{route:'welcome',stack:[],edge:'normal',signedIn:false,anonymous:false,planCreated:false,taskDone:false,scheduleApproved:false,breakTaken:false,researchAccepted:0,briefVersion:3,subscription:'free',palette:'ocean',mode:'dark',font:'lora',size:'default',toast:'',planTitle:'Build SaaS Startup',planWhy:'Create a sustainable product business around a validated customer problem.'});render(); }

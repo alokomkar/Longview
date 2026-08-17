@@ -1,6 +1,6 @@
 # Checkpointed Clara Schedule Run
 
-Status: Review contract before implementation
+Status: Localhost implementation complete; production worker remains pending
 
 Updated: 2026-08-17
 
@@ -44,6 +44,18 @@ resumes the last checkpoint or marks the run failed without mixed versions.
 The MVP permits one model invocation per run, one active run per user/date, a 30-second
 worker deadline, bounded payload/result sizes, and automatic expiry of operational run
 documents. Cloud deployment and log evidence require separate approval.
+
+## Localhost implementation
+
+The PWA Calendar now creates an authenticated FastAPI run, polls owner-scoped Firestore
+Emulator checkpoints, keeps a progress indicator visible until terminal state, and
+supports cancellation and retry with a new correlated ID. The published result is an
+ordered list with minute budgets—not clock times—and remains read only.
+
+The localhost worker uses a deterministic bounded proposal builder so the workflow can
+be tested without consuming model calls. A durable queued Cloud worker, one model call,
+operational expiry, production logging, and deployment evidence remain separate work and
+must not be inferred from this local slice.
 
 ## Acceptance
 

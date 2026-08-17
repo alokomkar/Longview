@@ -71,3 +71,14 @@ optional secondary action available again from Settings.
 Anonymous sign-out and local-data clearing require a loss-of-access warning and offer
 Google linking first. Recovering an unlinked anonymous session is explicitly deferred
 beyond the MVP; the underlying workspace is not silently deleted.
+
+## Day 1 delivery slices
+
+1. **Plan creation:** A typed form captures title, desired outcome, rationale, target
+   date, and weekly capacity. Users review before an idempotent Firestore transaction;
+   validation, cancellation, failed saves, retries, ownership, and immutable creation
+   are tested. This PR deliberately stops before Plans listing and Today scheduling.
+2. **Plans list:** Load owner-scoped Plans and replace empty states without expanding
+   into editing, deletion, or collaboration.
+3. **First Today step:** Derive one deterministic, reviewable next step from the saved
+   Plan. Model-generated recommendations remain a separate Day 2 boundary.

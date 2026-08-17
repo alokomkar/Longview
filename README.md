@@ -24,6 +24,9 @@ Anonymous users can complete onboarding without linking Google; linking remains 
 optional cross-device access action.
 Because MVP recovery is unavailable, anonymous sign-out warns about losing access and
 offers Google linking before confirmation.
+The next review slice adds validated Plan creation, explicit review, and idempotent
+owner-scoped Firestore persistence. Plans listing and Today scheduling remain separate
+stacked changes.
 
 ## Local development
 

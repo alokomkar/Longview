@@ -3,9 +3,14 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { App } from './App';
 import type { AuthGateway, AuthUser } from './auth/types';
 import type { WorkspaceGateway } from './workspace/types';
+import type { PlanGateway } from './plan/types';
 
 const workspaceGateway: WorkspaceGateway = {
   ensure: vi.fn(async (user: AuthUser) => ({ id: 'default' as const, ownerUid: user.uid, schemaVersion: 1 as const }))
+};
+
+const planGateway: PlanGateway = {
+  create: vi.fn(async (user, draft) => ({ ...draft, id: draft.clientRequestId, ownerUid: user.uid, workspaceId: 'default' as const, status: 'active' as const, schemaVersion: 1 as const }))
 };
 
 beforeEach(() => localStorage.clear());
@@ -148,5 +153,40 @@ describe('authentication journey', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Use existing Google workspace' }));
     await waitFor(() => expect(mock.signInGoogle).toHaveBeenCalledOnce());
     expect(screen.queryByRole('button', { name: 'Link Google account' })).not.toBeInTheDocument();
+  });
+
+  it('reviews and saves a valid Plan with a stable request id', async () => {
+    localStorage.setItem('longview:onboarding', 'complete');
+    const create = vi.fn(planGateway.create);
+    render(<App gateway={gateway({ uid: 'owner', isAnonymous: false, displayName: 'Owner' })} workspaceGateway={workspaceGateway} planGateway={{ create }} />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Create first Plan' }));
+    fireEvent.change(screen.getByLabelText('Plan title'), { target: { value: '  Launch a useful product  ' } });
+    fireEvent.change(screen.getByLabelText('Desired outcome'), { target: { value: 'Release a tested product to real users.' } });
+    fireEvent.change(screen.getByLabelText('Why this matters'), { target: { value: 'Learn which problem is worth solving well.' } });
+    fireEvent.change(screen.getByLabelText('Target date'), { target: { value: '2026-09-30' } });
+    fireEvent.change(screen.getByLabelText('Hours available each week'), { target: { value: '10' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Review Plan' }));
+    expect(screen.getByRole('heading', { name: 'Launch a useful product' })).toBeVisible();
+    fireEvent.click(screen.getByRole('button', { name: 'Create Plan' }));
+    expect(await screen.findByText('Your Plan is ready. Longview will use it to shape your next useful step.')).toBeVisible();
+    expect(create).toHaveBeenCalledOnce();
+    expect(create.mock.calls[0][1].clientRequestId).toBeTruthy();
+  });
+
+  it('keeps the same Plan request id when save is retried', async () => {
+    localStorage.setItem('longview:onboarding', 'complete');
+    const create = vi.fn().mockRejectedValueOnce(new Error('offline')).mockImplementation(planGateway.create);
+    render(<App gateway={gateway({ uid: 'owner', isAnonymous: false, displayName: 'Owner' })} workspaceGateway={workspaceGateway} planGateway={{ create }} />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Create first Plan' }));
+    fireEvent.change(screen.getByLabelText('Plan title'), { target: { value: 'Launch a useful product' } });
+    fireEvent.change(screen.getByLabelText('Desired outcome'), { target: { value: 'Release a tested product to real users.' } });
+    fireEvent.change(screen.getByLabelText('Why this matters'), { target: { value: 'Learn which problem is worth solving well.' } });
+    fireEvent.change(screen.getByLabelText('Target date'), { target: { value: '2026-09-30' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Review Plan' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Create Plan' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('wasn’t saved');
+    fireEvent.click(screen.getByRole('button', { name: 'Create Plan' }));
+    expect(await screen.findByText('Your Plan is ready. Longview will use it to shape your next useful step.')).toBeVisible();
+    expect(create.mock.calls[0][1].clientRequestId).toBe(create.mock.calls[1][1].clientRequestId);
   });
 });

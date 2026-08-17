@@ -25,6 +25,9 @@ reasoning traces, and future dates.
   generated, and result published.
 - The UI polls the owner-scoped run, shows its ID and current checkpoint, and permits
   cancellation while work is non-terminal.
+- An indeterminate progress indicator remains visible for the entire active network
+  operation. Its accessible label reports the current checkpoint; reduced-motion mode
+  uses a static filled track instead of animation.
 - Cancellation is cooperative: it stops future checkpoints and preserves the last safe
   one. No schedule proposal is published after cancellation wins.
 - Retry creates a new run ID linked by `retryOf`; terminal runs are immutable.
@@ -45,6 +48,7 @@ documents. Cloud deployment and log evidence require separate approval.
 ## Acceptance
 
 1. Start a run and see its correlated ID plus checkpoint progress.
+   The progress indicator remains visible until the run becomes terminal.
 2. Cancel it and confirm no proposal or schedule write appears.
 3. Time it out and retry with a new ID linked to the failed run.
 4. Redeliver an event and confirm no duplicate model invocation or result.

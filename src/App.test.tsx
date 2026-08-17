@@ -10,7 +10,8 @@ const workspaceGateway: WorkspaceGateway = {
 };
 
 const planGateway: PlanGateway = {
-  create: vi.fn(async (user, draft) => ({ ...draft, id: draft.clientRequestId, ownerUid: user.uid, workspaceId: 'default' as const, status: 'active' as const, schemaVersion: 1 as const }))
+  create: vi.fn(async (user, draft) => ({ ...draft, id: draft.clientRequestId, ownerUid: user.uid, workspaceId: 'default' as const, status: 'active' as const, schemaVersion: 1 as const })),
+  list: vi.fn(async () => [])
 };
 
 beforeEach(() => localStorage.clear());
@@ -158,7 +159,7 @@ describe('authentication journey', () => {
   it('reviews and saves a valid Plan with a stable request id', async () => {
     localStorage.setItem('longview:onboarding', 'complete');
     const create = vi.fn(planGateway.create);
-    render(<App gateway={gateway({ uid: 'owner', isAnonymous: false, displayName: 'Owner' })} workspaceGateway={workspaceGateway} planGateway={{ create }} />);
+    render(<App gateway={gateway({ uid: 'owner', isAnonymous: false, displayName: 'Owner' })} workspaceGateway={workspaceGateway} planGateway={{ ...planGateway, create }} />);
     fireEvent.click(await screen.findByRole('button', { name: 'Create first Plan' }));
     fireEvent.change(screen.getByLabelText('Plan title'), { target: { value: '  Launch a useful product  ' } });
     fireEvent.change(screen.getByLabelText('Desired outcome'), { target: { value: 'Release a tested product to real users.' } });
@@ -176,7 +177,7 @@ describe('authentication journey', () => {
   it('keeps the same Plan request id when save is retried', async () => {
     localStorage.setItem('longview:onboarding', 'complete');
     const create = vi.fn().mockRejectedValueOnce(new Error('offline')).mockImplementation(planGateway.create);
-    render(<App gateway={gateway({ uid: 'owner', isAnonymous: false, displayName: 'Owner' })} workspaceGateway={workspaceGateway} planGateway={{ create }} />);
+    render(<App gateway={gateway({ uid: 'owner', isAnonymous: false, displayName: 'Owner' })} workspaceGateway={workspaceGateway} planGateway={{ ...planGateway, create }} />);
     fireEvent.click(await screen.findByRole('button', { name: 'Create first Plan' }));
     fireEvent.change(screen.getByLabelText('Plan title'), { target: { value: 'Launch a useful product' } });
     fireEvent.change(screen.getByLabelText('Desired outcome'), { target: { value: 'Release a tested product to real users.' } });
@@ -188,5 +189,43 @@ describe('authentication journey', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Create Plan' }));
     expect(await screen.findByText('Your Plan is ready. Longview will use it to shape your next useful step.')).toBeVisible();
     expect(create.mock.calls[0][1].clientRequestId).toBe(create.mock.calls[1][1].clientRequestId);
+  });
+
+  it('loads and presents owner Plans when the Plans tab opens', async () => {
+    localStorage.setItem('longview:onboarding', 'complete');
+    const list = vi.fn(async () => [{
+      id: 'plan-1', clientRequestId: 'plan-1', ownerUid: 'owner', workspaceId: 'default' as const,
+      title: 'Launch Longview', outcome: 'Release a tested PWA to real users.', why: 'Validate the product direction.',
+      targetDate: '2026-08-20', weeklyHours: 10, status: 'active' as const, schemaVersion: 1 as const
+    }]);
+    render(<App gateway={gateway({ uid: 'owner', isAnonymous: false, displayName: 'Owner' })} workspaceGateway={workspaceGateway} planGateway={{ ...planGateway, list }} />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Plans' }));
+    expect(await screen.findByRole('heading', { name: 'Launch Longview' })).toBeVisible();
+    expect(screen.getByText('Release a tested PWA to real users.')).toBeVisible();
+    expect(screen.getByText('10 hours')).toBeVisible();
+    expect(list).toHaveBeenCalledOnce();
+  });
+
+  it('shows the empty Plans action only after loading finishes', async () => {
+    localStorage.setItem('longview:onboarding', 'complete');
+    let resolve: (plans: []) => void = () => undefined;
+    const list = vi.fn(() => new Promise<[]>((done) => { resolve = done; }));
+    render(<App gateway={gateway({ uid: 'owner', isAnonymous: false, displayName: 'Owner' })} workspaceGateway={workspaceGateway} planGateway={{ ...planGateway, list }} />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Plans' }));
+    expect(screen.getByRole('heading', { name: 'Loading your Plans…' })).toBeVisible();
+    expect(screen.queryByRole('heading', { name: 'No Plans yet.' })).not.toBeInTheDocument();
+    resolve([]);
+    expect(await screen.findByRole('heading', { name: 'No Plans yet.' })).toBeVisible();
+  });
+
+  it('retries a failed Plans load without leaving the tab', async () => {
+    localStorage.setItem('longview:onboarding', 'complete');
+    const list = vi.fn().mockRejectedValueOnce(new Error('offline')).mockResolvedValueOnce([]);
+    render(<App gateway={gateway({ uid: 'owner', isAnonymous: false, displayName: 'Owner' })} workspaceGateway={workspaceGateway} planGateway={{ ...planGateway, list }} />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Plans' }));
+    expect(await screen.findByRole('heading', { name: 'Your Plans couldn’t be loaded.' })).toBeVisible();
+    fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
+    expect(await screen.findByRole('heading', { name: 'No Plans yet.' })).toBeVisible();
+    expect(list).toHaveBeenCalledTimes(2);
   });
 });

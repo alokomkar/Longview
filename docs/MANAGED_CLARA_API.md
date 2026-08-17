@@ -30,6 +30,11 @@ background run, or claim a deployed Cloud Run revision.
 
 ## Fail-closed behavior
 
+- Asking Clara immediately opens a dedicated loading state. An indeterminate progress
+  bar remains visible and animated until a recommendation, failure, timeout, or user
+  cancellation ends the request. It never invents a completion percentage.
+- The loading region uses `aria-busy` and an indeterminate `progressbar` label. Reduced
+  motion keeps a visible static indicator while preserving the same status copy.
 - Missing or invalid authentication returns `401` without invoking the model.
 - Invalid context returns `422`; oversized or unknown fields are rejected.
 - The managed model call has a 15-second budget and returns `504` when exhausted.

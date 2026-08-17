@@ -13,7 +13,7 @@
   const routeLabels = {
     welcome:'Welcome', auth:'Sign in', explain:'How Longview works',
     'today-empty':'Empty Today', 'plan-create':'Describe Plan', 'plan-confirm':'Confirm Plan', reveal:'First day ready',
-    today:'Today', 'completion-confirm':'Confirm completion', 'completion-done':'Step completed', portfolio:'Long-term Plans', 'clara-read':'Read-only recommendation', 'clara-home':'Ask Clara', 'clara-actions':'Quick Actions', 'clara-action-detail':'Action details', 'clara-chat':'Clara chat', 'clara-preview':'Clara change preview',
+    today:'Today', 'completion-confirm':'Confirm completion', 'completion-done':'Step completed', portfolio:'Long-term Plans', 'clara-loading':'Clara working', 'clara-read':'Read-only recommendation', 'clara-home':'Ask Clara', 'clara-actions':'Quick Actions', 'clara-action-detail':'Action details', 'clara-chat':'Clara chat', 'clara-preview':'Clara change preview',
     kanban:'Kanban', calendar:'Calendar', 'schedule-loading':'Preparing day', 'schedule-proposal':'Schedule proposal', 'schedule-approved':'Approved day', 'break-confirm':'Take a break', 'break-done':'Break scheduled',
     settings:'Settings', appearance:'Appearance', goal:'Plan details', 'goal-task':"Today's task", 'goal-achievement':'Plan achieved', history:'Task history', decisions:'Decisions',
     research:'Research & Goal Brief', 'research-loading':'Finding research', 'research-cards':'Review research', 'brief-preview':'Brief update', 'brief-history':'Brief history',
@@ -24,7 +24,7 @@
   const routeSections = [
     ['Onboarding', ['welcome','auth','explain','today-empty','plan-create','plan-confirm','reveal']],
     ['Dashboard', ['today','completion-confirm','completion-done','portfolio','kanban','calendar','schedule-loading','schedule-proposal','schedule-approved','break-confirm','break-done']],
-    ['Ask Clara', ['clara-read','clara-home','clara-actions','clara-action-detail','clara-chat','clara-preview']],
+    ['Ask Clara', ['clara-loading','clara-read','clara-home','clara-actions','clara-action-detail','clara-chat','clara-preview']],
     ['Goal', ['goal','goal-task','goal-achievement','history','decisions','research','research-loading','research-cards','brief-preview','brief-history']],
     ['Goal Clara', ['goal-clara-home','goal-clara-actions','goal-clara-detail','goal-clara-chat']],
     ['Account', ['settings','appearance','plans','checkout','stripe','razorpay','payment-success','manage']]
@@ -42,6 +42,7 @@
   };
   const glyph = { today:'✓', kanban:'▥', calendar:'□', settings:'•••' };
   const root = document.getElementById('prototype');
+  let claraResponseTimer;
 
   function routeGroup(route=appState.route) {
     if (['welcome','auth','explain','today-empty','plan-create','plan-confirm','reveal'].includes(route)) return 'onboarding';
@@ -125,7 +126,7 @@
     if(appState.edge==='today-prepare-error') return `<section class="screen">${top('Today','Sun, Aug 2','',false)}<div class="empty" style="margin-top:34px"><div class="empty-icon">!</div><h2>Today couldn’t be prepared</h2><p>Your Plans are unchanged. Check your connection and try again.</p><button class="btn primary" data-action="clear-edge">Try again</button>${btn('View Plans','portfolio','ghost')}</div></section>`;
     if(appState.edge==='offline') return `<section class="screen">${top('Today','Sun, Aug 2','',false)}<div class="notice" style="border-color:var(--amber)"><span class="badge amber">Offline</span><div><strong>Using your last synced day</strong><span>Completions will sync when the connection returns.</span></div></div>${taskCards()}<div class="toast" style="position:static;transform:none;width:100%;margin-top:12px">1 completion waiting to sync</div></section>`;
     if(appState.edge==='no-task') return `<section class="screen">${top('Today','Sun, Aug 2','',false)}<div class="card"><h2 class="card-title">${escapeHtml(appState.planTitle)}</h2><p class="meta">Next scheduled task · Monday, Aug 3</p></div><div class="empty" style="margin-top:34px"><div class="empty-icon">✓</div><h2>Nothing scheduled today</h2><p>The next startup validation block is Monday. You can rest, add a small task, or ask Clara to rebalance the portfolio.</p>${btn('Ask Clara','clara-home','primary')}${btn('Add a task','goal-task')}</div></section>`;
-    return `<section class="screen">${top('Today','Sun, Aug 2',{label:'3 Plans',go:'portfolio'},false)}<div class="metrics"><div class="metric"><b>${appState.taskDone?'1':'2'}</b><span>tasks left</span></div><div class="metric"><b>${appState.taskDone?'30m':'90m'}</b><span>planned time</span></div><div class="metric"><b>${appState.taskDone?'1/2':'0/2'}</b><span>completed</span></div></div><button class="notice" data-go="clara-read"><span class="clara-mark">C</span><div><strong>Ask Clara about this step</strong><span>See one read-only recommendation and the Plan facts behind it</span></div><span class="chev">›</span></button>${taskCards()}</section>`;
+    return `<section class="screen">${top('Today','Sun, Aug 2',{label:'3 Plans',go:'portfolio'},false)}<div class="metrics"><div class="metric"><b>${appState.taskDone?'1':'2'}</b><span>tasks left</span></div><div class="metric"><b>${appState.taskDone?'30m':'90m'}</b><span>planned time</span></div><div class="metric"><b>${appState.taskDone?'1/2':'0/2'}</b><span>completed</span></div></div><button class="notice" data-go="clara-loading"><span class="clara-mark">C</span><div><strong>Ask Clara about this step</strong><span>See one read-only recommendation and the Plan facts behind it</span></div><span class="chev">›</span></button>${taskCards()}</section>`;
   }
   function taskCards() { return `${appState.taskDone?'':`<div class="section-label">Build SaaS Startup</div><div class="card task-card"><div class="task-head"><div><h2 class="card-title">Validate onboarding with target users</h2><p class="meta">60 min · morning</p></div><span class="badge blue">Today</span></div><p class="card-copy">Run two focused sessions and record where users fail to reach the first useful outcome.</p><div class="task-actions">${btn('Complete','completion-confirm','primary')}${btn('Review','goal-task')}</div></div>`}<div class="section-label" style="margin-top:15px">Learn AI / ML Application</div><div class="card task-card" style="border-left-color:var(--rose)"><div class="task-head"><div><h2 class="card-title">Evaluate the retrieval baseline</h2><p class="meta">30 min · flexible</p></div><span class="badge amber">Conflict</span></div><p class="card-copy">Run the saved evaluation set and capture groundedness failures before changing the model.</p></div>`; }
 
@@ -144,6 +145,9 @@
     return `<section class="screen">${top('Long-term Plans','Three outcomes sharing one finite week.',{label:'Ask Clara',go:'clara-chat'},true)}<button class="btn primary" data-action="new-plan">Create another Plan</button><div class="portfolio-capacity"><div><b>12h</b><span>weekly capacity</span></div><div><b>6 / 4 / 2</b><span>hours allocated</span></div><div><b>1</b><span>active tradeoff</span></div></div><div class="notice portfolio-insight"><span class="clara-mark">C</span><div><strong>Protect startup validation this week</strong><span>Keep AI/ML moving with one build block. Hold house work to decision preparation until financing assumptions are clearer.</span></div></div><div class="portfolio-list">${plans.map(plan=>`<button class="portfolio-plan" data-go="goal"><div class="portfolio-head"><div><span class="badge ${plan[6]}">${plan[1]}</span><h2>${plan[0]}</h2></div><strong>${plan[2]}</strong></div><p>${plan[3]}</p><div class="portfolio-next"><span>Next</span>${plan[4]}</div><div class="portfolio-progress"><i style="width:${plan[5]}%"></i></div></button>`).join('')}</div><p class="meta portfolio-foot">Clara can recommend allocation changes, but each schedule change still requires approval.</p></section>`;
   }
 
+  function claraLoading() {
+    return `<section class="screen" aria-busy="true">${top('Ask Clara about this step','No Plan or schedule changes are allowed here.','',true)}<div class="clara-wait"><span class="clara-mark">C</span><h2>Clara is reviewing this step…</h2><p>Using only this Plan and today’s step to prepare a recommendation.</p><div class="clara-progress" role="progressbar" aria-label="Waiting for Clara" aria-valuetext="Clara is preparing a recommendation"><span></span></div><p class="meta">This usually takes a few seconds.</p></div>${btn('Cancel and return','today','ghost')}</section>`;
+  }
   function claraRead() {
     if(['clara-timeout','clara-error','clara-malformed','clara-clarification','clara-injection'].includes(appState.edge)) {
       const copy=appState.edge==='clara-timeout'?['Clara didn’t respond in time','Longview stopped the request safely. Your step and Plan are unchanged.']:appState.edge==='clara-malformed'?['Clara’s response could not be used','The response did not match the expected format.']:appState.edge==='clara-clarification'?['Clara needs one detail','Which result would count as proof that this Plan moved forward?']:appState.edge==='clara-injection'?['Unsafe instruction rejected','The response tried to expand context or authorize a change, so Longview discarded it.']:['Clara is unavailable','The request could not be completed.'];
@@ -215,7 +219,7 @@
     return `<section class="screen">${top('Subscription','Access is shared across every linked device.','',true)}<div class="card"><div class="task-head"><div><h2 class="card-title">${appState.subscription==='active'?'Longview Pro':'Free'}</h2><p class="meta">Purchased through ${config.purchase}</p></div><span class="badge ${appState.subscription==='active'?'green':''}">${appState.subscription==='active'?'Active':'Current'}</span></div>${appState.subscription==='active'?`<div class="setting"><div><b>Renews</b><span>Sep 2, 2026</span></div><b>₹499</b></div><div class="setting"><div><b>Entitlement</b><span>Android · iOS · Web · PWA</span></div><span class="badge blue">Synced</span></div>`:''}</div>${appState.subscription==='active'?btn(`Manage or cancel with ${config.purchase}`,'manage'):btn('View Pro plans','plans','primary')}${btn('Restore / refresh access','manage','ghost')}</section>`; }
 
   function screenHtml() {
-    const map={welcome,auth,explain,'today-empty':todayEmpty,'plan-create':planCreate,'plan-confirm':planConfirm,reveal,today,'completion-confirm':completionConfirm,'completion-done':completionDone,portfolio,'clara-read':claraRead,'clara-home':()=>claraHome(false),'clara-actions':()=>claraActions(false),'clara-action-detail':()=>claraActionDetail(false),'clara-chat':()=>claraChat(false),'clara-preview':claraPreview,kanban,calendar,'schedule-loading':scheduleLoading,'schedule-proposal':scheduleProposal,'schedule-approved':scheduleApproved,'break-confirm':breakConfirm,'break-done':breakDone,settings,appearance,goal,'goal-task':goalTask,'goal-achievement':goalAchievement,history:taskHistory,decisions,research,'research-loading':researchLoading,'research-cards':researchCards,'brief-preview':briefPreview,'brief-history':briefHistory,'goal-clara-home':()=>claraHome(true),'goal-clara-actions':()=>claraActions(true),'goal-clara-detail':()=>claraActionDetail(true),'goal-clara-chat':()=>claraChat(true),plans,checkout,stripe:()=>providerCheckout('stripe'),razorpay:()=>providerCheckout('razorpay'),'payment-success':paymentSuccess,manage};
+    const map={welcome,auth,explain,'today-empty':todayEmpty,'plan-create':planCreate,'plan-confirm':planConfirm,reveal,today,'completion-confirm':completionConfirm,'completion-done':completionDone,portfolio,'clara-loading':claraLoading,'clara-read':claraRead,'clara-home':()=>claraHome(false),'clara-actions':()=>claraActions(false),'clara-action-detail':()=>claraActionDetail(false),'clara-chat':()=>claraChat(false),'clara-preview':claraPreview,kanban,calendar,'schedule-loading':scheduleLoading,'schedule-proposal':scheduleProposal,'schedule-approved':scheduleApproved,'break-confirm':breakConfirm,'break-done':breakDone,settings,appearance,goal,'goal-task':goalTask,'goal-achievement':goalAchievement,history:taskHistory,decisions,research,'research-loading':researchLoading,'research-cards':researchCards,'brief-preview':briefPreview,'brief-history':briefHistory,'goal-clara-home':()=>claraHome(true),'goal-clara-actions':()=>claraActions(true),'goal-clara-detail':()=>claraActionDetail(true),'goal-clara-chat':()=>claraChat(true),plans,checkout,stripe:()=>providerCheckout('stripe'),razorpay:()=>providerCheckout('razorpay'),'payment-success':paymentSuccess,manage};
     return (map[appState.route]||welcome)();
   }
 
@@ -223,6 +227,7 @@
     const el=document.documentElement; el.dataset.palette=appState.palette;el.dataset.mode=appState.mode;el.dataset.font=appState.font;el.dataset.size=appState.size;
   }
   function render() {
+    clearTimeout(claraResponseTimer);
     applyAppearance(); root.innerHTML=scaffold(screenHtml());
     if(appState.route==='settings' && appState.anonymous) {
       root.querySelector('.screen')?.insertAdjacentHTML('beforeend','<div class="notice"><div><strong>Keep access to this workspace</strong><span>Link a Google account before signing out so you can return later.</span></div></div>');
@@ -236,6 +241,9 @@
     root.querySelectorAll('[data-action]').forEach(el=>el.onclick=e=>{e.stopPropagation();performAction(el.dataset.action,el);});
     window.history.replaceState(null,'',`#${appState.route}`);
     parent.postMessage({type:'longview:route',platform,route:appState.route},'*');
+    if(appState.route==='clara-loading') claraResponseTimer=setTimeout(()=>{
+      if(appState.route==='clara-loading') go('clara-read',false);
+    },2400);
   }
   function go(route,push=true) {
     if(!routes.includes(route)) return;

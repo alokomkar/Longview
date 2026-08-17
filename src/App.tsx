@@ -71,7 +71,7 @@ function ClaraPanel({ clara, onClose }: {
   onClose: () => void;
 }) {
   const { snapshot } = clara;
-  if (snapshot.status === 'loading') return <aside className="plan-card clara-card" aria-busy="true"><span className="status">Clara · read only</span><h2>Reviewing this step…</h2><p>Using only the selected Plan and Today step.</p><button className="secondary" onClick={onClose}>Cancel</button></aside>;
+  if (snapshot.status === 'loading') return <aside className="plan-card clara-card clara-loading" aria-busy="true"><span className="status">Clara · read only</span><h2>Clara is reviewing this step…</h2><p>Using only this Plan and today’s step to prepare a recommendation.</p><div className="clara-progress" role="progressbar" aria-label="Waiting for Clara" aria-valuetext="Clara is preparing a recommendation"><span /></div><small>This usually takes a few seconds.</small><button className="secondary" onClick={onClose}>Cancel and return</button></aside>;
   if (snapshot.status === 'error') {
     const [title, detail] = claraFailureCopy[snapshot.failure];
     return <aside className="plan-card clara-card" role="alert"><span className="status">Nothing changed</span><h2>{title}</h2><p>{detail}</p><div className="actions"><button onClick={clara.retry}>Try again</button><button className="secondary" onClick={onClose}>Close</button></div></aside>;

@@ -3,8 +3,10 @@ import asyncio
 from fastapi.testclient import TestClient
 
 from clara_api.auth import AuthenticationError
+from clara_api.approval import ApprovalConflictError, ApprovalNotFoundError, ApprovalUnavailableError
 from clara_api.engine import EngineUnavailableError
 from clara_api.main import create_app
+from clara_api.models import ApprovalResponse
 
 
 REQUEST = {
@@ -17,6 +19,8 @@ REQUEST = {
         "outcome": "Release a tested PWA to real users.",
         "targetDate": "2026-08-20",
         "weeklyHours": 4,
+        "workingDays": ["mon", "fri"],
+        "scheduleVersion": 2,
     },
     "step": {
         "title": "Define the first proof",
@@ -36,6 +40,16 @@ RESPONSE = {
     "requiresClarification": False,
     "sourceFacts": ["Plan: Launch Longview"],
     "proposedChange": None,
+}
+PROPOSAL = {
+    "kind": "plan-working-days",
+    "planId": "plan-1",
+    "expectedScheduleVersion": 2,
+    "workingDaysBefore": ["mon", "fri"],
+    "workingDaysAfter": ["mon", "wed", "fri"],
+    "weeklyHours": 4,
+    "rationale": "A midweek checkpoint reduces the gap between sessions.",
+    "downstreamEffect": "Today can select this Plan on Wednesday without changing weekly time.",
 }
 
 
@@ -64,8 +78,22 @@ class Engine:
         return self.result
 
 
-def client(verifier=None, engine=None, timeout=8):
-    return TestClient(create_app(verifier or Verifier(), engine or Engine(), timeout))
+class ApprovalRepository:
+    def __init__(self, result=None, error=None):
+        self.result, self.error, self.calls = result, error, []
+
+    async def apply(self, user_id, request):
+        self.calls.append((user_id, request))
+        if self.error:
+            raise self.error
+        return self.result
+
+
+def client(verifier=None, engine=None, timeout=8, approval_repository=None):
+    return TestClient(create_app(
+        verifier=verifier or Verifier(), engine=engine or Engine(),
+        approval_repository=approval_repository, timeout_seconds=timeout
+    ))
 
 
 def test_health_does_not_require_authentication():
@@ -110,6 +138,14 @@ def test_accepts_a_read_only_clarification():
     )
     assert response.status_code == 200
     assert response.json()["requiresClarification"] is True
+
+
+def test_accepts_one_bounded_plan_schedule_proposal():
+    response = client(engine=Engine({**RESPONSE, "proposedChange": PROPOSAL})).post(
+        "/v1/clara/recommendations", json=REQUEST, headers={"Authorization": "Bearer token"}
+    )
+    assert response.status_code == 200
+    assert response.json()["proposedChange"] == PROPOSAL
 
 
 def test_missing_malformed_and_invalid_tokens_fail_before_engine():
@@ -171,3 +207,66 @@ def test_malformed_mismatched_and_write_bearing_outputs_fail_closed():
             "/v1/clara/recommendations", json=REQUEST, headers={"Authorization": "Bearer token"}
         )
         assert response.status_code == 502
+
+
+def test_rejects_mismatched_or_multi_day_proposals():
+    cases = [
+        {**PROPOSAL, "planId": "another-plan"},
+        {**PROPOSAL, "workingDaysAfter": ["mon", "tue", "wed", "fri"]},
+        {**PROPOSAL, "weeklyHours": 5},
+    ]
+    for proposal in cases:
+        response = client(engine=Engine({**RESPONSE, "proposedChange": proposal})).post(
+            "/v1/clara/recommendations", json=REQUEST, headers={"Authorization": "Bearer token"}
+        )
+        assert response.status_code in (422, 502)
+
+
+def test_approval_verifies_auth_and_returns_committed_result():
+    result = ApprovalResponse.model_validate({
+        "schemaVersion": 1, "idempotencyKey": "approval-123", "planId": "plan-1",
+        "scheduleVersion": 3, "workingDays": ["mon", "wed", "fri"], "weeklyHours": 4,
+        "auditEventId": "approval-123", "duplicate": False,
+    })
+    repository = ApprovalRepository(result=result)
+    response = client(approval_repository=repository).post(
+        "/v1/clara/approvals",
+        json={"schemaVersion": 1, "idempotencyKey": "approval-123", "proposal": PROPOSAL},
+        headers={"Authorization": "Bearer token"},
+    )
+    assert response.status_code == 200
+    assert response.json()["scheduleVersion"] == 3
+    assert repository.calls[0][0] == "owner-1"
+
+
+def test_approval_maps_conflict_missing_and_unavailable_without_retrying():
+    cases = [
+        (ApprovalConflictError("Plan schedule changed"), 409),
+        (ApprovalNotFoundError(), 404),
+        (ApprovalUnavailableError(), 503),
+    ]
+    for error, status in cases:
+        repository = ApprovalRepository(error=error)
+        response = client(approval_repository=repository).post(
+            "/v1/clara/approvals",
+            json={"schemaVersion": 1, "idempotencyKey": "approval-123", "proposal": PROPOSAL},
+            headers={"Authorization": "Bearer token"},
+        )
+        assert response.status_code == status
+        assert len(repository.calls) == 1
+
+
+def test_approval_rejects_invalid_payload_and_missing_auth_before_repository():
+    repository = ApprovalRepository()
+    invalid = client(approval_repository=repository).post(
+        "/v1/clara/approvals",
+        json={"schemaVersion": 1, "idempotencyKey": "short", "proposal": PROPOSAL},
+        headers={"Authorization": "Bearer token"},
+    )
+    unauthenticated = client(approval_repository=repository).post(
+        "/v1/clara/approvals",
+        json={"schemaVersion": 1, "idempotencyKey": "approval-123", "proposal": PROPOSAL},
+    )
+    assert invalid.status_code == 422
+    assert unauthenticated.status_code == 401
+    assert repository.calls == []

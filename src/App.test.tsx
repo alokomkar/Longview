@@ -6,6 +6,7 @@ import type { WorkspaceGateway } from './workspace/types';
 import { PlanScheduleConflictError, type Plan, type PlanGateway } from './plan/types';
 import type { TodayGateway } from './today/types';
 import type { ClaraGateway } from './clara/types';
+import type { ClaraApprovalGateway } from './clara/approvalTypes';
 
 const workspaceGateway: WorkspaceGateway = {
   ensure: vi.fn(async (user: AuthUser) => ({ id: 'default' as const, ownerUid: user.uid, schemaVersion: 1 as const }))
@@ -507,5 +508,63 @@ describe('authentication journey', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
     expect(await screen.findByRole('heading', { name: 'Protect the smallest proof' })).toBeVisible();
     expect(recommend).toHaveBeenCalledTimes(2);
+  });
+
+  it('previews and applies one approved Plan schedule change before refreshing Today', async () => {
+    localStorage.setItem('longview:onboarding', 'complete');
+    const initial = scheduledPlan();
+    const updated = { ...initial, workingDays: ['mon', 'wed'] as const, scheduleVersion: 2 };
+    const list = vi.fn().mockResolvedValueOnce([initial]).mockResolvedValue([updated]);
+    const recommend = vi.fn(async context => ({
+      schemaVersion: 1, requestId: context.requestId, sourcePlanId: context.plan.id,
+      headline: 'Add a midweek checkpoint', recommendation: 'Use Wednesday to keep progress moving.',
+      rationale: 'The current gap between working days is unnecessarily long.', confidence: 'medium',
+      requiresClarification: false, sourceFacts: ['Working days: Monday'],
+      proposedChange: {
+        kind: 'plan-working-days', planId: 'plan-1', expectedScheduleVersion: 1,
+        workingDaysBefore: ['mon'], workingDaysAfter: ['mon', 'wed'], weeklyHours: 4,
+        rationale: 'A midweek checkpoint reduces the gap between sessions.',
+        downstreamEffect: 'Today can select this Plan on Wednesday without changing weekly time.'
+      }
+    }));
+    const apply = vi.fn(async (_proposal, idempotencyKey) => ({
+      schemaVersion: 1 as const, idempotencyKey, planId: 'plan-1', scheduleVersion: 2,
+      workingDays: ['mon', 'wed'] as ('mon' | 'wed')[], weeklyHours: 4, auditEventId: idempotencyKey, duplicate: false
+    }));
+    const claraApprovalGateway: ClaraApprovalGateway = { apply };
+    render(<App gateway={gateway({ uid: 'owner', isAnonymous: false, displayName: 'Owner' })} workspaceGateway={workspaceGateway} planGateway={{ ...planGateway, list }} todayGateway={todayGateway} claraGateway={{ recommend }} claraApprovalGateway={claraApprovalGateway} />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Ask Clara about this step' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Review schedule change' }));
+    expect(screen.getByText('Mon')).toBeVisible();
+    expect(screen.getByText('Mon, Wed')).toBeVisible();
+    fireEvent.click(screen.getByRole('button', { name: 'Approve schedule change' }));
+    expect(await screen.findByRole('heading', { name: 'Schedule change approved' })).toBeVisible();
+    expect(apply).toHaveBeenCalledOnce();
+    expect(apply.mock.calls[0][0]).toMatchObject({ expectedScheduleVersion: 1, weeklyHours: 4 });
+    expect(list).toHaveBeenCalledTimes(2);
+  });
+
+  it('rejects Clara’s preview without applying or refreshing the Plan', async () => {
+    localStorage.setItem('longview:onboarding', 'complete');
+    const list = vi.fn(async () => [scheduledPlan()]);
+    const recommend = vi.fn(async context => ({
+      schemaVersion: 1, requestId: context.requestId, sourcePlanId: context.plan.id,
+      headline: 'Add a midweek checkpoint', recommendation: 'Use Wednesday to keep progress moving.',
+      rationale: 'The current gap between working days is unnecessarily long.', confidence: 'medium',
+      requiresClarification: false, sourceFacts: ['Working days: Monday'], proposedChange: {
+        kind: 'plan-working-days', planId: 'plan-1', expectedScheduleVersion: 1,
+        workingDaysBefore: ['mon'], workingDaysAfter: ['mon', 'wed'], weeklyHours: 4,
+        rationale: 'A midweek checkpoint reduces the gap between sessions.',
+        downstreamEffect: 'Today can select this Plan on Wednesday without changing weekly time.'
+      }
+    }));
+    const apply = vi.fn();
+    render(<App gateway={gateway({ uid: 'owner', isAnonymous: false, displayName: 'Owner' })} workspaceGateway={workspaceGateway} planGateway={{ ...planGateway, list }} todayGateway={todayGateway} claraGateway={{ recommend }} claraApprovalGateway={{ apply }} />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Ask Clara about this step' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Review schedule change' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Reject and keep current schedule' }));
+    expect(await screen.findByRole('button', { name: 'Ask Clara about this step' })).toBeVisible();
+    expect(apply).not.toHaveBeenCalled();
+    expect(list).toHaveBeenCalledTimes(2);
   });
 });

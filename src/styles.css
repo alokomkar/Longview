@@ -60,6 +60,12 @@ legend { margin-bottom:10px; color:#dce7e9; font-weight:800; }
 .clara-loading small { margin-top:10px; }
 .clara-progress { height:8px; margin-top:20px; overflow:hidden; border-radius:999px; background:#284458; }
 .clara-progress > span { display:block; width:100%; height:100%; border-radius:inherit; background:#79d7c5; opacity:.75; }
+.approval-diff { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin:20px 0; }
+.approval-diff > div { padding:16px; border:1px solid #284458; border-radius:14px; background:#071522; }
+.approval-diff > div:last-child { border-color:#3a796f; }
+.approval-diff strong,.approval-diff span { display:block; }
+.approval-diff strong { margin:8px 0; color:#f7f4ec; }
+.approval-diff span { color:#849aa6; font-size:.84rem; line-height:1.45; }
 .plan-details-view { padding:48px 0 80px; }
 .plan-details-view .lead { max-width:660px; font-size:1.08rem; }
 .detail-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px; margin:28px 0; }
@@ -75,4 +81,5 @@ legend { margin-bottom:10px; color:#dce7e9; font-weight:800; }
 @media (max-width:520px) { .plans-heading { align-items:stretch; flex-direction:column; } .plans-heading button { width:100%; } }
 @media (max-width:620px) { .portfolio-summary,.detail-grid { grid-template-columns:1fr; } .context-grid { grid-template-columns:repeat(2,1fr); } }
 @media (max-width:420px) { .day-choices { grid-template-columns:repeat(4,1fr); } }
+@media (max-width:520px) { .approval-diff { grid-template-columns:1fr; } }
 @media (prefers-reduced-motion:no-preference) { .card { animation:enter .35s ease-out; } .clara-progress > span { width:42%; opacity:1; animation:clara-sweep 1.15s ease-in-out infinite; } @keyframes enter { from { opacity:0; transform:translateY(8px); } } @keyframes clara-sweep { from { transform:translateX(-110%); } to { transform:translateX(345%); } } }

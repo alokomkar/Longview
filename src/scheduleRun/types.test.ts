@@ -24,6 +24,14 @@ describe('schedule run contract', () => {
     expect(buildScheduleRunContext(entries, '2026-08-17', 29, 'request-1')).toBeNull();
   });
 
+  it('excludes completed steps and returns no empty run context', () => {
+    const entries = derivePortfolio([plan('one', 4), plan('two', 2)]).entries;
+    const oneId = '2026-08-17_one_first-proof-v1';
+    expect(buildScheduleRunContext(entries, '2026-08-17', 120, 'request-1', null, new Set([oneId]))?.steps.map(step => step.planId)).toEqual(['two']);
+    const all = new Set([oneId, '2026-08-17_two_first-proof-v1']);
+    expect(buildScheduleRunContext(entries, '2026-08-17', 120, 'request-1', null, all)).toBeNull();
+  });
+
   it('fails closed on mixed or oversized terminal responses', () => {
     const valid = {
       schemaVersion: 1, runId: 'run-1', requestId: 'request-1', selectedDate: '2026-08-17',

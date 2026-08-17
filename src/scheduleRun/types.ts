@@ -58,11 +58,14 @@ export interface ScheduleRunGateway {
 
 export function buildScheduleRunContext(
   entries: PortfolioEntry[], selectedDate: string, capacityMinutes: number,
-  requestId: string, retryOf: string | null = null
+  requestId: string, retryOf: string | null = null,
+  completedStepIds: ReadonlySet<string> = new Set()
 ): ScheduleRunContext | null {
   const eligible = entries
     .map(entry => ({ entry, step: deriveTodayStep([entry.plan], selectedDate) }))
-    .filter((value): value is { entry: PortfolioEntry; step: NonNullable<typeof value.step> } => Boolean(value.step));
+    .filter((value): value is { entry: PortfolioEntry; step: NonNullable<typeof value.step> } =>
+      Boolean(value.step) && !completedStepIds.has(value.step!.completionId)
+    );
   if (!eligible.length || capacityMinutes < 30 || capacityMinutes > 480) return null;
   return {
     schemaVersion: 1,

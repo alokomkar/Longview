@@ -1,6 +1,7 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { App } from './App';
+import type { ComponentProps } from 'react';
+import { App as LongviewApp } from './App';
 import type { AuthGateway, AuthUser } from './auth/types';
 import type { WorkspaceGateway } from './workspace/types';
 import { PlanScheduleConflictError, type Plan, type PlanGateway } from './plan/types';
@@ -47,6 +48,10 @@ const approvedDayGateway: ApprovedDayGateway = {
   get: vi.fn(async () => null),
   approve: vi.fn(async () => { throw new Error('not configured'); })
 };
+
+function App(props: ComponentProps<typeof LongviewApp>) {
+  return <LongviewApp approvedDayGateway={approvedDayGateway} {...props} />;
+}
 
 const succeededScheduleRun = {
   schemaVersion: 1 as const, runId: 'run-1', requestId: 'schedule-request-1', selectedDate: '2026-08-17',
@@ -618,6 +623,46 @@ describe('authentication journey', () => {
     expect(await screen.findByRole('heading', { name: '17th August 2026 is marked as a break.' })).toBeVisible();
     expect(screen.queryByRole('button', { name: 'Prepare replacement' })).not.toBeInTheDocument();
     expect(screen.getByText('day-break-1')).toBeVisible();
+  });
+
+  it('restores a saved break on Today without exposing stale task actions', async () => {
+    localStorage.setItem('longview:onboarding', 'complete');
+    const getCompletion = vi.fn(async () => null);
+    render(<App gateway={gateway({ uid: 'owner', isAnonymous: false, displayName: 'Owner' })} workspaceGateway={workspaceGateway} planGateway={{ ...planGateway, list: vi.fn(async () => [scheduledPlan()]) }} todayGateway={{ get: getCompletion, complete: vi.fn(todayGateway.complete) }} approvedDayGateway={{ get: vi.fn(async () => savedBreakDay), approve: vi.fn() }} />);
+    expect(await screen.findByRole('heading', { name: 'You’re taking a break today.' })).toBeVisible();
+    expect(screen.getByText(/Your unfinished task will be offered again on its next scheduled Plan day/)).toBeVisible();
+    expect(screen.queryByRole('button', { name: 'Mark step complete' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Ask Clara about this step' })).not.toBeInTheDocument();
+    expect(getCompletion).not.toHaveBeenCalled();
+  });
+
+  it('refreshes the approved day before returning from a saved break to Today', async () => {
+    localStorage.setItem('longview:onboarding', 'complete');
+    const get = vi.fn().mockResolvedValueOnce(savedApprovedDay).mockResolvedValue(savedBreakDay);
+    const dayBreakGateway: DayBreakGateway = {
+      preview: vi.fn(async () => dayBreakPreview),
+      confirm: vi.fn(async (_date, request): Promise<DayBreakResult> => ({ schemaVersion: 1, idempotencyKey: request.idempotencyKey, duplicate: false, breakDay: savedBreakDay, carryovers: dayBreakPreview.carryovers }))
+    };
+    render(<App gateway={gateway({ uid: 'owner', isAnonymous: false, displayName: 'Owner' })} workspaceGateway={workspaceGateway} planGateway={{ ...planGateway, list: vi.fn(async () => [scheduledPlan()]) }} todayGateway={{ get: vi.fn(async () => null), complete: vi.fn(todayGateway.complete) }} approvedDayGateway={{ get, approve: vi.fn() }} dayBreakGateway={dayBreakGateway} />);
+    await screen.findByRole('button', { name: 'Mark step complete' });
+    fireEvent.click(screen.getByRole('button', { name: 'Calendar' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Take a break today' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Confirm break and carry tasks' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Return to Today' }));
+    expect(await screen.findByRole('heading', { name: 'You’re taking a break today.' })).toBeVisible();
+    expect(get).toHaveBeenCalledTimes(2);
+    expect(screen.queryByRole('button', { name: 'Mark step complete' })).not.toBeInTheDocument();
+  });
+
+  it('hides Today actions until an unavailable day-status check succeeds', async () => {
+    localStorage.setItem('longview:onboarding', 'complete');
+    const get = vi.fn().mockRejectedValueOnce(new Error('offline')).mockResolvedValueOnce(savedBreakDay);
+    render(<App gateway={gateway({ uid: 'owner', isAnonymous: false, displayName: 'Owner' })} workspaceGateway={workspaceGateway} planGateway={{ ...planGateway, list: vi.fn(async () => [scheduledPlan()]) }} todayGateway={{ get: vi.fn(async () => null), complete: vi.fn(todayGateway.complete) }} approvedDayGateway={{ get, approve: vi.fn() }} />);
+    expect(await screen.findByRole('heading', { name: 'Today’s schedule couldn’t be checked.' })).toBeVisible();
+    expect(screen.queryByRole('button', { name: 'Mark step complete' })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
+    expect(await screen.findByRole('heading', { name: 'You’re taking a break today.' })).toBeVisible();
+    expect(get).toHaveBeenCalledTimes(2);
   });
 
   it('retries completion-state loading without changing the step', async () => {

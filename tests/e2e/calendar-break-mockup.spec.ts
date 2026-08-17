@@ -16,6 +16,10 @@ test('break preview carries each task to its next eligible day', async ({ page }
     timeout: 4_000
   });
   await expect(page.getByText(/2 pending carryovers/)).toBeVisible();
+  await page.getByRole('button', { name: 'Return to Today' }).click();
+  await expect(page.getByRole('heading', { name: 'You’re taking a break today' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Review Calendar' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Complete' })).toHaveCount(0);
 });
 
 test('break failure states preserve today and future days', async ({ page }) => {

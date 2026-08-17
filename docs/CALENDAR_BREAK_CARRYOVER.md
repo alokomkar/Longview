@@ -50,6 +50,8 @@ or replace an approved future day.
 - Failure, stale state, missing destinations, or future-day conflicts move nothing.
 - Success identifies the source revision, break event, and pending carryover count.
 - Duplicate confirmation shows the original successful result.
+- Returning to Today replaces work and completion controls with a friendly break state.
+- If the saved day cannot be checked, Today shows no task until retry succeeds.
 
 ## Acceptance
 
@@ -59,15 +61,20 @@ or replace an approved future day.
 4. Source-day, Plan-schedule, and destination conflicts write nothing.
 5. Success is atomic; partial carryover cannot become visible.
 6. Repeating one idempotency key creates no duplicate pending task or event.
-7. Reload restores the saved break and destination carryovers.
-8. The progress indicator remains visible through success or failure.
+7. Navigation and reload restore the saved break on both Calendar and Today.
+8. A break day exposes no completion or Clara controls on Today.
+9. The progress indicator remains visible through success or failure.
 
 ## Localhost implementation
 
-The PWA loads an approved day before offering a break, requests a server-authoritative
+The PWA loads the approved-day status before exposing Today work or offering a break,
+requests a server-authoritative
 preview, and shows every unfinished block beside its next eligible Plan date. Preview
 and confirmation keep accessible progress indicators visible for the complete network
-operation. Reload restores the saved break revision and immutable event identifier.
+operation. Navigation and reload restore a friendly Today break state without stale
+work, completion, or Clara controls, plus the saved Calendar revision and immutable
+event identifier. If the day status cannot be checked, Today fails closed and offers a
+safe retry.
 
 FastAPI re-reads the source approved day, affected Plan schedules, destination days,
 and pending carryovers. One Firestore transaction marks only the source day as a break,

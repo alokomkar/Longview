@@ -17,10 +17,12 @@ not. Review checkmarks in the demo are not implementation status.
 2. **Managed Clara loop** — the selected-Plan recommendation and approved schedule
    change are implemented locally. Deployment evidence, quick actions, cross-Plan
    tradeoff, and judged failure captures remain.
-3. **Calendar** — CAL-01 through CAL-04: prepare one day, adjust/approve, persist the
-   approved day, and preserve it on generation failure.
-4. **Checkpointed run** — RUN-01 through RUN-04: correlated run identifier, cancellation,
-   timeout, checkpoints, retry, and partial-write reconciliation.
+3. **Calendar** — CAL-01 is implemented locally with completion-aware preparation and a
+   checkpointed proposal run. CAL-02 through CAL-04 now have a reviewed-artifact gate:
+   approve the exact ordered proposal, persist one selected day, and preserve the
+   current approved day on generation or approval failure.
+4. **Checkpointed run** — RUN-01 through RUN-04 are implemented locally: correlated run
+   identifier, cancellation, timeout, checkpoints, retry, and safe terminal publication.
 5. **Submission evidence** — EVID-01 through EVID-03: replace all 13 prototype captures,
    record the implemented PWA video, and refresh architecture/reproducibility evidence.
 

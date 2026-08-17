@@ -10,7 +10,7 @@ import './styles.css';
 const failureCopy: Record<AuthFailure, string> = {
   cancelled: 'Sign-in was cancelled. Nothing changed—try again or continue anonymously.',
   'popup-blocked': 'Your browser blocked the sign-in window. Allow pop-ups for Longview and retry.',
-  'account-conflict': 'That Google account is already connected. Your anonymous workspace was not changed.',
+  'account-conflict': 'That Google account already has a Longview workspace. Your anonymous workspace was not changed.',
   offline: 'You appear to be offline. Reconnect and try again; local access remains unchanged.',
   unknown: 'Sign-in could not be completed. Nothing was changed.'
 };
@@ -31,6 +31,9 @@ function WorkspaceReady({ auth, gateway }: {
 
   const clearLocalData = async () => {
     localStorage.clear();
+    if ('serviceWorker' in navigator) {
+      await Promise.all((await navigator.serviceWorker.getRegistrations()).map(registration => registration.unregister()));
+    }
     if ('caches' in window) {
       await Promise.all((await caches.keys()).map(name => caches.delete(name)));
     }
@@ -53,7 +56,7 @@ function WorkspaceReady({ auth, gateway }: {
     return <main className="app-shell"><header><p className="eyebrow">Longview</p><span className="status">{hours} hours/week</span></header>
       {view === 'today' && <section className="empty"><span className="status">Today</span><h1>Nothing is scheduled yet.</h1><p>Create your first Plan and Longview will shape a realistic day around your availability.</p><button>Create first Plan</button></section>}
       {view === 'plans' && <section className="empty"><span className="status">Plans</span><h1>No Plans yet.</h1><p>Your long-term priorities will appear here after you create your first Plan.</p><button>Create first Plan</button></section>}
-      {view === 'settings' && <section className="empty"><span className="status">Settings</span><h1>Account and local data</h1><p>Sign out keeps this browser’s local preferences. Clearing local data removes preferences and cached PWA files, then signs you out.</p>{snapshot.user.isAnonymous && <button onClick={auth.linkGoogle} disabled={snapshot.linking}>{snapshot.linking ? 'Opening Google…' : 'Link Google account'}</button>}<div className="actions"><button className="secondary" onClick={auth.signOut}>Sign out</button><button className="danger" onClick={() => setConfirmClear(true)}>Clear local data</button></div>{snapshot.failure && <div className="notice" role="alert">{failureCopy[snapshot.failure]}</div>}{confirmClear && <div className="notice" role="alert"><p>This removes Longview data stored by this browser. Cloud and emulator workspace records are not deleted.</p><div className="actions"><button className="danger" onClick={clearLocalData}>Confirm clear local data</button><button className="secondary" onClick={() => setConfirmClear(false)}>Cancel</button></div></div>}</section>}
+      {view === 'settings' && <section className="empty"><span className="status">Settings</span><h1>Account and local data</h1><p>Sign out keeps this browser’s local preferences. Clearing local data removes preferences and cached PWA files, then signs you out.</p>{snapshot.user.isAnonymous && <button onClick={auth.linkGoogle} disabled={snapshot.linking}>{snapshot.linking ? 'Opening Google…' : 'Link Google account'}</button>}<div className="actions"><button className="secondary" onClick={auth.signOut}>Sign out</button><button className="danger" onClick={() => setConfirmClear(true)}>Clear local data</button></div>{snapshot.failure && <div className="notice" role="alert">{failureCopy[snapshot.failure]}{snapshot.failure === 'account-conflict' && snapshot.user.isAnonymous && <button onClick={auth.useExistingGoogle}>Use existing Google workspace</button>}</div>}{confirmClear && <div className="notice" role="alert"><p>This removes Longview data stored by this browser. Cloud and emulator workspace records are not deleted.</p><div className="actions"><button className="danger" onClick={clearLocalData}>Confirm clear local data</button><button className="secondary" onClick={() => setConfirmClear(false)}>Cancel</button></div></div>}</section>}
       <nav aria-label="Primary"><button aria-current={view === 'today' ? 'page' : undefined} className={view === 'today' ? '' : 'secondary'} onClick={() => setView('today')}>Today</button><button aria-current={view === 'plans' ? 'page' : undefined} className={view === 'plans' ? '' : 'secondary'} onClick={() => setView('plans')}>Plans</button><button aria-current={view === 'settings' ? 'page' : undefined} className={view === 'settings' ? '' : 'secondary'} onClick={() => setView('settings')}>Settings</button></nav></main>;
   }
 
@@ -67,6 +70,7 @@ function WorkspaceReady({ auth, gateway }: {
           ? 'Your anonymous workspace stays on this account. Link Google when you want access across devices.'
           : 'Your workspace is protected by your Google account.'}</p>
         {snapshot.failure && <div className="notice" role="alert">{failureCopy[snapshot.failure]}</div>}
+        {snapshot.failure === 'account-conflict' && snapshot.user.isAnonymous && <button onClick={auth.useExistingGoogle}>Use existing Google workspace</button>}
         {snapshot.user.isAnonymous && <button onClick={auth.linkGoogle} disabled={snapshot.linking}>{snapshot.linking ? 'Opening Google…' : 'Link Google account'}</button>}
         {!snapshot.user.isAnonymous && <button onClick={() => setStage('availability')}>Continue setup</button>}
       </section>

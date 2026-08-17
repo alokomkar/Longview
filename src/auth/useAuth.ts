@@ -33,6 +33,7 @@ export function useAuth(gateway: AuthGateway) {
     continueAnonymously: () => run(() => gateway.signInAnonymously()),
     continueWithGoogle: () => run(() => gateway.signInGoogle()),
     linkGoogle: () => run(() => gateway.linkGoogle(), true),
+    useExistingGoogle: () => run(() => gateway.signInGoogle(), true),
     signOut: () => run(() => gateway.signOut())
   };
 }

@@ -116,4 +116,22 @@ describe('authentication journey', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Link Google account' }));
     expect(mock.linkGoogle).toHaveBeenCalledOnce();
   });
+
+  it('explicitly switches to an existing Google workspace after a link conflict', async () => {
+    localStorage.setItem('longview:onboarding', 'complete');
+    let listener: (user: AuthUser | null) => void = () => undefined;
+    const mock: AuthGateway = {
+      observe(next) { listener = next; queueMicrotask(() => next({ uid: 'anon-1', isAnonymous: true, displayName: null })); return () => undefined; },
+      signInAnonymously: vi.fn(),
+      linkGoogle: vi.fn(async () => { throw { code: 'auth/credential-already-in-use' }; }),
+      signInGoogle: vi.fn(async () => listener({ uid: 'google-1', isAnonymous: false, displayName: 'Owner' })),
+      signOut: vi.fn()
+    };
+    render(<App gateway={mock} workspaceGateway={workspaceGateway} />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Settings' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Link Google account' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Use existing Google workspace' }));
+    await waitFor(() => expect(mock.signInGoogle).toHaveBeenCalledOnce());
+    expect(screen.queryByRole('button', { name: 'Link Google account' })).not.toBeInTheDocument();
+  });
 });

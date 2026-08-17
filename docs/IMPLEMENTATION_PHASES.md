@@ -61,3 +61,7 @@ after onboarding, so cross-device protection is never hidden by local progress.
 The authentication slice is deployed to Firebase Hosting for production-domain
 acceptance. The hosted build uses Google and anonymous authentication plus owner-scoped
 production Firestore rules; emulator flags remain limited to local development.
+When a Google identity already owns a workspace, Longview never merges silently. It
+preserves the anonymous workspace and offers an explicit switch to the existing Google
+workspace. Local-data clearing also unregisters the service worker before deleting its
+caches to prevent a controlled page from referencing an empty cache.

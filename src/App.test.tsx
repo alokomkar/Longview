@@ -98,6 +98,19 @@ describe('authentication journey', () => {
     expect(localStorage.getItem('longview:onboarding')).toBe('complete');
   });
 
+  it('warns anonymous users and offers account linking before sign-out', async () => {
+    localStorage.setItem('longview:onboarding', 'complete');
+    const mock = gateway({ uid: 'anon-1', isAnonymous: true, displayName: null });
+    render(<App gateway={mock} workspaceGateway={workspaceGateway} />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Settings' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Sign out' }));
+    expect(screen.getByRole('alert')).toHaveTextContent('inaccessible from this browser');
+    expect(screen.getByRole('button', { name: 'Link Google account' })).toBeVisible();
+    expect(mock.signOut).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: 'Sign out and lose access' }));
+    expect(await screen.findByRole('button', { name: 'Continue anonymously' })).toBeVisible();
+  });
+
   it('requires confirmation before clearing browser-local data', async () => {
     localStorage.setItem('longview:onboarding', 'complete');
     const mock = gateway({ uid: 'owner', isAnonymous: false, displayName: 'Owner' });

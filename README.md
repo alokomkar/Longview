@@ -22,6 +22,8 @@ Settings provides separate sign-out and confirmed browser-local data clearing ac
 neither action deletes the workspace record.
 Anonymous users can complete onboarding without linking Google; linking remains an
 optional cross-device access action.
+Because MVP recovery is unavailable, anonymous sign-out warns about losing access and
+offers Google linking before confirmation.
 
 ## Local development
 

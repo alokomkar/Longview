@@ -68,3 +68,6 @@ caches to prevent a controlled page from referencing an empty cache.
 Anonymous authentication never gates onboarding on account linking. Workspace-ready
 users can continue directly to availability and Today, while Google linking remains an
 optional secondary action available again from Settings.
+Anonymous sign-out and local-data clearing require a loss-of-access warning and offer
+Google linking first. Recovering an unlinked anonymous session is explicitly deferred
+beyond the MVP; the underlying workspace is not silently deleted.

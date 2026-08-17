@@ -61,6 +61,30 @@ service cloud.firestore {
             && request.resource.data.weeklyHours <= 40;
           allow update, delete: if false;
         }
+
+        match /todayCompletions/{completionId} {
+          allow read: if owns(uid);
+          allow create: if owns(uid)
+            && workspaceId == 'default'
+            && request.resource.data.keys().hasOnly([
+              'id', 'ownerUid', 'workspaceId', 'planId', 'stepKey',
+              'completedDate', 'durationMinutes', 'status', 'schemaVersion',
+              'completedAt'
+            ])
+            && request.resource.data.id == completionId
+            && request.resource.data.ownerUid == uid
+            && request.resource.data.workspaceId == workspaceId
+            && request.resource.data.stepKey == 'first-proof-v1'
+            && request.resource.data.completedDate is string
+            && request.resource.data.completedDate.matches('^[0-9]{4}-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$')
+            && request.resource.data.durationMinutes is int
+            && request.resource.data.durationMinutes >= 30
+            && request.resource.data.durationMinutes <= 60
+            && request.resource.data.status == 'completed'
+            && request.resource.data.schemaVersion == 1
+            && exists(/databases/$(database)/documents/users/$(uid)/workspaces/$(workspaceId)/plans/$(request.resource.data.planId));
+          allow update, delete: if false;
+        }
       }
     }
 

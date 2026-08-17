@@ -7,8 +7,11 @@ import { useWorkspace } from './workspace/useWorkspace';
 import { lazyFirebasePlanGateway } from './plan/lazyPlanGateway';
 import { validatePlanDraft, type PlanDraft, type PlanErrors, type PlanGateway } from './plan/types';
 import { usePlans } from './plan/usePlans';
-import { deriveTodayStep } from './today/deriveTodayStep';
-import { useState } from 'react';
+import { deriveTodayStep, type TodayStep } from './today/deriveTodayStep';
+import { lazyFirebaseTodayGateway } from './today/lazyTodayGateway';
+import type { TodayGateway } from './today/types';
+import { useTodayCompletion } from './today/useTodayCompletion';
+import { useMemo, useState } from 'react';
 import './styles.css';
 
 const failureCopy: Record<AuthFailure, string> = {
@@ -27,10 +30,15 @@ const localDate = () => {
 
 const requestId = () => globalThis.crypto?.randomUUID?.() ?? `plan-${Date.now()}`;
 
-function WorkspaceReady({ auth, gateway, planGateway }: {
+function TodayStepCard({ step, completed = false }: { step: TodayStep; completed?: boolean }) {
+  return <article className={`plan-card today-card${completed ? ' success' : ''}`}><span className="status">{completed ? `Completed · ${step.planTitle}` : `From ${step.planTitle}`}</span><h2>{step.title}</h2>{!completed && <p>{step.description}</p>}<dl><dt>Time</dt><dd>{step.durationMinutes} minutes</dd><dt>{completed ? 'Completed' : 'Plan target'}</dt><dd>{completed ? step.date : step.targetDate}</dd></dl><small>{completed ? 'Your Plan stays active. No new schedule was created.' : 'Prepared from your saved Plan. Nothing was changed.'}</small></article>;
+}
+
+function WorkspaceReady({ auth, gateway, planGateway, todayGateway }: {
   auth: ReturnType<typeof useAuth>;
   gateway: WorkspaceGateway;
   planGateway: PlanGateway;
+  todayGateway: TodayGateway;
 }) {
   const snapshot = auth.snapshot;
   if (snapshot.status !== 'authenticated') return null;
@@ -42,6 +50,7 @@ function WorkspaceReady({ auth, gateway, planGateway }: {
   const [view, setView] = useState<'today' | 'plans' | 'settings'>('today');
   const [confirmClear, setConfirmClear] = useState(false);
   const [confirmSignOut, setConfirmSignOut] = useState(false);
+  const [confirmComplete, setConfirmComplete] = useState(false);
   const [planDraft, setPlanDraft] = useState<PlanDraft>(() => ({
     clientRequestId: requestId(), title: '', outcome: '', why: '', targetDate: localDate(), weeklyHours: 5
   }));
@@ -49,7 +58,8 @@ function WorkspaceReady({ auth, gateway, planGateway }: {
   const [savingPlan, setSavingPlan] = useState(false);
   const [planSaveFailed, setPlanSaveFailed] = useState(false);
   const plans = usePlans(snapshot.user, planGateway, stage === 'today' && view !== 'settings');
-  const todayStep = deriveTodayStep(plans.snapshot.plans);
+  const todayStep = useMemo(() => deriveTodayStep(plans.snapshot.plans, localDate()), [plans.snapshot.plans]);
+  const completion = useTodayCompletion(snapshot.user, todayStep, todayGateway, stage === 'today' && view === 'today' && plans.snapshot.status === 'ready');
 
   const updatePlan = (field: keyof PlanDraft, value: string | number) => {
     setPlanDraft(current => ({ ...current, [field]: value }));
@@ -124,7 +134,9 @@ function WorkspaceReady({ auth, gateway, planGateway }: {
         {(plans.snapshot.status === 'idle' || plans.snapshot.status === 'loading') && <div className="empty"><h1>Preparing Today…</h1><p>Finding one useful step from your saved Plans.</p></div>}
         {plans.snapshot.status === 'error' && <div className="empty"><h1>Today couldn’t be prepared.</h1><p>Your Plans are unchanged. Check your connection and try again.</p><button onClick={plans.retry}>Try again</button></div>}
         {plans.snapshot.status === 'ready' && !todayStep && <div className="empty"><h1>Nothing is scheduled yet.</h1><p>Create your first Plan and Longview will shape a realistic day around your availability.</p><button onClick={() => setStage('plan-create')}>Create first Plan</button></div>}
-        {plans.snapshot.status === 'ready' && todayStep && <div className="today-content"><h1>One useful step is enough.</h1><p>Start with the nearest active Plan. You can refine the step later.</p><article className="plan-card today-card"><span className="status">From {todayStep.planTitle}</span><h2>{todayStep.title}</h2><p>{todayStep.description}</p><dl><dt>Time</dt><dd>{todayStep.durationMinutes} minutes</dd><dt>Plan target</dt><dd>{todayStep.targetDate}</dd></dl><small>Prepared from your saved Plan. Nothing was changed.</small></article><button className="secondary" onClick={() => setView('plans')}>View all Plans</button></div>}
+        {plans.snapshot.status === 'ready' && todayStep && completion.snapshot.status === 'ready' && completion.snapshot.completion && <div className="today-content"><h1>Today’s step is complete.</h1><p>You recorded meaningful progress without changing your Plan.</p><TodayStepCard step={todayStep} completed /><button className="secondary" onClick={() => setView('plans')}>View all Plans</button></div>}
+        {plans.snapshot.status === 'ready' && todayStep && completion.snapshot.status !== 'ready' && <div className="today-content"><h1>One useful step is enough.</h1><p>Start with the nearest active Plan. You can refine the step later.</p><TodayStepCard step={todayStep} />{completion.snapshot.status === 'error' ? <div className="notice" role="alert">Progress couldn’t be checked. Nothing was changed.<button onClick={completion.retry}>Try again</button></div> : <button disabled>Checking progress…</button>}</div>}
+        {plans.snapshot.status === 'ready' && todayStep && completion.snapshot.status === 'ready' && !completion.snapshot.completion && <div className="today-content"><h1>One useful step is enough.</h1><p>Start with the nearest active Plan. You can refine the step later.</p><TodayStepCard step={todayStep} />{completion.saveFailed && <div className="notice" role="alert">Completion wasn’t saved. Your step is still open. Try again.</div>}{confirmComplete ? <div className="notice" role="alert"><p>Mark this step complete for today? Your Plan and schedule will stay the same.</p><div className="actions"><button onClick={async () => { if (await completion.complete()) setConfirmComplete(false); }} disabled={completion.completing}>{completion.completing ? 'Saving completion…' : 'Confirm completion'}</button><button className="secondary" onClick={() => setConfirmComplete(false)} disabled={completion.completing}>Keep working</button></div></div> : <div className="actions"><button onClick={() => setConfirmComplete(true)}>Mark step complete</button><button className="secondary" onClick={() => setView('plans')}>View all Plans</button></div>}</div>}
       </section>}
       {view === 'plans' && <section className="plans-view" aria-busy={plans.snapshot.status === 'loading'}><span className="status">Plans</span>
         {(plans.snapshot.status === 'idle' || plans.snapshot.status === 'loading') && <div className="empty"><h1>Loading your Plans…</h1><p>Bringing your priorities into view.</p></div>}
@@ -154,7 +166,7 @@ function WorkspaceReady({ auth, gateway, planGateway }: {
   );
 }
 
-export function App({ gateway = firebaseAuthGateway, workspaceGateway = lazyFirebaseWorkspaceGateway, planGateway = lazyFirebasePlanGateway }: { gateway?: AuthGateway; workspaceGateway?: WorkspaceGateway; planGateway?: PlanGateway }) {
+export function App({ gateway = firebaseAuthGateway, workspaceGateway = lazyFirebaseWorkspaceGateway, planGateway = lazyFirebasePlanGateway, todayGateway = lazyFirebaseTodayGateway }: { gateway?: AuthGateway; workspaceGateway?: WorkspaceGateway; planGateway?: PlanGateway; todayGateway?: TodayGateway }) {
   const auth = useAuth(gateway);
   const { snapshot } = auth;
 
@@ -163,7 +175,7 @@ export function App({ gateway = firebaseAuthGateway, workspaceGateway = lazyFire
   }
 
   if (snapshot.status === 'authenticated') {
-    return <WorkspaceReady auth={auth} gateway={workspaceGateway} planGateway={planGateway} />;
+    return <WorkspaceReady auth={auth} gateway={workspaceGateway} planGateway={planGateway} todayGateway={todayGateway} />;
   }
 
   return (

@@ -1,6 +1,6 @@
 # Longview Implementation Phases
 
-Status: Day 1 Slice 3 implemented - subject to change
+Status: Day 2 Slice 1 implemented - subject to change
 Updated: 2026-08-17
 Links: [PRD](PRODUCT_REQUIREMENTS.md) | [Mockup](design/longview-pwa-interactive-mockup.html) | [Stack](TECH_STACK.md)
 
@@ -97,3 +97,14 @@ runtime, fails closed on malformed records, and prepares one deterministic Today
 The result identifies its source Plan and explains that nothing was changed. Empty,
 loading, read-failure/retry, and ready states remain explicit. The linked mockup's first
 step and Today failure states reflect this non-model, non-writing boundary.
+
+Slice 3 was accepted and merged on 2026-08-17, completing the planned Day 1 slices.
+
+## Day 2 delivery slices
+
+1. **Today completion:** Require explicit confirmation before one owner-scoped,
+   immutable completion write. The completion ID is deterministic for date, Plan, and
+   step type, so retries are idempotent and reload restores the completed state.
+   Cancellation and failed saves leave the step open. Completing a step does not edit
+   the Plan, prepare another task, or change the schedule. The linked mockup includes
+   confirmation, failed-save recovery, and completed states.

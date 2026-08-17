@@ -113,4 +113,44 @@ describe('Firestore ownership rules', () => {
     await assertFails(getDocs(otherPlans));
     await assertFails(getDocs(publicPlans));
   });
+
+  it('allows an owner to record one immutable Today completion', async () => {
+    const owner = environment.authenticatedContext('owner').firestore();
+    const planPath = 'users/owner/workspaces/default/plans/plan-1';
+    await environment.withSecurityRulesDisabled(async context => {
+      await setDoc(doc(context.firestore(), planPath), {
+        id: 'plan-1', clientRequestId: 'plan-1', ownerUid: 'owner', workspaceId: 'default',
+        title: 'Launch a useful product', outcome: 'Release a tested product to real users.',
+        why: 'Learn which problem is worth solving well.', targetDate: '2026-09-30',
+        weeklyHours: 10, status: 'active', schemaVersion: 1,
+        createdAt: new Date(), updatedAt: new Date()
+      });
+    });
+    const completion = doc(owner, 'users/owner/workspaces/default/todayCompletions/2026-08-17_plan-1_first-proof-v1');
+    const valid = {
+      id: '2026-08-17_plan-1_first-proof-v1', ownerUid: 'owner', workspaceId: 'default',
+      planId: 'plan-1', stepKey: 'first-proof-v1', completedDate: '2026-08-17',
+      durationMinutes: 60, status: 'completed', schemaVersion: 1, completedAt: new Date()
+    };
+    await assertSucceeds(setDoc(completion, valid));
+    await assertSucceeds(getDoc(completion));
+    await assertFails(setDoc(completion, { ...valid, durationMinutes: 30 }));
+    await assertFails(deleteDoc(completion));
+  });
+
+  it('rejects forged, malformed, and cross-user Today completions', async () => {
+    const owner = environment.authenticatedContext('owner').firestore();
+    const other = environment.authenticatedContext('other').firestore();
+    const path = 'users/owner/workspaces/default/todayCompletions/completion-1';
+    const base = {
+      id: 'completion-1', ownerUid: 'owner', workspaceId: 'default', planId: 'plan-1',
+      stepKey: 'first-proof-v1', completedDate: '2026-08-17', durationMinutes: 60,
+      status: 'completed', schemaVersion: 1, completedAt: new Date()
+    };
+    await assertFails(setDoc(doc(other, path), base));
+    await assertFails(setDoc(doc(owner, path), { ...base, ownerUid: 'other' }));
+    await assertFails(setDoc(doc(owner, path), { ...base, durationMinutes: 61 }));
+    await assertFails(setDoc(doc(owner, path), { ...base, completedDate: 'not-a-date' }));
+    await assertFails(setDoc(doc(owner, path), base));
+  });
 });

@@ -26,8 +26,10 @@ import { deriveTodayStep, findNextScheduledDate, type TodayStep } from './today/
 import { lazyFirebaseTodayGateway } from './today/lazyTodayGateway';
 import type { TodayGateway } from './today/types';
 import { useTodayCompletion } from './today/useTodayCompletion';
-import { buildClaraContext, type ClaraGateway } from './clara/types';
+import { buildClaraContext, type ClaraGateway, type ClaraPlanScheduleChange } from './clara/types';
 import { lazyClaraGateway } from './clara/lazyClaraGateway';
+import { lazyClaraApprovalGateway } from './clara/lazyApprovalGateway';
+import { ClaraApprovalConflictError, type ClaraApprovalGateway, type ClaraApprovalResult } from './clara/approvalTypes';
 import { useClaraRecommendation, type ClaraFailure } from './clara/useClaraRecommendation';
 import { formatLongDate } from './date/formatLongDate';
 import { useEffect, useMemo, useState } from 'react';
@@ -66,9 +68,10 @@ function TodayStepCard({ step, completed = false }: { step: TodayStep; completed
   return <article className={`plan-card today-card${completed ? ' success' : ''}`}><span className="status">{completed ? `Completed · ${step.planTitle}` : `From ${step.planTitle}`}</span><h2>{step.title}</h2>{!completed && <p>{step.description}</p>}<dl><dt>Time</dt><dd>{step.durationMinutes} minutes</dd><dt>{completed ? 'Completed' : 'Plan target'}</dt><dd>{formatLongDate(completed ? step.date : step.targetDate)}</dd></dl><small>{completed ? 'Your Plan stays active. No new schedule was created.' : 'Prepared from your saved Plan. Nothing was changed.'}</small></article>;
 }
 
-function ClaraPanel({ clara, onClose }: {
+function ClaraPanel({ clara, onClose, onReview }: {
   clara: ReturnType<typeof useClaraRecommendation>;
   onClose: () => void;
+  onReview: (proposal: ClaraPlanScheduleChange) => void;
 }) {
   const { snapshot } = clara;
   if (snapshot.status === 'loading') return <aside className="plan-card clara-card clara-loading" aria-busy="true"><span className="status">Clara · read only</span><h2>Clara is reviewing this step…</h2><p>Using only this Plan and today’s step to prepare a recommendation.</p><div className="clara-progress" role="progressbar" aria-label="Waiting for Clara" aria-valuetext="Clara is preparing a recommendation"><span /></div><small>This usually takes a few seconds.</small><button className="secondary" onClick={onClose}>Cancel and return</button></aside>;
@@ -76,16 +79,36 @@ function ClaraPanel({ clara, onClose }: {
     const [title, detail] = claraFailureCopy[snapshot.failure];
     return <aside className="plan-card clara-card" role="alert"><span className="status">Nothing changed</span><h2>{title}</h2><p>{detail}</p><div className="actions"><button onClick={clara.retry}>Try again</button><button className="secondary" onClick={onClose}>Close</button></div></aside>;
   }
-  if (snapshot.status === 'ready') return <aside className="plan-card clara-card"><span className="status">Read-only recommendation · {snapshot.recommendation.confidence} confidence</span><h2>{snapshot.recommendation.headline}</h2><p>{snapshot.recommendation.recommendation}</p><p><strong>Why:</strong> {snapshot.recommendation.rationale}</p><dl>{snapshot.recommendation.sourceFacts.map(fact => <div key={fact}><dt>Context used</dt><dd>{fact}</dd></div>)}</dl><small>Recommendation only · Nothing was changed.</small><button className="secondary" onClick={onClose}>Close recommendation</button></aside>;
+  if (snapshot.status === 'ready') return <aside className="plan-card clara-card"><span className="status">Read-only recommendation · {snapshot.recommendation.confidence} confidence</span><h2>{snapshot.recommendation.headline}</h2><p>{snapshot.recommendation.recommendation}</p><p><strong>Why:</strong> {snapshot.recommendation.rationale}</p><dl>{snapshot.recommendation.sourceFacts.map(fact => <div key={fact}><dt>Context used</dt><dd>{fact}</dd></div>)}</dl><small>{snapshot.recommendation.proposedChange ? 'A specific schedule change is ready for review. Nothing has changed yet.' : 'Recommendation only · Nothing was changed.'}</small>{snapshot.recommendation.proposedChange && <button onClick={() => onReview(snapshot.recommendation.proposedChange!)}>Review schedule change</button>}<button className="secondary" onClick={onClose}>Close recommendation</button></aside>;
   return null;
 }
 
-function WorkspaceReady({ auth, gateway, planGateway, todayGateway, claraGateway }: {
+type ApprovalState =
+  | { status: 'review'; result: null; failure: null }
+  | { status: 'applying'; result: null; failure: null }
+  | { status: 'success'; result: ClaraApprovalResult; failure: null }
+  | { status: 'error'; result: null; failure: 'conflict' | 'unavailable' };
+
+function ClaraApprovalPanel({ proposal, state, onApprove, onReject, onReturn }: {
+  proposal: ClaraPlanScheduleChange;
+  state: ApprovalState;
+  onApprove: () => void;
+  onReject: () => void;
+  onReturn: () => void;
+}) {
+  const labels = (days: WorkingDay[]) => orderWorkingDays(days).map(day => dayLabels[day]).join(', ');
+  if (state.status === 'success') return <aside className="plan-card clara-card success"><span className="status">Applied once</span><h2>Schedule change approved</h2><p>Working days are now {labels(state.result.workingDays)}. Weekly time remains {state.result.weeklyHours} hours.</p><dl><div><dt>Approval record</dt><dd>{state.result.auditEventId}</dd></div><div><dt>Schedule version</dt><dd>{proposal.expectedScheduleVersion} → {state.result.scheduleVersion}</dd></div></dl><small>{state.result.duplicate ? 'The original result was returned. No duplicate write was created.' : 'The Plan update and approval record were saved together.'}</small><button onClick={onReturn}>View updated Today</button></aside>;
+  if (state.status === 'error') return <aside className="plan-card clara-card" role="alert"><span className="status">Nothing changed</span><h2>{state.failure === 'conflict' ? 'This preview is out of date.' : 'The schedule change wasn’t saved.'}</h2><p>{state.failure === 'conflict' ? 'The Plan changed after Clara prepared this preview. Reload before reviewing another proposal.' : 'Check the connection and retry the same approval. The existing Plan is unchanged.'}</p><div className="actions">{state.failure === 'unavailable' && <button onClick={onApprove}>Try approval again</button>}<button className="secondary" onClick={onReturn}>{state.failure === 'conflict' ? 'Reload Today' : 'Return without changes'}</button></div></aside>;
+  return <aside className="plan-card clara-card" aria-busy={state.status === 'applying'}><span className="status">Review Clara’s change</span><h2>Nothing changes until you approve it.</h2><div className="approval-diff"><div><small>Before</small><strong>{labels(proposal.workingDaysBefore)}</strong><span>{proposal.weeklyHours} hours/week · version {proposal.expectedScheduleVersion}</span></div><div><small>After</small><strong>{labels(proposal.workingDaysAfter)}</strong><span>{proposal.weeklyHours} hours/week · no allocation change</span></div></div><p><strong>Why:</strong> {proposal.rationale}</p><p><strong>Effect:</strong> {proposal.downstreamEffect}</p><div className="actions"><button onClick={onApprove} disabled={state.status === 'applying'}>{state.status === 'applying' ? 'Applying approved change…' : 'Approve schedule change'}</button><button className="secondary" onClick={onReject} disabled={state.status === 'applying'}>Reject and keep current schedule</button></div></aside>;
+}
+
+function WorkspaceReady({ auth, gateway, planGateway, todayGateway, claraGateway, claraApprovalGateway }: {
   auth: ReturnType<typeof useAuth>;
   gateway: WorkspaceGateway;
   planGateway: PlanGateway;
   todayGateway: TodayGateway;
   claraGateway: ClaraGateway;
+  claraApprovalGateway: ClaraApprovalGateway;
 }) {
   const snapshot = auth.snapshot;
   if (snapshot.status !== 'authenticated') return null;
@@ -98,6 +121,9 @@ function WorkspaceReady({ auth, gateway, planGateway, todayGateway, claraGateway
   const [confirmSignOut, setConfirmSignOut] = useState(false);
   const [confirmComplete, setConfirmComplete] = useState(false);
   const [showClara, setShowClara] = useState(false);
+  const [approvalProposal, setApprovalProposal] = useState<ClaraPlanScheduleChange | null>(null);
+  const [approvalKey, setApprovalKey] = useState('');
+  const [approvalState, setApprovalState] = useState<ApprovalState>({ status: 'review', result: null, failure: null });
   const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null);
   const [detailsContext, setDetailsContext] = useState<'history' | 'decisions' | 'research' | 'brief' | null>(null);
   const [scheduleDraft, setScheduleDraft] = useState<PlanScheduleDraft>({ workingDays: defaultWorkingDays, weeklyHours: 5 });
@@ -129,6 +155,35 @@ function WorkspaceReady({ auth, gateway, planGateway, todayGateway, claraGateway
     if (!selectedPlan || !todayStep) return;
     setShowClara(true);
     void clara.ask(buildClaraContext(selectedPlan, todayStep, requestId()));
+  };
+
+  const reviewClaraChange = (proposal: ClaraPlanScheduleChange) => {
+    setApprovalProposal(proposal);
+    setApprovalKey(requestId());
+    setApprovalState({ status: 'review', result: null, failure: null });
+  };
+
+  const applyClaraChange = async () => {
+    if (!approvalProposal || !approvalKey) return;
+    setApprovalState({ status: 'applying', result: null, failure: null });
+    try {
+      const result = await claraApprovalGateway.apply(approvalProposal, approvalKey);
+      setApprovalState({ status: 'success', result, failure: null });
+      plans.retry();
+    } catch (error) {
+      setApprovalState({
+        status: 'error', result: null,
+        failure: error instanceof ClaraApprovalConflictError ? 'conflict' : 'unavailable'
+      });
+    }
+  };
+
+  const closeClaraApproval = () => {
+    setApprovalProposal(null);
+    setApprovalKey('');
+    setApprovalState({ status: 'review', result: null, failure: null });
+    setShowClara(false);
+    plans.retry();
   };
 
   const updatePlan = (field: keyof PlanDraft, value: string | number) => {
@@ -281,7 +336,7 @@ function WorkspaceReady({ auth, gateway, planGateway, todayGateway, claraGateway
         {plans.snapshot.status === 'ready' && !todayStep && plans.snapshot.plans.length > 0 && plans.snapshot.plans.every(plan => plan.workingDays) && <div className="empty"><h1>Nothing scheduled today.</h1><p>{nextScheduledDate ? `Your next scheduled Plan day is ${formatLongDate(nextScheduledDate)}.` : 'No active Plan has an upcoming working day.'}</p><button onClick={() => setView('plans')}>View Plans</button></div>}
         {plans.snapshot.status === 'ready' && todayStep && completion.snapshot.status === 'ready' && completion.snapshot.completion && <div className="today-content"><h1>Today’s step is complete.</h1><p>You recorded meaningful progress without changing your Plan.</p><TodayStepCard step={todayStep} completed /><button className="secondary" onClick={() => setView('plans')}>View all Plans</button></div>}
         {plans.snapshot.status === 'ready' && todayStep && completion.snapshot.status !== 'ready' && <div className="today-content"><h1>One useful step is enough.</h1><p>Start with the nearest active Plan. You can refine the step later.</p><TodayStepCard step={todayStep} />{completion.snapshot.status === 'error' ? <div className="notice" role="alert">Progress couldn’t be checked. Nothing was changed.<button onClick={completion.retry}>Try again</button></div> : <button disabled>Checking progress…</button>}</div>}
-        {plans.snapshot.status === 'ready' && todayStep && completion.snapshot.status === 'ready' && !completion.snapshot.completion && <div className="today-content"><h1>One useful step is enough.</h1><p>Start with the nearest active Plan. You can refine the step later.</p><TodayStepCard step={todayStep} />{showClara ? <ClaraPanel clara={clara} onClose={() => { clara.cancel(); setShowClara(false); }} /> : <button className="secondary" onClick={askClara}>Ask Clara about this step</button>}{completion.saveFailed && <div className="notice" role="alert">Completion wasn’t saved. Your step is still open. Try again.</div>}{confirmComplete ? <div className="notice" role="alert"><p>Mark this step complete for today? Your Plan and schedule will stay the same.</p><div className="actions"><button onClick={async () => { if (await completion.complete()) setConfirmComplete(false); }} disabled={completion.completing}>{completion.completing ? 'Saving completion…' : 'Confirm completion'}</button><button className="secondary" onClick={() => setConfirmComplete(false)} disabled={completion.completing}>Keep working</button></div></div> : <div className="actions"><button onClick={() => setConfirmComplete(true)}>Mark step complete</button><button className="secondary" onClick={() => setView('plans')}>View all Plans</button></div>}</div>}
+        {plans.snapshot.status === 'ready' && todayStep && completion.snapshot.status === 'ready' && !completion.snapshot.completion && <div className="today-content"><h1>One useful step is enough.</h1><p>Start with the nearest active Plan. You can refine the step later.</p><TodayStepCard step={todayStep} />{approvalProposal ? <ClaraApprovalPanel proposal={approvalProposal} state={approvalState} onApprove={applyClaraChange} onReject={closeClaraApproval} onReturn={closeClaraApproval} /> : showClara ? <ClaraPanel clara={clara} onReview={reviewClaraChange} onClose={() => { clara.cancel(); setShowClara(false); }} /> : <button className="secondary" onClick={askClara}>Ask Clara about this step</button>}{completion.saveFailed && <div className="notice" role="alert">Completion wasn’t saved. Your step is still open. Try again.</div>}{confirmComplete ? <div className="notice" role="alert"><p>Mark this step complete for today? Your Plan and schedule will stay the same.</p><div className="actions"><button onClick={async () => { if (await completion.complete()) setConfirmComplete(false); }} disabled={completion.completing}>{completion.completing ? 'Saving completion…' : 'Confirm completion'}</button><button className="secondary" onClick={() => setConfirmComplete(false)} disabled={completion.completing}>Keep working</button></div></div> : <div className="actions"><button onClick={() => setConfirmComplete(true)}>Mark step complete</button><button className="secondary" onClick={() => setView('plans')}>View all Plans</button></div>}</div>}
       </section>}
       {view === 'plans' && <section className="plans-view" aria-busy={plans.snapshot.status === 'loading'}><span className="status">Plans</span>
         {(plans.snapshot.status === 'idle' || plans.snapshot.status === 'loading') && <div className="empty"><h1>Loading your Plans…</h1><p>Bringing your priorities into view.</p></div>}
@@ -311,7 +366,7 @@ function WorkspaceReady({ auth, gateway, planGateway, todayGateway, claraGateway
   );
 }
 
-export function App({ gateway = firebaseAuthGateway, workspaceGateway = lazyFirebaseWorkspaceGateway, planGateway = lazyFirebasePlanGateway, todayGateway = lazyFirebaseTodayGateway, claraGateway = lazyClaraGateway }: { gateway?: AuthGateway; workspaceGateway?: WorkspaceGateway; planGateway?: PlanGateway; todayGateway?: TodayGateway; claraGateway?: ClaraGateway }) {
+export function App({ gateway = firebaseAuthGateway, workspaceGateway = lazyFirebaseWorkspaceGateway, planGateway = lazyFirebasePlanGateway, todayGateway = lazyFirebaseTodayGateway, claraGateway = lazyClaraGateway, claraApprovalGateway = lazyClaraApprovalGateway }: { gateway?: AuthGateway; workspaceGateway?: WorkspaceGateway; planGateway?: PlanGateway; todayGateway?: TodayGateway; claraGateway?: ClaraGateway; claraApprovalGateway?: ClaraApprovalGateway }) {
   const auth = useAuth(gateway);
   const { snapshot } = auth;
 
@@ -320,7 +375,7 @@ export function App({ gateway = firebaseAuthGateway, workspaceGateway = lazyFire
   }
 
   if (snapshot.status === 'authenticated') {
-    return <WorkspaceReady auth={auth} gateway={workspaceGateway} planGateway={planGateway} todayGateway={todayGateway} claraGateway={claraGateway} />;
+    return <WorkspaceReady auth={auth} gateway={workspaceGateway} planGateway={planGateway} todayGateway={todayGateway} claraGateway={claraGateway} claraApprovalGateway={claraApprovalGateway} />;
   }
 
   return (

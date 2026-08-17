@@ -1,6 +1,6 @@
 # Longview Implementation Phases
 
-Status: Day 2 Slice 5 implemented locally, awaiting acceptance - subject to change
+Status: Day 2 Slice 5 accepted and merged; Slice 6 verified locally and awaiting acceptance
 Updated: 2026-08-17
 Links: [PRD](PRODUCT_REQUIREMENTS.md) | [Mockup](design/longview-pwa-interactive-mockup.html) | [Stack](TECH_STACK.md)
 
@@ -152,11 +152,29 @@ owner-scoped read and exposes current-step, context-empty, missing, and retry st
    paths remain read-only. The preview adapter stays available only when a managed API
    URL is not configured. Deployment and Cloud evidence require explicit approval.
 
-The Slice 5 local implementation verifies Firebase ID tokens, enforces strict request
-and response schemas, invokes an ADK runner behind an eight-second timeout, and applies
-an exact browser-origin allowlist. Backend and PWA adapters are tested without using
-production credentials. A real Vertex response and Cloud Run revision are not yet
-claimed; both remain part of the deployment acceptance gate.
+Slice 5 was accepted and merged on 2026-08-17. It verifies Firebase ID tokens, enforces
+strict request and response schemas, invokes an ADK runner with a 15-second managed
+timeout, and applies an exact browser-origin allowlist. The PWA keeps one validated
+recommendation per user and Plan for five minutes and displays an accessible ongoing
+indicator while waiting. Local Vertex responses are verified; a Cloud Run revision and
+production evidence are not yet claimed.
+
+6. **Approved Clara Plan-schedule write:** Extend the selected-Plan context with working
+   days and schedule version. Clara may propose adding or removing working days while
+   weekly hours remain unchanged. The exact preview shows before/after days, rationale,
+   and downstream effect. Approval requires authentication, a reviewed expected version,
+   a new idempotency key, one backend transaction, and one immutable audit event.
+   Cancellation writes nothing; stale or duplicate approval fails safely or returns the
+   original result. Clock times, daily task moves, and cross-Plan writes remain later
+   slices. See [the reviewed contract](APPROVED_CLARA_WRITES.md).
+
+Slice 6 is implemented on the feature branch and verified locally on 2026-08-17. The
+managed response is wrapped in trusted Plan identity and schedule version, then parsed
+again by the PWA. Approval re-reads the owner-scoped Plan and transactionally saves one
+schedule update plus one immutable audit record. The same key returns the original
+result; rejection creates no write; stale, malformed, unauthenticated, and unavailable
+paths fail closed. Browser acceptance confirmed version 1 to 2 with a refreshed Plans
+view. Production deployment is not part of this local acceptance gate.
 
 The remaining judged surfaces and the replacement status of every gallery asset are
 tracked in [Hackathon readiness](HACKATHON_READINESS.md).

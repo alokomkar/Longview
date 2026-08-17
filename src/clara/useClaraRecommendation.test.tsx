@@ -5,7 +5,7 @@ import { useClaraRecommendation } from './useClaraRecommendation';
 
 const context: ClaraContext = {
   schemaVersion: 1, requestId: 'request-1', scope: 'today-step',
-  plan: { id: 'plan-1', title: 'Launch Longview', outcome: 'Release a tested PWA.', targetDate: '2026-08-20', weeklyHours: 4 },
+  plan: { id: 'plan-1', title: 'Launch Longview', outcome: 'Release a tested PWA.', targetDate: '2026-08-20', weeklyHours: 4, workingDays: ['mon', 'fri'], scheduleVersion: 2 },
   step: { title: 'Define proof', description: 'Write one result.', durationMinutes: 60, date: '2026-08-17' }
 };
 const response = (requestId = 'request-1') => ({

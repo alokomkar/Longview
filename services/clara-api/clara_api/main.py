@@ -6,9 +6,16 @@ from fastapi import FastAPI, Header, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import ValidationError
 
+from .approval import (
+    ApprovalConflictError,
+    ApprovalNotFoundError,
+    ApprovalRepository,
+    ApprovalUnavailableError,
+    default_approval_repository,
+)
 from .auth import AuthenticationError, FirebaseTokenVerifier, TokenVerifier, bearer_token
 from .engine import AdkRecommendationEngine, EngineUnavailableError, RecommendationEngine
-from .models import RecommendationRequest, RecommendationResponse
+from .models import ApprovalRequest, ApprovalResponse, RecommendationRequest, RecommendationResponse
 
 
 @lru_cache(maxsize=1)
@@ -19,6 +26,7 @@ def default_engine() -> RecommendationEngine:
 def create_app(
     verifier: TokenVerifier | None = None,
     engine: RecommendationEngine | None = None,
+    approval_repository: ApprovalRepository | None = None,
     timeout_seconds: float | None = None,
     allowed_origins: list[str] | None = None,
 ) -> FastAPI:
@@ -42,6 +50,12 @@ def create_app(
     )
     token_verifier = verifier or FirebaseTokenVerifier()
 
+    async def authenticated_user(authorization: str | None) -> str:
+        try:
+            return await token_verifier.verify(bearer_token(authorization))
+        except AuthenticationError as error:
+            raise HTTPException(status_code=401, detail="Authentication required") from error
+
     @app.get("/healthz")
     async def health() -> dict[str, str]:
         return {"status": "ok"}
@@ -51,10 +65,7 @@ def create_app(
         context: RecommendationRequest,
         authorization: str | None = Header(default=None),
     ) -> RecommendationResponse:
-        try:
-            user_id = await token_verifier.verify(bearer_token(authorization))
-        except AuthenticationError as error:
-            raise HTTPException(status_code=401, detail="Authentication required") from error
+        user_id = await authenticated_user(authorization)
 
         try:
             active_engine = engine or default_engine()
@@ -72,7 +83,32 @@ def create_app(
             raise HTTPException(status_code=502, detail="Invalid recommendation response") from error
         if response.request_id != context.request_id or response.source_plan_id != context.plan.id:
             raise HTTPException(status_code=502, detail="Mismatched recommendation response")
+        change = response.proposed_change
+        if change and (
+            change.plan_id != context.plan.id
+            or change.expected_schedule_version != context.plan.schedule_version
+            or change.working_days_before != context.plan.working_days
+            or change.weekly_hours != context.plan.weekly_hours
+            or len(set(change.working_days_before).symmetric_difference(change.working_days_after)) != 1
+        ):
+            raise HTTPException(status_code=502, detail="Invalid recommendation change")
         return response
+
+    @app.post("/v1/clara/approvals", response_model=ApprovalResponse, response_model_by_alias=True)
+    async def approve(
+        request: ApprovalRequest,
+        authorization: str | None = Header(default=None),
+    ) -> ApprovalResponse:
+        user_id = await authenticated_user(authorization)
+        repository = approval_repository or default_approval_repository()
+        try:
+            return await repository.apply(user_id, request)
+        except ApprovalNotFoundError as error:
+            raise HTTPException(status_code=404, detail="Plan not found") from error
+        except ApprovalConflictError as error:
+            raise HTTPException(status_code=409, detail=str(error)) from error
+        except ApprovalUnavailableError as error:
+            raise HTTPException(status_code=503, detail="Approval unavailable") from error
 
     return app
 

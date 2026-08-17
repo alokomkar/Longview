@@ -28,11 +28,11 @@ Sources: [PRD](PRODUCT_REQUIREMENTS.md) | [Implementation phases](IMPLEMENTATION
 | 6 | Clara context | Visible bounded context | Partial | Local managed boundary uses one Plan and Today step; add deployed-model evidence and multi-Plan context where required. |
 | 7 | Agentic actions | Bounded action catalogue | Missing | Add judged quick actions backed by typed agent tools. |
 | 8 | Tradeoff recommendation | Cross-Plan managed recommendation | Missing | The local single-Plan managed boundary is ready; add deployed cross-Plan reasoning and evidence. |
-| 9 | Human approval | Before/after preview and approved write | Partial | Today completion is approval-gated; schedule-change preview, rejection, stale check, audit, and idempotent write remain. |
+| 9 | Human approval | Before/after preview and approved write | Implemented locally | Capture production Cloud evidence for the exact preview, rejection, stale check, audit, and idempotent write. |
 | 10 | Research review | Accept/reject/defer evidence | Missing | Add attributed cards and non-destructive review states. |
 | 11 | Versioned memory | User-approved brief version | Missing | Add editable proposal, attribution, version history, and explicit save. |
 | 12 | Calendar success | One approved capacity-bounded day | Missing | Add propose, adjust, approve, break, retry, and one-day persistence. |
-| 13 | Failure recovery | Failed agent run preserves state | Partial | Client failures are covered; add managed run timeout, malformed output, cancellation, stale write, and partial-recovery evidence. |
+| 13 | Failure recovery | Failed agent run preserves state | Partial | Local managed timeout, malformed output, cancellation, stale write, and atomic transaction behavior are covered; add production recovery evidence. |
 
 ## Completed implementation
 
@@ -47,15 +47,17 @@ Sources: [PRD](PRODUCT_REQUIREMENTS.md) | [Implementation phases](IMPLEMENTATION
   validation, retry, stale-save rejection, and owner-scoped rules.
 - Finite portfolio allocation summary plus the Plan Details shell with safe
   loading, missing, malformed, failed-read, retry, and context-empty states.
+- Local Clara schedule-change proposal with exact before/after review, explicit
+  rejection, authenticated version check, idempotent transaction, immutable audit
+  record, and authoritative refresh.
 
 ## Deadline delivery order
 
-1. Add the minimal managed recommendation API.
-2. Add exact recommendation preview, approval/rejection, idempotent write, and audit record.
-3. Add one checkpointed asynchronous run plus Cloud logs and recovery evidence.
-4. Add the calendar success/failure path required by the demo.
-5. Add research review, versioned brief, achievement, and consented reflection.
-6. Re-capture all 13 screenshots from verified PWA states and record the final PWA demo.
+1. Deploy and capture production evidence for the managed API and approved write.
+2. Add one checkpointed asynchronous run plus Cloud logs and recovery evidence.
+3. Add the calendar success/failure path required by the demo.
+4. Add research review, versioned brief, achievement, and consented reflection.
+5. Re-capture all 13 screenshots from verified PWA states and record the final PWA demo.
 
 No prototype screenshot or narration claim is implementation proof. Final submission
 copy must distinguish verified PWA behavior, managed cloud behavior, and design-only

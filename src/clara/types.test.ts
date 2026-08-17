@@ -7,7 +7,7 @@ const plan: Plan = {
   id: 'plan-1', clientRequestId: 'plan-1', ownerUid: 'owner', workspaceId: 'default',
   title: 'Launch Longview', outcome: 'Release a tested PWA to real users.',
   why: 'Validate the product direction.', targetDate: '2026-08-20', weeklyHours: 4,
-  status: 'active', schemaVersion: 1
+  workingDays: ['mon', 'fri'], scheduleVersion: 2, status: 'active', schemaVersion: 2
 };
 const step: TodayStep = {
   completionId: '2026-08-17_plan-1_first-proof-v1', date: '2026-08-17', planId: 'plan-1',
@@ -27,7 +27,7 @@ describe('Clara recommendation contract', () => {
   it('sends only the selected Plan and Today step', () => {
     expect(context).toEqual({
       schemaVersion: 1, requestId: 'request-1', scope: 'today-step',
-      plan: { id: 'plan-1', title: 'Launch Longview', outcome: plan.outcome, targetDate: '2026-08-20', weeklyHours: 4 },
+      plan: { id: 'plan-1', title: 'Launch Longview', outcome: plan.outcome, targetDate: '2026-08-20', weeklyHours: 4, workingDays: ['mon', 'fri'], scheduleVersion: 2 },
       step: { title: step.title, description: step.description, durationMinutes: 60, date: '2026-08-17' }
     });
     expect(context).not.toHaveProperty('ownerUid');
@@ -37,10 +37,20 @@ describe('Clara recommendation contract', () => {
     expect(parseClaraRecommendation(valid, context)).toEqual(valid);
   });
 
+  it('accepts one exact Plan schedule change', () => {
+    const proposedChange = {
+      kind: 'plan-working-days', planId: 'plan-1', expectedScheduleVersion: 2,
+      workingDaysBefore: ['mon', 'fri'], workingDaysAfter: ['mon', 'wed', 'fri'], weeklyHours: 4,
+      rationale: 'A midweek checkpoint reduces the gap between sessions.',
+      downstreamEffect: 'Today can select this Plan on Wednesday without changing weekly time.'
+    };
+    expect(parseClaraRecommendation({ ...valid, proposedChange }, context)).toEqual({ ...valid, proposedChange });
+  });
+
   it.each([
     ['wrong request', { ...valid, requestId: 'other' }],
     ['wrong Plan', { ...valid, sourcePlanId: 'plan-2' }],
-    ['durable change', { ...valid, proposedChange: { title: 'mutate' } }],
+    ['unbounded change', { ...valid, proposedChange: { title: 'mutate' } }],
     ['unknown confidence', { ...valid, confidence: 'certain' }],
     ['missing sources', { ...valid, sourceFacts: [] }],
     ['oversized output', { ...valid, recommendation: 'x'.repeat(501) }]

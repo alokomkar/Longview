@@ -1,6 +1,8 @@
 import type { Plan } from '../plan/types';
 
 export type TodayStep = {
+  completionId: string;
+  date: string;
   planId: string;
   planTitle: string;
   title: string;
@@ -15,10 +17,12 @@ const compare = (left: Plan, right: Plan) => {
   return left.id < right.id ? -1 : left.id === right.id ? 0 : 1;
 };
 
-export function deriveTodayStep(plans: Plan[]): TodayStep | null {
+export function deriveTodayStep(plans: Plan[], date: string): TodayStep | null {
   const plan = [...plans].filter(item => item.status === 'active').sort(compare)[0];
   if (!plan) return null;
   return {
+    completionId: `${date}_${plan.id}_first-proof-v1`,
+    date,
     planId: plan.id,
     planTitle: plan.title,
     title: 'Define the first proof of progress',

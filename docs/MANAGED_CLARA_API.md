@@ -21,6 +21,12 @@ background run, or claim a deployed Cloud Run revision.
   `proposedChange: null`, then parses the complete response before it reaches the PWA.
 - A response may request clarification, but `proposedChange` must remain `null` in this
   read-only slice.
+- The browser keeps one validated recommendation per user-owned Plan in memory for five
+  minutes, with a 50-Plan upper bound. A hit requires the same Firebase UID and complete
+  Plan/Today context without `requestId`; its response receives the current request ID.
+  A context change replaces that Plan's entry only after a valid response. Expiry,
+  sign-in changes, page reloads, malformed responses, and failures miss the cache and
+  never reuse a token.
 
 ## Fail-closed behavior
 

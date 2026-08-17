@@ -567,4 +567,26 @@ describe('authentication journey', () => {
     expect(apply).not.toHaveBeenCalled();
     expect(list).toHaveBeenCalledTimes(2);
   });
+
+  it('offers Plan creation from Calendar when the portfolio is empty', async () => {
+    localStorage.setItem('longview:onboarding', 'complete');
+    const list = vi.fn(async () => []);
+    render(<App gateway={gateway({ uid: 'owner', isAnonymous: false, displayName: 'Owner' })} workspaceGateway={workspaceGateway} planGateway={{ ...planGateway, list }} />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Calendar' }));
+    expect(await screen.findByRole('heading', { name: 'Nothing is planned for today.' })).toBeVisible();
+    expect(screen.queryByRole('button', { name: 'Prepare today' })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Create a Plan' }));
+    expect(screen.getByLabelText('Plan title')).toHaveValue('');
+  });
+
+  it('offers schedule review when Plans exist but none is eligible today', async () => {
+    localStorage.setItem('longview:onboarding', 'complete');
+    const list = vi.fn(async () => [{ ...scheduledPlan(), workingDays: undefined }]);
+    render(<App gateway={gateway({ uid: 'owner', isAnonymous: false, displayName: 'Owner' })} workspaceGateway={workspaceGateway} planGateway={{ ...planGateway, list }} />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Calendar' }));
+    expect(await screen.findByRole('heading', { name: 'Nothing is planned for today.' })).toBeVisible();
+    expect(screen.getByRole('button', { name: 'Create another Plan' })).toBeVisible();
+    fireEvent.click(screen.getByRole('button', { name: 'Review Plan schedules' }));
+    expect(await screen.findByRole('heading', { name: 'Your Plans' })).toBeVisible();
+  });
 });

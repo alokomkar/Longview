@@ -59,9 +59,11 @@ must not be inferred from this local slice.
 
 ## Acceptance
 
-1. Start a run and see its correlated ID plus checkpoint progress.
+1. If no Plan is eligible today, show a direct path to create a Plan; when Plans exist,
+   also offer a path to review their schedules. Do not start an empty run.
+2. Start a run and see its correlated ID plus checkpoint progress.
    The progress indicator remains visible until the run becomes terminal.
-2. Cancel it and confirm no proposal or schedule write appears.
-3. Time it out and retry with a new ID linked to the failed run.
-4. Redeliver an event and confirm no duplicate model invocation or result.
-5. Interrupt before final publication and confirm no mixed schedule version is visible.
+3. Cancel it and confirm no proposal or schedule write appears.
+4. Time it out and retry with a new ID linked to the failed run.
+5. Redeliver an event and confirm no duplicate model invocation or result.
+6. Interrupt before final publication and confirm no mixed schedule version is visible.

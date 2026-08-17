@@ -236,8 +236,10 @@ class ApprovedDay(StrictModel):
     capacity_minutes: int = Field(alias="capacityMinutes", ge=30, le=480)
     total_minutes: int = Field(alias="totalMinutes", ge=1, le=480)
     blocks: list[ApprovedDayBlock] = Field(min_length=1, max_length=10)
-    status: Literal["approved"]
+    status: Literal["approved", "break"]
     approval_event_id: str = Field(alias="approvalEventId", min_length=8, max_length=128)
+    break_event_id: str | None = Field(default=None, alias="breakEventId", min_length=8, max_length=128)
+    carryover_count: int | None = Field(default=None, alias="carryoverCount", ge=1, le=10)
 
     @model_validator(mode="after")
     def validate_day(self):
@@ -247,6 +249,10 @@ class ApprovedDay(StrictModel):
             raise ValueError("approved day total must equal its blocks")
         if [block.order for block in self.blocks] != list(range(1, len(self.blocks) + 1)):
             raise ValueError("approved day blocks must use consecutive order")
+        if self.status == "approved" and (self.break_event_id is not None or self.carryover_count is not None):
+            raise ValueError("approved days cannot contain break metadata")
+        if self.status == "break" and (self.break_event_id is None or self.carryover_count is None):
+            raise ValueError("break days require break metadata")
         return self
 
 
@@ -255,3 +261,54 @@ class DayApprovalResponse(StrictModel):
     idempotency_key: str = Field(alias="idempotencyKey", min_length=8, max_length=128)
     duplicate: bool
     approved_day: ApprovedDay = Field(alias="approvedDay")
+
+
+class DayBreakCarryover(StrictModel):
+    order: int = Field(ge=1, le=10)
+    plan_id: str = Field(alias="planId", min_length=1, max_length=128)
+    plan_title: str = Field(alias="planTitle", min_length=3, max_length=80)
+    title: str = Field(min_length=3, max_length=120)
+    duration_minutes: int = Field(alias="durationMinutes", ge=1, le=480)
+    destination_date: date = Field(alias="destinationDate")
+    schedule_version: int = Field(alias="scheduleVersion", ge=1)
+
+
+class DayBreakPreview(StrictModel):
+    schema_version: Literal[1] = Field(alias="schemaVersion")
+    selected_date: date = Field(alias="selectedDate")
+    expected_day_revision: int = Field(alias="expectedDayRevision", ge=1)
+    source_approval_event_id: str = Field(alias="sourceApprovalEventId", min_length=8, max_length=128)
+    carryovers: list[DayBreakCarryover] = Field(min_length=1, max_length=10)
+
+    @model_validator(mode="after")
+    def validate_orders(self):
+        if [value.order for value in self.carryovers] != list(range(1, len(self.carryovers) + 1)):
+            raise ValueError("break carryovers must use consecutive order")
+        return self
+
+
+class DayBreakRequest(StrictModel):
+    schema_version: Literal[1] = Field(alias="schemaVersion")
+    idempotency_key: str = Field(alias="idempotencyKey", min_length=8, max_length=128)
+    expected_day_revision: int = Field(alias="expectedDayRevision", ge=1)
+    carryovers: list[DayBreakCarryover] = Field(min_length=1, max_length=10)
+
+    @model_validator(mode="after")
+    def validate_orders(self):
+        if [value.order for value in self.carryovers] != list(range(1, len(self.carryovers) + 1)):
+            raise ValueError("break carryovers must use consecutive order")
+        return self
+
+
+class DayBreakResponse(StrictModel):
+    schema_version: Literal[1] = Field(alias="schemaVersion")
+    idempotency_key: str = Field(alias="idempotencyKey", min_length=8, max_length=128)
+    duplicate: bool
+    break_day: ApprovedDay = Field(alias="breakDay")
+    carryovers: list[DayBreakCarryover] = Field(min_length=1, max_length=10)
+
+    @model_validator(mode="after")
+    def validate_break(self):
+        if self.break_day.status != "break" or self.break_day.carryover_count != len(self.carryovers):
+            raise ValueError("break result must match its carryovers")
+        return self

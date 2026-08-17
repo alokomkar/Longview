@@ -1,6 +1,6 @@
 # Calendar Break Carryover
 
-Status: Product contract and interactive review mockup
+Status: Localhost implementation complete; production evidence remains pending
 
 Updated: 2026-08-17
 
@@ -61,3 +61,21 @@ or replace an approved future day.
 6. Repeating one idempotency key creates no duplicate pending task or event.
 7. Reload restores the saved break and destination carryovers.
 8. The progress indicator remains visible through success or failure.
+
+## Localhost implementation
+
+The PWA loads an approved day before offering a break, requests a server-authoritative
+preview, and shows every unfinished block beside its next eligible Plan date. Preview
+and confirmation keep accessible progress indicators visible for the complete network
+operation. Reload restores the saved break revision and immutable event identifier.
+
+FastAPI re-reads the source approved day, affected Plan schedules, destination days,
+and pending carryovers. One Firestore transaction marks only the source day as a break,
+creates the reviewed pending carryovers, and writes one audit result. Stale source or
+schedule versions, an existing destination approval, missing eligibility, duplicate
+pending work, or an unavailable transaction leave every day unchanged. Reusing one
+idempotency key returns the original result.
+
+Pending carryovers are server-enriched into their destination Calendar proposal and
+are consumed only when that later proposal is explicitly approved. The localhost
+emulators prove this behavior without claiming production Cloud deployment.

@@ -117,3 +117,31 @@ def test_conflicts_and_failed_runs_preserve_the_current_day():
         failed_ref.delete()
         day_ref.delete()
         run_ref.delete()
+
+
+def test_approval_consumes_pending_carryover_from_the_terminal_run():
+    user_id, run_id = f"day-carryover-{uuid.uuid4()}", str(uuid.uuid4())
+    key = f"day-approval-{uuid.uuid4()}"
+    repository = FirestoreApprovedDayRepository()
+    client = repository.client()
+    root = f"users/{user_id}/workspaces/default"
+    run_ref = client.document(f"{root}/scheduleRuns/{run_id}")
+    pending_ref = client.document(f"{root}/pendingCarryovers/carryover-1")
+    day_ref = client.document(f"{root}/approvedDays/2026-08-17")
+    audit_ref = client.document(f"{root}/auditEvents/{key}")
+    payload = run_payload(user_id, run_id)
+    payload["carryoverIds"] = ["carryover-1"]
+    run_ref.set(payload)
+    pending_ref.set({
+        "ownerUid": user_id, "workspaceId": "default", "destinationDate": "2026-08-17",
+        "status": "pending",
+    })
+    try:
+        repository._approve(user_id, run_id, request(key))
+        stored = pending_ref.get().to_dict()
+        assert stored["status"] == "approved" and stored["approvedDayDate"] == "2026-08-17"
+    finally:
+        audit_ref.delete()
+        day_ref.delete()
+        pending_ref.delete()
+        run_ref.delete()

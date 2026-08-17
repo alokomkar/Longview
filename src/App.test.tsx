@@ -9,6 +9,7 @@ import type { ClaraGateway } from './clara/types';
 import type { ClaraApprovalGateway } from './clara/approvalTypes';
 import type { ScheduleRunGateway } from './scheduleRun/types';
 import { ApprovedDayConflictError, type ApprovedDay, type ApprovedDayGateway, type DayApprovalRequest, type DayApprovalResult } from './approvedDay/types';
+import { DayBreakConflictError, type DayBreakGateway, type DayBreakPreview, type DayBreakRequest, type DayBreakResult } from './dayBreak/types';
 
 const workspaceGateway: WorkspaceGateway = {
   ensure: vi.fn(async (user: AuthUser) => ({ id: 'default' as const, ownerUid: user.uid, schemaVersion: 1 as const }))
@@ -59,6 +60,14 @@ const savedApprovedDay: ApprovedDay = {
   schemaVersion: 1, selectedDate: '2026-08-17', revision: 1, sourceRunId: 'run-1',
   capacityMinutes: 120, totalMinutes: 60, status: 'approved', approvalEventId: 'day-approval-1',
   blocks: [{ order: 1, planId: 'plan-1', planTitle: 'Launch Longview', title: 'Define the first proof', durationMinutes: 60 }]
+};
+
+const dayBreakPreview: DayBreakPreview = {
+  schemaVersion: 1, selectedDate: '2026-08-17', expectedDayRevision: 1, sourceApprovalEventId: 'day-approval-1',
+  carryovers: [{ order: 1, planId: 'plan-1', planTitle: 'Launch Longview', title: 'Define the first proof', durationMinutes: 60, destinationDate: '2026-08-18', scheduleVersion: 1 }]
+};
+const savedBreakDay: ApprovedDay = {
+  ...savedApprovedDay, revision: 2, status: 'break', breakEventId: 'day-break-1', carryoverCount: 1
 };
 
 beforeEach(() => localStorage.clear());
@@ -566,6 +575,49 @@ describe('authentication journey', () => {
     expect(await screen.findByRole('heading', { name: heading })).toBeVisible();
     expect(screen.getByRole('button', { name: action })).toBeVisible();
     expect(approve.mock.calls[0][1]).toMatchObject({ expectedDayRevision: 1, replaceCurrent: true });
+  });
+
+  it('reviews and atomically confirms a Calendar day break with progress', async () => {
+    localStorage.setItem('longview:onboarding', 'complete');
+    let finish: () => void = () => undefined;
+    const confirm = vi.fn((_date: string, request: DayBreakRequest, _signal: AbortSignal) => new Promise<DayBreakResult>(resolve => {
+      finish = () => resolve({ schemaVersion: 1, idempotencyKey: request.idempotencyKey, duplicate: false, breakDay: savedBreakDay, carryovers: dayBreakPreview.carryovers });
+    }));
+    const dayBreakGateway: DayBreakGateway = { preview: vi.fn(async () => dayBreakPreview), confirm };
+    render(<App gateway={gateway({ uid: 'owner', isAnonymous: false, displayName: 'Owner' })} workspaceGateway={workspaceGateway} planGateway={{ ...planGateway, list: vi.fn(async () => [scheduledPlan()]) }} todayGateway={{ get: vi.fn(async () => null), complete: vi.fn(todayGateway.complete) }} approvedDayGateway={{ get: vi.fn(async () => savedApprovedDay), approve: vi.fn() }} dayBreakGateway={dayBreakGateway} />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Calendar' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Take a break today' }));
+    expect(await screen.findByText('Future days will not be approved or overwritten.')).toBeVisible();
+    expect(screen.getByText('18th August 2026')).toBeVisible();
+    fireEvent.click(screen.getByRole('button', { name: 'Confirm break and carry tasks' }));
+    expect(screen.getByRole('progressbar', { name: 'Saving day break' })).toBeVisible();
+    finish();
+    expect(await screen.findByRole('heading', { name: '17th August 2026 is marked as a break.' })).toBeVisible();
+    expect(screen.getByText('No future day was approved or overwritten.')).toBeVisible();
+  });
+
+  it.each([
+    [new DayBreakConflictError('future-approved'), 'No future day was overwritten.'],
+    [new DayBreakConflictError('no-eligible-day'), 'One task has no eligible future day.'],
+    [new DayBreakConflictError('source-changed'), 'This break preview is out of date.']
+  ])('preserves today when the break preview fails', async (failure, heading) => {
+    localStorage.setItem('longview:onboarding', 'complete');
+    const dayBreakGateway: DayBreakGateway = { preview: vi.fn(async () => { throw failure; }), confirm: vi.fn() };
+    render(<App gateway={gateway({ uid: 'owner', isAnonymous: false, displayName: 'Owner' })} workspaceGateway={workspaceGateway} planGateway={{ ...planGateway, list: vi.fn(async () => [scheduledPlan()]) }} todayGateway={{ get: vi.fn(async () => null), complete: vi.fn(todayGateway.complete) }} approvedDayGateway={{ get: vi.fn(async () => savedApprovedDay), approve: vi.fn() }} dayBreakGateway={dayBreakGateway} />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Calendar' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Take a break today' }));
+    expect(await screen.findByRole('heading', { name: heading })).toBeVisible();
+    expect(screen.getByRole('button', { name: 'Keep today’s order' })).toBeVisible();
+    expect(dayBreakGateway.confirm).not.toHaveBeenCalled();
+  });
+
+  it('restores a saved break without offering another proposal', async () => {
+    localStorage.setItem('longview:onboarding', 'complete');
+    render(<App gateway={gateway({ uid: 'owner', isAnonymous: false, displayName: 'Owner' })} workspaceGateway={workspaceGateway} planGateway={{ ...planGateway, list: vi.fn(async () => [scheduledPlan()]) }} todayGateway={{ get: vi.fn(async () => null), complete: vi.fn(todayGateway.complete) }} approvedDayGateway={{ get: vi.fn(async () => savedBreakDay), approve: vi.fn() }} />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Calendar' }));
+    expect(await screen.findByRole('heading', { name: '17th August 2026 is marked as a break.' })).toBeVisible();
+    expect(screen.queryByRole('button', { name: 'Prepare replacement' })).not.toBeInTheDocument();
+    expect(screen.getByText('day-break-1')).toBeVisible();
   });
 
   it('retries completion-state loading without changing the step', async () => {

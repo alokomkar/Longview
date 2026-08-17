@@ -22,6 +22,13 @@ from .approved_days import (
     default_approved_day_repository,
 )
 from .auth import AuthenticationError, FirebaseTokenVerifier, TokenVerifier, bearer_token
+from .day_breaks import (
+    DayBreakConflictError,
+    DayBreakNotFoundError,
+    DayBreakRepository,
+    DayBreakUnavailableError,
+    default_day_break_repository,
+)
 from .engine import AdkRecommendationEngine, EngineUnavailableError, RecommendationEngine
 from .models import (
     ApprovalRequest,
@@ -30,6 +37,9 @@ from .models import (
     CreateScheduleRunRequest,
     DayApprovalRequest,
     DayApprovalResponse,
+    DayBreakPreview,
+    DayBreakRequest,
+    DayBreakResponse,
     RecommendationRequest,
     RecommendationResponse,
     ScheduleRun,
@@ -53,6 +63,7 @@ def create_app(
     approval_repository: ApprovalRepository | None = None,
     schedule_run_coordinator: ScheduleRunCoordinator | None = None,
     approved_day_repository: ApprovedDayRepository | None = None,
+    day_break_repository: DayBreakRepository | None = None,
     timeout_seconds: float | None = None,
     allowed_origins: list[str] | None = None,
 ) -> FastAPI:
@@ -142,6 +153,9 @@ def create_app(
     def approved_days() -> ApprovedDayRepository:
         return approved_day_repository or default_approved_day_repository()
 
+    def day_breaks() -> DayBreakRepository:
+        return day_break_repository or default_day_break_repository()
+
     @app.post(
         "/v1/clara/schedule-runs",
         response_model=ScheduleRun,
@@ -228,6 +242,45 @@ def create_app(
             raise HTTPException(status_code=409, detail=str(error)) from error
         except ApprovedDayUnavailableError as error:
             raise HTTPException(status_code=503, detail="Approved day unavailable") from error
+
+    @app.get(
+        "/v1/clara/approved-days/{selected_date}/break-preview",
+        response_model=DayBreakPreview,
+        response_model_by_alias=True,
+    )
+    async def preview_day_break(
+        selected_date: date,
+        authorization: str | None = Header(default=None),
+    ) -> DayBreakPreview:
+        user_id = await authenticated_user(authorization)
+        try:
+            return await day_breaks().preview(user_id, selected_date.isoformat())
+        except DayBreakNotFoundError as error:
+            raise HTTPException(status_code=404, detail="Approved day not found") from error
+        except DayBreakConflictError as error:
+            raise HTTPException(status_code=409, detail=error.reason) from error
+        except DayBreakUnavailableError as error:
+            raise HTTPException(status_code=503, detail="Day break unavailable") from error
+
+    @app.post(
+        "/v1/clara/approved-days/{selected_date}/break",
+        response_model=DayBreakResponse,
+        response_model_by_alias=True,
+    )
+    async def confirm_day_break(
+        selected_date: date,
+        request: DayBreakRequest,
+        authorization: str | None = Header(default=None),
+    ) -> DayBreakResponse:
+        user_id = await authenticated_user(authorization)
+        try:
+            return await day_breaks().confirm(user_id, selected_date.isoformat(), request)
+        except DayBreakNotFoundError as error:
+            raise HTTPException(status_code=404, detail="Approved day not found") from error
+        except DayBreakConflictError as error:
+            raise HTTPException(status_code=409, detail=error.reason) from error
+        except DayBreakUnavailableError as error:
+            raise HTTPException(status_code=503, detail="Day break unavailable") from error
 
     return app
 

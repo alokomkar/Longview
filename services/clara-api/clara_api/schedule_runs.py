@@ -8,8 +8,9 @@ from typing import Protocol
 import firebase_admin
 from firebase_admin import firestore as admin_firestore
 from google.cloud import firestore
+from google.cloud.firestore_v1.base_query import FieldFilter
 
-from .models import CreateScheduleRunRequest, ScheduleProposal, ScheduleRun
+from .models import CreateScheduleRunRequest, ScheduleProposal, ScheduleRun, ScheduleRunStepContext
 
 
 CHECKPOINTS = {
@@ -123,6 +124,7 @@ class FirestoreScheduleRunCoordinator:
 
     def _create(self, user_id: str, request: CreateScheduleRunRequest) -> ScheduleRun:
         client = self.client()
+        request, carryover_ids = self._with_pending_carryovers(user_id, request)
         fingerprint = _context_fingerprint(request)
         lock_id = hashlib.sha256(f"{request.selected_date}:{fingerprint}".encode()).hexdigest()
         lock_ref = client.document(f"users/{user_id}/workspaces/default/scheduleRunLocks/{lock_id}")
@@ -160,6 +162,7 @@ class FirestoreScheduleRunCoordinator:
                 "workspaceId": "default",
                 "contextFingerprint": fingerprint,
                 "request": request.model_dump(mode="json", by_alias=True),
+                "carryoverIds": carryover_ids,
             }
             active_transaction.set(run_ref, payload)
             active_transaction.set(request_ref, {"runId": run_id, "contextFingerprint": fingerprint})
@@ -167,6 +170,43 @@ class FirestoreScheduleRunCoordinator:
             return self._to_run(payload)
 
         return create_transaction(transaction)
+
+    def _with_pending_carryovers(
+        self, user_id: str, request: CreateScheduleRunRequest
+    ) -> tuple[CreateScheduleRunRequest, list[str]]:
+        root = f"users/{user_id}/workspaces/default"
+        snapshots = self.client().collection(f"{root}/pendingCarryovers").where(
+            filter=FieldFilter("destinationDate", "==", request.selected_date.isoformat())
+        ).stream()
+        plan_ids = {plan.id for plan in request.plans}
+        pending = []
+        for snapshot in snapshots:
+            value = snapshot.to_dict() or {}
+            if (
+                value.get("ownerUid") == user_id
+                and value.get("workspaceId") == "default"
+                and value.get("status") == "pending"
+                and value.get("planId") in plan_ids
+            ):
+                pending.append((snapshot.id, value))
+        if not pending:
+            return request, []
+
+        pending.sort(key=lambda item: (item[1]["planId"], item[1]["sourceDate"], item[1]["order"]))
+        pending_plan_ids = {value["planId"] for _, value in pending}
+        steps = [step for step in request.steps if step.plan_id not in pending_plan_ids]
+        steps.extend(ScheduleRunStepContext.model_validate({
+            "planId": value["planId"],
+            "planTitle": value["planTitle"],
+            "title": value["title"],
+            "description": f"Carried from {value['sourceDate']} after a reviewed day break.",
+            "durationMinutes": value["durationMinutes"],
+        }) for _, value in pending)
+        enriched = CreateScheduleRunRequest.model_validate({
+            **request.model_dump(mode="json", by_alias=True),
+            "steps": [step.model_dump(mode="json", by_alias=True) for step in steps],
+        })
+        return enriched, sorted(snapshot_id for snapshot_id, _ in pending)
 
     async def get(self, user_id: str, run_id: str) -> ScheduleRun:
         try:

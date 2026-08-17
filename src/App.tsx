@@ -39,6 +39,9 @@ import { useScheduleRun } from './scheduleRun/useScheduleRun';
 import { lazyApprovedDayGateway } from './approvedDay/lazyGateway';
 import type { ApprovedDay, ApprovedDayBlock, ApprovedDayGateway } from './approvedDay/types';
 import { useApprovedDay } from './approvedDay/useApprovedDay';
+import { lazyDayBreakGateway } from './dayBreak/lazyGateway';
+import type { DayBreakGateway } from './dayBreak/types';
+import { useDayBreak } from './dayBreak/useDayBreak';
 import { useEffect, useMemo, useState } from 'react';
 import './styles.css';
 
@@ -113,20 +116,49 @@ function DayBlocks({ blocks }: { blocks: ScheduleBlock[] | ApprovedDayBlock[] })
   return <div className="schedule-blocks">{blocks.map((block, index) => <article className="plan-card" key={`${block.planId}-${index}`}><span className="status">{index === 0 ? 'First' : `Then · ${index + 1}`}</span><h2>{block.title}</h2><p>{block.planTitle}</p><small>{block.durationMinutes} minutes</small></article>)}</div>;
 }
 
-function ApprovedDayView({ day, capacityMinutes, duplicate, onCapacity, onPrepare, onReturn }: {
+function ApprovedDayView({ day, capacityMinutes, duplicate, onCapacity, onPrepare, onBreak, onReturn }: {
   day: ApprovedDay;
   capacityMinutes: number;
   duplicate: boolean;
   onCapacity: (minutes: number) => void;
   onPrepare: () => void;
+  onBreak: () => void;
   onReturn: () => void;
 }) {
-  return <section className="calendar-view"><span className="status">Approved day · revision {day.revision}</span><h1>{formatLongDate(day.selectedDate)} is ready.</h1><p>{day.totalMinutes} of {day.capacityMinutes} minutes are approved in this order.</p><DayBlocks blocks={day.blocks} /><div className="notice"><strong>{duplicate ? 'This approval was already saved.' : 'Only this day was updated.'}</strong><p>{duplicate ? 'The original result was returned; no duplicate revision or audit record was created.' : 'Future days and Plan schedules remain unchanged.'}</p></div><dl><div><dt>Source run</dt><dd>{day.sourceRunId}</dd></div><div><dt>Approval record</dt><dd>{day.approvalEventId}</dd></div></dl><label>Planning window for a replacement<input type="number" min="30" max="480" step="15" value={capacityMinutes} onChange={event => onCapacity(Number(event.target.value))} /></label><div className="actions"><button onClick={onPrepare} disabled={capacityMinutes < 30 || capacityMinutes > 480}>Prepare replacement</button><button className="secondary" onClick={onReturn}>Return to Today</button></div></section>;
+  return <section className="calendar-view"><span className="status">Approved day · revision {day.revision}</span><h1>{formatLongDate(day.selectedDate)} is ready.</h1><p>{day.totalMinutes} of {day.capacityMinutes} minutes are approved in this order.</p><DayBlocks blocks={day.blocks} /><div className="notice"><strong>{duplicate ? 'This approval was already saved.' : 'Only this day was updated.'}</strong><p>{duplicate ? 'The original result was returned; no duplicate revision or audit record was created.' : 'Future days and Plan schedules remain unchanged.'}</p></div><dl><div><dt>Source run</dt><dd>{day.sourceRunId}</dd></div><div><dt>Approval record</dt><dd>{day.approvalEventId}</dd></div></dl><label>Planning window for a replacement<input type="number" min="30" max="480" step="15" value={capacityMinutes} onChange={event => onCapacity(Number(event.target.value))} /></label><div className="actions"><button onClick={onPrepare} disabled={capacityMinutes < 30 || capacityMinutes > 480}>Prepare replacement</button><button className="secondary" onClick={onBreak}>Take a break today</button><button className="secondary" onClick={onReturn}>Return to Today</button></div></section>;
 }
 
-function ScheduleRunPanel({ scheduleRun, approvedDay, capacityMinutes, eligibleCount, scheduledCount, planCount, preparationStatus, onCapacity, onStart, onReset, onReturn, onCreatePlan, onReviewPlans, onRetryPreparation }: {
+function BreakDayView({ day, onReturn }: { day: ApprovedDay; onReturn: () => void }) {
+  return <section className="calendar-view"><span className="status">Day break · revision {day.revision}</span><h1>{formatLongDate(day.selectedDate)} is marked as a break.</h1><p>Nothing was marked complete. {day.carryoverCount === 1 ? 'One unfinished task is waiting for its next eligible Plan day.' : `${day.carryoverCount} unfinished tasks are waiting for their next eligible Plan days.`}</p><div className="notice"><strong>Future days still need your approval.</strong><p>Carried tasks join their destination day’s next proposal; no reviewed order was overwritten.</p></div><dl><div><dt>Source approval</dt><dd>{day.approvalEventId}</dd></div><div><dt>Break record</dt><dd>{day.breakEventId}</dd></div></dl><button onClick={onReturn}>Return to Today</button></section>;
+}
+
+function DayBreakPanel({ dayBreak, day, onCancel, onReload, onReviewPlans, onReturn }: {
+  dayBreak: ReturnType<typeof useDayBreak>;
+  day: ApprovedDay;
+  onCancel: () => void;
+  onReload: () => void;
+  onReviewPlans: () => void;
+  onReturn: () => void;
+}) {
+  const { snapshot } = dayBreak;
+  if (snapshot.status === 'loading') return <section className="calendar-view" aria-busy="true"><span className="status">Reviewing today’s break</span><h1>Finding each task’s next eligible day.</h1><p>Today’s approved order remains unchanged while Longview checks current Plan schedules.</p><div className="clara-progress" role="progressbar" aria-label="Preparing day break"><span /></div></section>;
+  if (snapshot.status === 'review') return <section className="calendar-view"><span className="status">Review day break</span><h1>{snapshot.preview.carryovers.length} unfinished {snapshot.preview.carryovers.length === 1 ? 'task will' : 'tasks will'} carry forward.</h1><p>Nothing will be marked complete.</p><div className="schedule-blocks">{snapshot.preview.carryovers.map(value => <article className="plan-card" key={`${value.planId}-${value.order}`}><span className="status">{formatLongDate(value.destinationDate)}</span><h2>{value.title}</h2><p>Next eligible day for {value.planTitle}</p><small>{value.durationMinutes} minutes</small></article>)}</div><div className="notice"><strong>Future days will not be approved or overwritten.</strong><p>Each task joins its destination day’s next proposal. You will still review that day.</p></div><div className="actions"><button onClick={dayBreak.confirm}>Confirm break and carry tasks</button><button className="secondary" onClick={onCancel}>Keep today’s approved order</button></div></section>;
+  if (snapshot.status === 'applying') return <section className="calendar-view" aria-busy="true"><span className="status">Saving today’s break</span><h1>Carrying the tasks you reviewed.</h1><p>Today’s approved order stays available until every change succeeds together.</p><div className="clara-progress" role="progressbar" aria-label="Saving day break" aria-valuetext="Break confirmation in progress"><span /></div></section>;
+  if (snapshot.status === 'success') return <section className="calendar-view"><span className="status">Break saved · revision {snapshot.result.breakDay.revision}</span><h1>{formatLongDate(snapshot.result.breakDay.selectedDate)} is marked as a break.</h1><p>Nothing was marked complete.</p><div className="schedule-blocks">{snapshot.result.carryovers.map(value => <article className="plan-card" key={`${value.planId}-${value.order}`}><span className="status">{formatLongDate(value.destinationDate)}</span><h2>{value.title}</h2><p>Will join the next proposal for {value.planTitle}</p></article>)}</div><div className="notice"><strong>{snapshot.result.duplicate ? 'This break was already saved.' : 'No future day was approved or overwritten.'}</strong><p>{snapshot.result.duplicate ? 'The original result was returned; no duplicate carryover was created.' : 'Review and approve each destination day when it arrives.'}</p></div><dl><div><dt>Break record</dt><dd>{snapshot.result.breakDay.breakEventId}</dd></div><div><dt>Pending carryovers</dt><dd>{snapshot.result.carryovers.length}</dd></div></dl><button onClick={onReturn}>Return to Today</button></section>;
+  const copy = snapshot.failure === 'future-approved'
+    ? ['No future day was overwritten.', 'One destination already has an approved order. Today and every future day remain unchanged.']
+    : snapshot.failure === 'no-eligible-day'
+      ? ['One task has no eligible future day.', 'Review that Plan’s working days before taking this break. Nothing moved.']
+      : snapshot.failure === 'source-changed'
+        ? ['This break preview is out of date.', 'Today or a Plan schedule changed after the preview. Nothing moved.']
+        : ['The break was not saved.', 'Today’s approved order is still available. No future day changed.'];
+  return <section className="calendar-view" role="alert"><span className="status">Nothing changed</span><h1>{copy[0]}</h1><p>{copy[1]}</p><div className="actions">{snapshot.failure === 'unavailable' && snapshot.preview ? <button onClick={dayBreak.retry}>Try again</button> : snapshot.failure === 'unavailable' ? <button onClick={() => dayBreak.preview(day)}>Try again</button> : snapshot.failure === 'source-changed' ? <button onClick={onReload}>Review latest day</button> : snapshot.failure === 'no-eligible-day' ? <button onClick={onReviewPlans}>Review Plan schedules</button> : null}<button className="secondary" onClick={onCancel}>Keep today’s order</button></div></section>;
+}
+
+function ScheduleRunPanel({ scheduleRun, approvedDay, dayBreak, capacityMinutes, eligibleCount, scheduledCount, planCount, preparationStatus, onCapacity, onStart, onReset, onReturn, onCreatePlan, onReviewPlans, onRetryPreparation }: {
   scheduleRun: ReturnType<typeof useScheduleRun>;
   approvedDay: ReturnType<typeof useApprovedDay>;
+  dayBreak: ReturnType<typeof useDayBreak>;
   capacityMinutes: number;
   eligibleCount: number;
   scheduledCount: number;
@@ -152,8 +184,14 @@ function ScheduleRunPanel({ scheduleRun, approvedDay, capacityMinutes, eligibleC
     const conflict = approvedDay.approval.failure === 'conflict';
     return <section className="calendar-view" role="alert"><span className="status">Nothing changed</span><h1>{conflict ? 'This proposal is out of date.' : 'Today was not changed.'}</h1><p>{conflict ? 'The approved day changed after this proposal was prepared. Review the latest day before preparing another replacement.' : 'Longview could not save this order. Your previously approved day is still available.'}</p><div className="actions">{conflict ? <button onClick={() => { onReset(); void approvedDay.reload(); }}>Review latest day</button> : <button onClick={approvedDay.retryApproval}>Try approval again</button>}<button className="secondary" onClick={onReset}>Keep approved day</button></div></section>;
   }
-  if (approvedDay.approval.status === 'success') return <ApprovedDayView day={approvedDay.approval.result.approvedDay} capacityMinutes={capacityMinutes} duplicate={approvedDay.approval.result.duplicate} onCapacity={onCapacity} onPrepare={() => onStart()} onReturn={onReturn} />;
-  if (snapshot.status === 'idle' && approvedDay.snapshot.status === 'ready' && approvedDay.snapshot.day) return <ApprovedDayView day={approvedDay.snapshot.day} capacityMinutes={capacityMinutes} duplicate={false} onCapacity={onCapacity} onPrepare={() => onStart()} onReturn={onReturn} />;
+  const currentDay = approvedDay.approval.status === 'success' ? approvedDay.approval.result.approvedDay : approvedDay.snapshot.day;
+  if (currentDay && dayBreak.snapshot.status !== 'idle') return <DayBreakPanel dayBreak={dayBreak} day={currentDay} onCancel={dayBreak.reset} onReload={() => { dayBreak.reset(); onReset(); void approvedDay.reload(); }} onReviewPlans={onReviewPlans} onReturn={onReturn} />;
+  if (snapshot.status === 'idle' && currentDay?.status === 'break') return <BreakDayView day={currentDay} onReturn={onReturn} />;
+  if (approvedDay.approval.status === 'success') {
+    const result = approvedDay.approval.result;
+    return <ApprovedDayView day={result.approvedDay} capacityMinutes={capacityMinutes} duplicate={result.duplicate} onCapacity={onCapacity} onPrepare={() => onStart()} onBreak={() => void dayBreak.preview(result.approvedDay)} onReturn={onReturn} />;
+  }
+  if (snapshot.status === 'idle' && approvedDay.snapshot.status === 'ready' && approvedDay.snapshot.day) return <ApprovedDayView day={approvedDay.snapshot.day} capacityMinutes={capacityMinutes} duplicate={false} onCapacity={onCapacity} onPrepare={() => onStart()} onBreak={() => void dayBreak.preview(approvedDay.snapshot.day!)} onReturn={onReturn} />;
   if (snapshot.status === 'idle') return <section className="calendar-view"><span className="status">Calendar · Today</span><h1>Prepare today across your Plans.</h1><p>Longview can order today’s eligible steps inside a planning window. You’ll review a proposal only—nothing is saved or replaced.</p><label>Planning window in minutes<input type="number" min="30" max="480" step="15" value={capacityMinutes} onChange={event => onCapacity(Number(event.target.value))} /></label><small>{eligibleCount} eligible {eligibleCount === 1 ? 'Plan' : 'Plans'} for {formatLongDate(localDate())}.</small><button onClick={() => onStart()} disabled={capacityMinutes < 30 || capacityMinutes > 480}>Prepare today</button></section>;
   if (snapshot.status === 'starting' || snapshot.status === 'active') {
     const checkpoint = snapshot.run?.checkpoint ?? 1;
@@ -170,7 +208,7 @@ function ScheduleRunPanel({ scheduleRun, approvedDay, capacityMinutes, eligibleC
   return <section className="calendar-view" role="alert"><span className="status">Nothing changed</span><h1>{timedOut ? 'The run took too long.' : 'Today could not be prepared.'}</h1><p>{snapshot.status === 'error' && snapshot.failure === 'offline' ? 'Reconnect and try again.' : run?.failure ?? 'The local Clara service could not complete this request.'} Your Plans are unchanged.</p><div className="actions"><button onClick={() => onStart(run?.runId)}>Start a new run</button><button className="secondary" onClick={onReturn}>Return to Today</button></div></section>;
 }
 
-function WorkspaceReady({ auth, gateway, planGateway, todayGateway, claraGateway, claraApprovalGateway, scheduleRunGateway, approvedDayGateway }: {
+function WorkspaceReady({ auth, gateway, planGateway, todayGateway, claraGateway, claraApprovalGateway, scheduleRunGateway, approvedDayGateway, dayBreakGateway }: {
   auth: ReturnType<typeof useAuth>;
   gateway: WorkspaceGateway;
   planGateway: PlanGateway;
@@ -179,6 +217,7 @@ function WorkspaceReady({ auth, gateway, planGateway, todayGateway, claraGateway
   claraApprovalGateway: ClaraApprovalGateway;
   scheduleRunGateway: ScheduleRunGateway;
   approvedDayGateway: ApprovedDayGateway;
+  dayBreakGateway: DayBreakGateway;
 }) {
   const snapshot = auth.snapshot;
   if (snapshot.status !== 'authenticated') return null;
@@ -241,6 +280,7 @@ function WorkspaceReady({ auth, gateway, planGateway, todayGateway, claraGateway
     localDate(),
     stage === 'today' && view === 'calendar' && calendarPreparationStatus === 'ready' && scheduleRunContext !== null
   );
+  const dayBreak = useDayBreak(dayBreakGateway);
 
   const startScheduleRun = (retryOf?: string) => {
     if (calendarCompletions.snapshot.status !== 'ready') return;
@@ -254,6 +294,7 @@ function WorkspaceReady({ auth, gateway, planGateway, todayGateway, claraGateway
   const resetCalendarProposal = () => {
     scheduleRun.reset();
     approvedDay.resetApproval();
+    dayBreak.reset();
   };
 
   useEffect(() => {
@@ -454,7 +495,7 @@ function WorkspaceReady({ auth, gateway, planGateway, todayGateway, claraGateway
         {plans.snapshot.status === 'ready' && plans.snapshot.plans.length === 0 && <div className="empty"><h1>No Plans yet.</h1><p>Your long-term priorities will appear here after you create your first Plan.</p><button onClick={startNewPlan}>Create first Plan</button></div>}
         {plans.snapshot.status === 'ready' && plans.snapshot.plans.length > 0 && <><div className="plans-heading"><div><h1>Your Plans</h1><p>See how every active Plan shares your committed weekly time.</p></div><button onClick={startNewPlan}>Create Plan</button></div><section className="portfolio-summary"><div><span className="status">Committed weekly time</span><strong>{portfolio.totalWeeklyHours} hours</strong><small>Across {portfolio.entries.length} active {portfolio.entries.length === 1 ? 'Plan' : 'Plans'}</small></div><div className="allocation-list">{portfolio.entries.map(entry => <div key={entry.plan.id}><span>{entry.plan.title}</span><strong>{entry.plan.weeklyHours}h · {entry.percent}%</strong></div>)}</div></section><div className="notice"><strong>Portfolio guidance</strong><p>{portfolio.recommendation}</p><small>Suggested from target dates and current allocations. Nothing was changed.</small></div><div className="plan-grid">{portfolio.entries.map(({ plan, mode, percent }) => <article className="plan-card" key={plan.id}><span className="status">{mode} · {percent}% of committed time</span><h2>{plan.title}</h2><p>{plan.outcome}</p><dl><dt>Milestone</dt><dd>Reach target by {formatLongDate(plan.targetDate)}</dd><dt>Working days</dt><dd>{plan.workingDays ? orderWorkingDays(plan.workingDays).map(day => dayLabels[day]).join(', ') : 'Not set'}</dd><dt>Weekly time</dt><dd>{plan.weeklyHours} hours</dd></dl><button onClick={() => openPlanDetails(plan)}>View Plan details</button></article>)}</div></>}
       </section>}
-      {view === 'calendar' && <ScheduleRunPanel scheduleRun={scheduleRun} approvedDay={approvedDay} capacityMinutes={planningWindow} eligibleCount={scheduleRunContext?.steps.length ?? 0} scheduledCount={calendarSteps.length} planCount={portfolio.entries.length} preparationStatus={calendarPreparationStatus} onCapacity={setPlanningWindow} onStart={startScheduleRun} onReset={resetCalendarProposal} onReturn={() => { resetCalendarProposal(); setView('today'); }} onCreatePlan={() => { resetCalendarProposal(); startNewPlan(); }} onReviewPlans={() => { resetCalendarProposal(); setView('plans'); }} onRetryPreparation={() => plans.snapshot.status === 'error' ? plans.retry() : calendarCompletions.retry()} />}
+      {view === 'calendar' && <ScheduleRunPanel scheduleRun={scheduleRun} approvedDay={approvedDay} dayBreak={dayBreak} capacityMinutes={planningWindow} eligibleCount={scheduleRunContext?.steps.length ?? 0} scheduledCount={calendarSteps.length} planCount={portfolio.entries.length} preparationStatus={calendarPreparationStatus} onCapacity={setPlanningWindow} onStart={startScheduleRun} onReset={resetCalendarProposal} onReturn={() => { resetCalendarProposal(); setView('today'); }} onCreatePlan={() => { resetCalendarProposal(); startNewPlan(); }} onReviewPlans={() => { resetCalendarProposal(); setView('plans'); }} onRetryPreparation={() => plans.snapshot.status === 'error' ? plans.retry() : calendarCompletions.retry()} />}
       {view === 'settings' && <section className="empty"><span className="status">Settings</span><h1>Account and privacy</h1><p>Plan schedules are managed inside each Plan.</p>{snapshot.user.isAnonymous && !confirmSignOut && !confirmClear && <button onClick={auth.linkGoogle} disabled={snapshot.linking}>{snapshot.linking ? 'Opening Google…' : 'Link Google account'}</button>}<div className="actions"><button className="secondary" onClick={() => snapshot.user.isAnonymous ? setConfirmSignOut(true) : auth.signOut()}>Sign out</button><button className="danger" onClick={() => setConfirmClear(true)}>Clear this device</button></div>{snapshot.failure && <div className="notice" role="alert">{failureCopy[snapshot.failure]}{snapshot.failure === 'account-conflict' && snapshot.user.isAnonymous && <button onClick={auth.useExistingGoogle}>Use existing Google workspace</button>}</div>}{confirmSignOut && <div className="notice" role="alert"><p>If you sign out now, you won’t be able to return to this workspace. Link a Google account first if you want to keep access.</p><div className="actions"><button onClick={auth.linkGoogle}>Link Google account</button><button className="danger" onClick={auth.signOut}>Sign out and lose access</button><button className="secondary" onClick={() => setConfirmSignOut(false)}>Cancel</button></div></div>}{confirmClear && <div className="notice" role="alert"><p>{snapshot.user.isAnonymous ? 'Clearing this device will sign you out. Because you’re using Longview without an account, you won’t be able to return to this workspace. Link Google first to keep access.' : 'This removes Longview’s saved settings from this device and signs you out. Your workspace will still be available when you sign in again.'}</p><div className="actions">{snapshot.user.isAnonymous && <button onClick={auth.linkGoogle}>Link Google account</button>}<button className="danger" onClick={clearLocalData}>Clear this device and sign out</button><button className="secondary" onClick={() => setConfirmClear(false)}>Cancel</button></div></div>}</section>}
       <nav aria-label="Primary"><button aria-current={view === 'today' ? 'page' : undefined} className={view === 'today' ? '' : 'secondary'} onClick={() => setView('today')}>Today</button><button aria-current={view === 'calendar' ? 'page' : undefined} className={view === 'calendar' ? '' : 'secondary'} onClick={() => setView('calendar')}>Calendar</button><button aria-current={view === 'plans' ? 'page' : undefined} className={view === 'plans' ? '' : 'secondary'} onClick={() => setView('plans')}>Plans</button><button aria-current={view === 'settings' ? 'page' : undefined} className={view === 'settings' ? '' : 'secondary'} onClick={() => setView('settings')}>Settings</button></nav></main>;
   }
@@ -477,7 +518,7 @@ function WorkspaceReady({ auth, gateway, planGateway, todayGateway, claraGateway
   );
 }
 
-export function App({ gateway = firebaseAuthGateway, workspaceGateway = lazyFirebaseWorkspaceGateway, planGateway = lazyFirebasePlanGateway, todayGateway = lazyFirebaseTodayGateway, claraGateway = lazyClaraGateway, claraApprovalGateway = lazyClaraApprovalGateway, scheduleRunGateway = lazyScheduleRunGateway, approvedDayGateway = lazyApprovedDayGateway }: { gateway?: AuthGateway; workspaceGateway?: WorkspaceGateway; planGateway?: PlanGateway; todayGateway?: TodayGateway; claraGateway?: ClaraGateway; claraApprovalGateway?: ClaraApprovalGateway; scheduleRunGateway?: ScheduleRunGateway; approvedDayGateway?: ApprovedDayGateway }) {
+export function App({ gateway = firebaseAuthGateway, workspaceGateway = lazyFirebaseWorkspaceGateway, planGateway = lazyFirebasePlanGateway, todayGateway = lazyFirebaseTodayGateway, claraGateway = lazyClaraGateway, claraApprovalGateway = lazyClaraApprovalGateway, scheduleRunGateway = lazyScheduleRunGateway, approvedDayGateway = lazyApprovedDayGateway, dayBreakGateway = lazyDayBreakGateway }: { gateway?: AuthGateway; workspaceGateway?: WorkspaceGateway; planGateway?: PlanGateway; todayGateway?: TodayGateway; claraGateway?: ClaraGateway; claraApprovalGateway?: ClaraApprovalGateway; scheduleRunGateway?: ScheduleRunGateway; approvedDayGateway?: ApprovedDayGateway; dayBreakGateway?: DayBreakGateway }) {
   const auth = useAuth(gateway);
   const { snapshot } = auth;
 
@@ -486,7 +527,7 @@ export function App({ gateway = firebaseAuthGateway, workspaceGateway = lazyFire
   }
 
   if (snapshot.status === 'authenticated') {
-    return <WorkspaceReady auth={auth} gateway={workspaceGateway} planGateway={planGateway} todayGateway={todayGateway} claraGateway={claraGateway} claraApprovalGateway={claraApprovalGateway} scheduleRunGateway={scheduleRunGateway} approvedDayGateway={approvedDayGateway} />;
+    return <WorkspaceReady auth={auth} gateway={workspaceGateway} planGateway={planGateway} todayGateway={todayGateway} claraGateway={claraGateway} claraApprovalGateway={claraApprovalGateway} scheduleRunGateway={scheduleRunGateway} approvedDayGateway={approvedDayGateway} dayBreakGateway={dayBreakGateway} />;
   }
 
   return (

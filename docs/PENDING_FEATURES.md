@@ -17,10 +17,12 @@ not. Review checkmarks in the demo are not implementation status.
 2. **Managed Clara loop** — the selected-Plan recommendation and approved schedule
    change are implemented locally. Deployment evidence, quick actions, cross-Plan
    tradeoff, and judged failure captures remain.
-3. **Calendar** — CAL-01 through CAL-04 are implemented locally: completion-aware
+3. **Calendar** — CAL-01 through CAL-05 are implemented locally: completion-aware
    preparation, checkpointed proposal generation, explicit approval or replacement,
    owner-scoped one-day persistence, reload, idempotency, stale conflict handling, and
-   preservation after generation or approval failure. Production Cloud evidence remains.
+   preservation after generation or approval failure. A reviewed break atomically marks
+   only the source day, queues each unfinished block for its Plan's next eligible day,
+   and never approves or overwrites a future day. Production Cloud evidence remains.
 4. **Checkpointed run** — RUN-01 through RUN-04 are implemented locally: correlated run
    identifier, cancellation, timeout, checkpoints, retry, and safe terminal publication.
 5. **Submission evidence** — EVID-01 through EVID-03: replace all 13 prototype captures,
@@ -28,14 +30,11 @@ not. Review checkmarks in the demo are not implementation status.
 
 ## P1 after the judged path
 
-1. **Break handling** — CAL-05: product contract and interactive failure-state mockup
-   are ready for review; implementation remains pending. Carry unfinished tasks only to
-   their next eligible working days without approving or overwriting future days.
-2. **Reviewed research** — MEM-01 and MEM-02: attributed accept/reject/defer cards and
+1. **Reviewed research** — MEM-01 and MEM-02: attributed accept/reject/defer cards and
    non-destructive failure recovery.
-3. **Versioned brief** — MEM-03 and MEM-04: editable proposal, attribution, explicit save,
+2. **Versioned brief** — MEM-03 and MEM-04: editable proposal, attribution, explicit save,
    history, and stale-version conflict handling.
-4. **Achievement and consent** — MEM-05 and MEM-06: evidence, reflection, explicit
+3. **Achievement and consent** — MEM-05 and MEM-06: evidence, reflection, explicit
    reusable-memory permission, retry, and no memory write after failure.
 
 ## Post-hackathon MVP enhancement — pick up only if time permits
@@ -63,3 +62,7 @@ decisions, research, and brief content remain in their later acceptance slices.
 The local selected-Plan Clara loop now covers typed managed recommendations, exact
 schedule previews, explicit rejection, stale checks, idempotent approval, one immutable
 audit event, and authoritative refresh. Production Cloud evidence remains pending.
+
+Calendar break handling now covers authoritative next-eligible-day preview, explicit
+confirmation, atomic source-day update plus pending carryovers, reload, destination
+proposal enrichment, idempotency, and safe stale/future-conflict recovery.

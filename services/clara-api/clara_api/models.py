@@ -31,20 +31,23 @@ class RecommendationRequest(StrictModel):
     step: StepContext
 
 
-class RecommendationResponse(StrictModel):
-    schema_version: Literal[1] = Field(alias="schemaVersion")
-    request_id: str = Field(alias="requestId", min_length=1, max_length=128)
-    source_plan_id: str = Field(alias="sourcePlanId", min_length=1, max_length=128)
+class ModelRecommendationPayload(StrictModel):
     headline: str = Field(min_length=3, max_length=100)
     recommendation: str = Field(min_length=10, max_length=500)
     rationale: str = Field(min_length=10, max_length=500)
     confidence: Literal["low", "medium", "high"]
     requires_clarification: bool = Field(alias="requiresClarification")
     source_facts: list[str] = Field(alias="sourceFacts", min_length=1, max_length=4)
-    proposed_change: None = Field(alias="proposedChange")
 
     @model_validator(mode="after")
     def validate_source_facts(self):
         if any(len(fact.strip()) < 3 or len(fact.strip()) > 120 for fact in self.source_facts):
             raise ValueError("source facts must contain 3 to 120 characters")
         return self
+
+
+class RecommendationResponse(ModelRecommendationPayload):
+    schema_version: Literal[1] = Field(alias="schemaVersion")
+    request_id: str = Field(alias="requestId", min_length=1, max_length=128)
+    source_plan_id: str = Field(alias="sourcePlanId", min_length=1, max_length=128)
+    proposed_change: None = Field(alias="proposedChange")

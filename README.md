@@ -63,9 +63,20 @@ and a real Vertex response have not yet been accepted or claimed.
 Verification: `npm test`, `npm run test:rules`, `npm run build`, and
 `npm run test:e2e`. The emulator requires Java 21+ compiled for the host CPU.
 
-For the managed API, use Python 3.11+, install `services/clara-api` with its `test`
-extra, then run `python -m pytest -q` from that directory. Runtime configuration is
-documented in [the managed Clara API contract](docs/MANAGED_CLARA_API.md).
+For the managed API, use Python 3.11+ and run the following from
+`services/clara-api`:
+
+```bash
+python3.12 -m venv .venv
+.venv/bin/python -m pip install -e '.[test]'
+cp .env.example .env.local
+.venv/bin/uvicorn clara_api.main:app --host 127.0.0.1 --port 8787 --env-file .env.local
+```
+
+Run `.venv/bin/python -m pytest -q` for its deterministic contract tests. Add
+`VITE_CLARA_API_URL=http://127.0.0.1:8787` to the PWA `.env.local` only when testing
+the managed path. Runtime configuration and the cloud-credential gate are documented
+in [the managed Clara API contract](docs/MANAGED_CLARA_API.md).
 
 Hosted authentication acceptance: `https://longview-505611.web.app/`.
 

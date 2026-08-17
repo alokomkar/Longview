@@ -17,7 +17,8 @@ background run, or claim a deployed Cloud Run revision.
 - The request contains one selected Plan and one derived Today step; no unrelated Plan,
   browser state, or Firestore document is available to the model.
 - Google ADK invokes Vertex AI model `gemini-3.6-flash` and returns the existing strict
-  recommendation schema. Model output is parsed again before it reaches the PWA.
+  recommendation payload. The API supplies trusted request and Plan identifiers plus
+  `proposedChange: null`, then parses the complete response before it reaches the PWA.
 - A response may request clarification, but `proposedChange` must remain `null` in this
   read-only slice.
 
@@ -31,11 +32,14 @@ background run, or claim a deployed Cloud Run revision.
 
 ## Configuration
 
+- Local development requires Python 3.11+ and an isolated virtual environment under
+  `services/clara-api/.venv`. Copy the service `.env.example` to ignored `.env.local`.
 - The PWA uses the managed gateway only when `VITE_CLARA_API_URL` is present.
 - Local UI development without that variable keeps the clearly labelled deterministic
   preview adapter.
 - Cloud Run uses Application Default Credentials with `GOOGLE_CLOUD_PROJECT`,
-  `GOOGLE_CLOUD_LOCATION=global`, and `GOOGLE_GENAI_USE_VERTEXAI=TRUE`.
+  `GOOGLE_CLOUD_QUOTA_PROJECT`, `GOOGLE_CLOUD_LOCATION=global`, and
+  `GOOGLE_GENAI_USE_VERTEXAI=TRUE`.
 - `CLARA_ALLOWED_ORIGINS` is a comma-separated exact allowlist. It defaults to the
   Firebase Hosting production origin; local origins must be opted in explicitly.
 

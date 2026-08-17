@@ -28,7 +28,9 @@ not. Review checkmarks in the demo are not implementation status.
 
 ## P1 after the judged path
 
-1. **Break handling** — CAL-05: carry tasks only to their next eligible working days.
+1. **Break handling** — CAL-05: product contract and interactive failure-state mockup
+   are ready for review; implementation remains pending. Carry unfinished tasks only to
+   their next eligible working days without approving or overwriting future days.
 2. **Reviewed research** — MEM-01 and MEM-02: attributed accept/reject/defer cards and
    non-destructive failure recovery.
 3. **Versioned brief** — MEM-03 and MEM-04: editable proposal, attribution, explicit save,

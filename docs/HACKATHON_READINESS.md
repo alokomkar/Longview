@@ -31,7 +31,7 @@ Sources: [PRD](PRODUCT_REQUIREMENTS.md) | [Implementation phases](IMPLEMENTATION
 | 9 | Human approval | Before/after preview and approved write | Implemented locally | Capture production Cloud evidence for the exact preview, rejection, stale check, audit, and idempotent write. |
 | 10 | Research review | Accept/reject/defer evidence | Missing | Add attributed cards and non-destructive review states. |
 | 11 | Versioned memory | User-approved brief version | Missing | Add editable proposal, attribution, version history, and explicit save. |
-| 12 | Calendar success | One approved capacity-bounded day | Partial | Local proposal, adjustment, approval, replacement, retry, persistence, reload, and recovery are implemented. Add break carryover and production Cloud evidence. |
+| 12 | Calendar success | One approved capacity-bounded day | Partial | Local proposal, adjustment, approval, replacement, retry, persistence, reload, and recovery are implemented. Break carryover contract and mockup await review; implementation and production Cloud evidence remain. |
 | 13 | Failure recovery | Failed agent run preserves state | Partial | Local managed timeout, malformed output, cancellation, stale write, and atomic transaction behavior are covered; add production recovery evidence. |
 
 ## Completed implementation

@@ -7,6 +7,7 @@ import { PlanScheduleConflictError, type Plan, type PlanGateway } from './plan/t
 import type { TodayGateway } from './today/types';
 import type { ClaraGateway } from './clara/types';
 import type { ClaraApprovalGateway } from './clara/approvalTypes';
+import type { ScheduleRunGateway } from './scheduleRun/types';
 
 const workspaceGateway: WorkspaceGateway = {
   ensure: vi.fn(async (user: AuthUser) => ({ id: 'default' as const, ownerUid: user.uid, schemaVersion: 1 as const }))
@@ -455,6 +456,53 @@ describe('authentication journey', () => {
     expect(screen.queryByRole('button', { name: 'Mark step complete' })).not.toBeInTheDocument();
   });
 
+  it('shows a finished-for-today Calendar state when every scheduled step is complete', async () => {
+    localStorage.setItem('longview:onboarding', 'complete');
+    const saved = {
+      id: '2026-08-17_plan-1_first-proof-v1', ownerUid: 'owner', workspaceId: 'default' as const,
+      planId: 'plan-1', stepKey: 'first-proof-v1' as const, completedDate: '2026-08-17',
+      durationMinutes: 60, status: 'completed' as const, schemaVersion: 1 as const
+    };
+    const start = vi.fn();
+    const scheduleRunGateway = { start, get: vi.fn(), cancel: vi.fn() } as unknown as ScheduleRunGateway;
+    render(<App gateway={gateway({ uid: 'owner', isAnonymous: false, displayName: 'Owner' })} workspaceGateway={workspaceGateway} planGateway={{ ...planGateway, list: vi.fn(async () => [scheduledPlan()]) }} todayGateway={{ get: vi.fn(async () => saved), complete: vi.fn(todayGateway.complete) }} scheduleRunGateway={scheduleRunGateway} />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Calendar' }));
+    expect(await screen.findByRole('heading', { name: 'You’re done for today.' })).toBeVisible();
+    expect(screen.queryByRole('button', { name: 'Prepare today' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Create another Plan' })).toBeVisible();
+    expect(start).not.toHaveBeenCalled();
+  });
+
+  it('excludes a completed Plan step while preparing remaining work', async () => {
+    localStorage.setItem('longview:onboarding', 'complete');
+    const first = scheduledPlan();
+    const second = { ...scheduledPlan(2), id: 'plan-2', clientRequestId: 'plan-2', title: 'Prepare launch evidence', targetDate: '2026-08-25' };
+    const get = vi.fn(async (_user: Parameters<TodayGateway['get']>[0], step: Parameters<TodayGateway['get']>[1]) => step.planId === 'plan-1' ? {
+      id: step.completionId, ownerUid: 'owner', workspaceId: 'default' as const, planId: step.planId,
+      stepKey: 'first-proof-v1' as const, completedDate: step.date, durationMinutes: step.durationMinutes,
+      status: 'completed' as const, schemaVersion: 1 as const
+    } : null);
+    const start = vi.fn((_context: Parameters<ScheduleRunGateway['start']>[0], _signal: AbortSignal) => new Promise<never>(() => undefined));
+    const scheduleRunGateway = { start, get: vi.fn(), cancel: vi.fn() } as unknown as ScheduleRunGateway;
+    render(<App gateway={gateway({ uid: 'owner', isAnonymous: false, displayName: 'Owner' })} workspaceGateway={workspaceGateway} planGateway={{ ...planGateway, list: vi.fn(async () => [first, second]) }} todayGateway={{ get, complete: vi.fn(todayGateway.complete) }} scheduleRunGateway={scheduleRunGateway} />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Calendar' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Prepare today' }));
+    await waitFor(() => expect(start).toHaveBeenCalledOnce());
+    expect(start.mock.calls[0][0].steps.map(step => step.planId)).toEqual(['plan-2']);
+  });
+
+  it('does not prepare Calendar when completion checks fail', async () => {
+    localStorage.setItem('longview:onboarding', 'complete');
+    const get = vi.fn().mockResolvedValueOnce(null).mockRejectedValue(new Error('offline'));
+    const start = vi.fn();
+    const scheduleRunGateway = { start, get: vi.fn(), cancel: vi.fn() } as unknown as ScheduleRunGateway;
+    render(<App gateway={gateway({ uid: 'owner', isAnonymous: false, displayName: 'Owner' })} workspaceGateway={workspaceGateway} planGateway={{ ...planGateway, list: vi.fn(async () => [scheduledPlan()]) }} todayGateway={{ get, complete: vi.fn(todayGateway.complete) }} scheduleRunGateway={scheduleRunGateway} />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Calendar' }));
+    expect(await screen.findByRole('heading', { name: 'Today’s progress could not be checked.' })).toBeVisible();
+    expect(screen.queryByRole('button', { name: 'Prepare today' })).not.toBeInTheDocument();
+    expect(start).not.toHaveBeenCalled();
+  });
+
   it('retries completion-state loading without changing the step', async () => {
     localStorage.setItem('longview:onboarding', 'complete');
     const list = vi.fn(async () => [scheduledPlan()]);
@@ -566,5 +614,27 @@ describe('authentication journey', () => {
     expect(await screen.findByRole('button', { name: 'Ask Clara about this step' })).toBeVisible();
     expect(apply).not.toHaveBeenCalled();
     expect(list).toHaveBeenCalledTimes(2);
+  });
+
+  it('offers Plan creation from Calendar when the portfolio is empty', async () => {
+    localStorage.setItem('longview:onboarding', 'complete');
+    const list = vi.fn(async () => []);
+    render(<App gateway={gateway({ uid: 'owner', isAnonymous: false, displayName: 'Owner' })} workspaceGateway={workspaceGateway} planGateway={{ ...planGateway, list }} />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Calendar' }));
+    expect(await screen.findByRole('heading', { name: 'Nothing is planned for today.' })).toBeVisible();
+    expect(screen.queryByRole('button', { name: 'Prepare today' })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Create a Plan' }));
+    expect(screen.getByLabelText('Plan title')).toHaveValue('');
+  });
+
+  it('offers schedule review when Plans exist but none is eligible today', async () => {
+    localStorage.setItem('longview:onboarding', 'complete');
+    const list = vi.fn(async () => [{ ...scheduledPlan(), workingDays: undefined }]);
+    render(<App gateway={gateway({ uid: 'owner', isAnonymous: false, displayName: 'Owner' })} workspaceGateway={workspaceGateway} planGateway={{ ...planGateway, list }} />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Calendar' }));
+    expect(await screen.findByRole('heading', { name: 'Nothing is planned for today.' })).toBeVisible();
+    expect(screen.getByRole('button', { name: 'Create another Plan' })).toBeVisible();
+    fireEvent.click(screen.getByRole('button', { name: 'Review Plan schedules' }));
+    expect(await screen.findByRole('heading', { name: 'Your Plans' })).toBeVisible();
   });
 });

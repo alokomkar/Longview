@@ -1,6 +1,6 @@
 # Longview Pending Features
 
-Status: 33 acceptance cases pending after the Plan-details slice
+Status: P0 ledger updated through the approved Clara write slice
 
 Updated: 2026-08-17
 
@@ -14,10 +14,9 @@ not. Review checkmarks in the demo are not implementation status.
 
 1. **Today resilience** — TODAY-02, TODAY-06, TODAY-07: next eligible day, duplicate
    completion proof, and offline pending sync.
-2. **Managed Clara loop** — AI-01 through AI-11: deployed recommendation, clarification,
-   injection rejection, quick actions, cross-Plan tradeoff, exact preview, stale-version
-   rejection, and duplicate approval. Timeout, malformed, and unavailable client states
-   remain partial until the managed adapter is evidenced.
+2. **Managed Clara loop** — the selected-Plan recommendation and approved schedule
+   change are implemented locally. Deployment evidence, quick actions, cross-Plan
+   tradeoff, and judged failure captures remain.
 3. **Calendar** — CAL-01 through CAL-04: prepare one day, adjust/approve, persist the
    approved day, and preserve it on generation failure.
 4. **Checkpointed run** — RUN-01 through RUN-04: correlated run identifier, cancellation,
@@ -56,3 +55,7 @@ allocation shares, and gives one non-writing cross-Plan recommendation. Plan Det
 performs an owner-scoped authoritative read, exposes the current step and context empty
 states, and fails safely when the Plan is missing or unavailable. Persisted history,
 decisions, research, and brief content remain in their later acceptance slices.
+
+The local selected-Plan Clara loop now covers typed managed recommendations, exact
+schedule previews, explicit rejection, stale checks, idempotent approval, one immutable
+audit event, and authoritative refresh. Production Cloud evidence remains pending.

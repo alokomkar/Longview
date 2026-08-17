@@ -32,10 +32,24 @@ legend { margin-bottom:10px; color:#dce7e9; font-weight:800; }
 .day-choices { display:grid; grid-template-columns:repeat(7,minmax(0,1fr)); gap:7px; }
 .day-choices button { min-width:0; min-height:46px; padding:0 4px; }
 .app-shell { width:min(100%,760px); min-height:100vh; margin:auto; padding:28px 20px 96px; }
-.app-shell header { display:flex; justify-content:space-between; align-items:center; }
+.app-shell header { display:flex; justify-content:space-between; align-items:center; gap:12px; }
+.app-shell header > * { min-width:0; }
+.app-shell header .status { max-width:50%; overflow-wrap:anywhere; text-align:right; }
 .empty { min-height:65vh; display:flex; flex-direction:column; align-items:flex-start; justify-content:center; }
 .empty h1 { max-width:620px; }
-.plans-view,.today-view { padding-top:56px; }
+.plans-view,.today-view,.calendar-view { padding-top:56px; }
+.calendar-view { padding-bottom:100px; }
+.calendar-view > p { max-width:620px; }
+.calendar-view > label { max-width:300px; margin:24px 0 10px; }
+.calendar-view > button { margin-top:24px; }
+.run-meta { display:flex; flex-direction:column; gap:6px; margin-top:24px; }
+.run-meta small { overflow-wrap:anywhere; }
+.checkpoint-list { display:grid; gap:10px; margin:24px 0; padding:0; list-style:none; counter-reset:checkpoint; }
+.checkpoint-list li { display:flex; align-items:center; gap:10px; color:#849aa6; }
+.checkpoint-list li::before { counter-increment:checkpoint; content:counter(checkpoint); display:grid; width:28px; height:28px; place-items:center; border:1px solid #37576b; border-radius:50%; font-weight:800; }
+.checkpoint-list li.complete { color:#dce7e9; }
+.checkpoint-list li.complete::before { color:#05201d; background:#79d7c5; border-color:#79d7c5; }
+.schedule-blocks { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:14px; margin:24px 0; }
 .today-content { max-width:680px; padding:22px 0 110px; }
 .today-content > p { max-width:560px; }
 .today-card { margin:28px 0 18px; border-color:#387c70; }
@@ -79,6 +93,7 @@ legend { margin-bottom:10px; color:#dce7e9; font-weight:800; }
 .system-banner button { min-height:32px; margin-left:8px; padding:0 12px; }
 @media (min-width:700px) { .shell { width:min(100%,720px); } .actions { grid-template-columns:1fr 1fr; } }
 @media (max-width:520px) { .plans-heading { align-items:stretch; flex-direction:column; } .plans-heading button { width:100%; } }
+@media (max-width:520px) { .app-shell nav { gap:5px; padding:6px; } .app-shell nav button { min-width:0; padding:0 7px; font-size:.82rem; } }
 @media (max-width:620px) { .portfolio-summary,.detail-grid { grid-template-columns:1fr; } .context-grid { grid-template-columns:repeat(2,1fr); } }
 @media (max-width:420px) { .day-choices { grid-template-columns:repeat(4,1fr); } }
 @media (max-width:520px) { .approval-diff { grid-template-columns:1fr; } }

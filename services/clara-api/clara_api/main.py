@@ -15,7 +15,20 @@ from .approval import (
 )
 from .auth import AuthenticationError, FirebaseTokenVerifier, TokenVerifier, bearer_token
 from .engine import AdkRecommendationEngine, EngineUnavailableError, RecommendationEngine
-from .models import ApprovalRequest, ApprovalResponse, RecommendationRequest, RecommendationResponse
+from .models import (
+    ApprovalRequest,
+    ApprovalResponse,
+    CreateScheduleRunRequest,
+    RecommendationRequest,
+    RecommendationResponse,
+    ScheduleRun,
+)
+from .schedule_runs import (
+    ScheduleRunCoordinator,
+    ScheduleRunNotFoundError,
+    ScheduleRunUnavailableError,
+    default_schedule_run_coordinator,
+)
 
 
 @lru_cache(maxsize=1)
@@ -27,6 +40,7 @@ def create_app(
     verifier: TokenVerifier | None = None,
     engine: RecommendationEngine | None = None,
     approval_repository: ApprovalRepository | None = None,
+    schedule_run_coordinator: ScheduleRunCoordinator | None = None,
     timeout_seconds: float | None = None,
     allowed_origins: list[str] | None = None,
 ) -> FastAPI:
@@ -45,7 +59,7 @@ def create_app(
         CORSMiddleware,
         allow_origins=origins,
         allow_credentials=False,
-        allow_methods=["POST", "OPTIONS"],
+        allow_methods=["GET", "POST", "OPTIONS"],
         allow_headers=["Authorization", "Content-Type"],
     )
     token_verifier = verifier or FirebaseTokenVerifier()
@@ -109,6 +123,59 @@ def create_app(
             raise HTTPException(status_code=409, detail=str(error)) from error
         except ApprovalUnavailableError as error:
             raise HTTPException(status_code=503, detail="Approval unavailable") from error
+
+    def runs() -> ScheduleRunCoordinator:
+        return schedule_run_coordinator or default_schedule_run_coordinator()
+
+    @app.post(
+        "/v1/clara/schedule-runs",
+        response_model=ScheduleRun,
+        response_model_by_alias=True,
+        status_code=202,
+    )
+    async def create_schedule_run(
+        request: CreateScheduleRunRequest,
+        authorization: str | None = Header(default=None),
+    ) -> ScheduleRun:
+        user_id = await authenticated_user(authorization)
+        try:
+            return await runs().create(user_id, request)
+        except ScheduleRunUnavailableError as error:
+            raise HTTPException(status_code=503, detail="Schedule run unavailable") from error
+
+    @app.get(
+        "/v1/clara/schedule-runs/{run_id}",
+        response_model=ScheduleRun,
+        response_model_by_alias=True,
+    )
+    async def get_schedule_run(
+        run_id: str,
+        authorization: str | None = Header(default=None),
+    ) -> ScheduleRun:
+        user_id = await authenticated_user(authorization)
+        try:
+            return await runs().get(user_id, run_id)
+        except ScheduleRunNotFoundError as error:
+            raise HTTPException(status_code=404, detail="Schedule run not found") from error
+        except ScheduleRunUnavailableError as error:
+            raise HTTPException(status_code=503, detail="Schedule run unavailable") from error
+
+    @app.post(
+        "/v1/clara/schedule-runs/{run_id}/cancel",
+        response_model=ScheduleRun,
+        response_model_by_alias=True,
+    )
+    async def cancel_schedule_run(
+        run_id: str,
+        authorization: str | None = Header(default=None),
+    ) -> ScheduleRun:
+        user_id = await authenticated_user(authorization)
+        try:
+            return await runs().cancel(user_id, run_id)
+        except ScheduleRunNotFoundError as error:
+            raise HTTPException(status_code=404, detail="Schedule run not found") from error
+        except ScheduleRunUnavailableError as error:
+            raise HTTPException(status_code=503, detail="Schedule run unavailable") from error
 
     return app
 

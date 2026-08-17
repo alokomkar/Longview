@@ -37,4 +37,3 @@ Authentication failure, invalid fields, empty working days, changed weekly hours
 cross-owner access, stale versions, offline requests, cancellation, transaction failure,
 and partial result reads leave the Plan unchanged. Audit events contain bounded IDs and
 before/after values, not model reasoning traces or authentication tokens.
-

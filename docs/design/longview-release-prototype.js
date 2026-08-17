@@ -200,7 +200,7 @@
   function render() {
     applyAppearance(); root.innerHTML=scaffold(screenHtml());
     if(appState.route==='settings' && appState.anonymous) {
-      root.querySelector('.screen')?.insertAdjacentHTML('beforeend','<div class="notice"><div><strong>Protect this workspace before signing out</strong><span>Anonymous session recovery is outside the MVP. Link an account or explicitly confirm loss of access.</span></div></div>');
+      root.querySelector('.screen')?.insertAdjacentHTML('beforeend','<div class="notice"><div><strong>Keep access to this workspace</strong><span>Link a Google account before signing out so you can return later.</span></div></div>');
     }
     root.querySelectorAll('[data-action]').forEach(el=>el.onclick=e=>{e.stopPropagation();performAction(el.dataset.action,el);});
     window.history.replaceState(null,'',`#${appState.route}`);

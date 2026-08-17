@@ -104,7 +104,7 @@ describe('authentication journey', () => {
     render(<App gateway={mock} workspaceGateway={workspaceGateway} />);
     fireEvent.click(await screen.findByRole('button', { name: 'Settings' }));
     fireEvent.click(screen.getByRole('button', { name: 'Sign out' }));
-    expect(screen.getByRole('alert')).toHaveTextContent('inaccessible from this browser');
+    expect(screen.getByRole('alert')).toHaveTextContent('won’t be able to return to this workspace');
     expect(screen.getByRole('button', { name: 'Link Google account' })).toBeVisible();
     expect(mock.signOut).not.toHaveBeenCalled();
     fireEvent.click(screen.getByRole('button', { name: 'Sign out and lose access' }));
@@ -116,9 +116,9 @@ describe('authentication journey', () => {
     const mock = gateway({ uid: 'owner', isAnonymous: false, displayName: 'Owner' });
     render(<App gateway={mock} workspaceGateway={workspaceGateway} />);
     fireEvent.click(await screen.findByRole('button', { name: 'Settings' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Clear local data' }));
-    expect(screen.getByRole('alert')).toHaveTextContent('not deleted');
-    fireEvent.click(screen.getByRole('button', { name: 'Confirm clear local data' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Clear this device' }));
+    expect(screen.getByRole('alert')).toHaveTextContent('workspace will still be available');
+    fireEvent.click(screen.getByRole('button', { name: 'Clear this device and sign out' }));
     expect(await screen.findByRole('button', { name: 'Continue with Google' })).toBeVisible();
     expect(localStorage.getItem('longview:onboarding')).toBeNull();
   });

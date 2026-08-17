@@ -6,7 +6,7 @@ Updated: 2026-08-17
 
 Sources: [Acceptance demo](design/longview-hackathon-acceptance-demo.html) | [PRD](PRODUCT_REQUIREMENTS.md) | [Readiness ledger](HACKATHON_READINESS.md)
 
-The ledger currently records 20 implemented, 9 partial, and 27 missing cases. Partial
+The ledger currently records 21 implemented, 9 partial, and 27 missing cases. Partial
 means a safe client contract exists but the full judged behavior or cloud evidence does
 not. Review checkmarks in the demo are not implementation status.
 
@@ -41,4 +41,5 @@ not. Review checkmarks in the demo are not implementation status.
 
 Identity and availability cases are implemented. Availability now persists selected
 working days, weekly capacity, preferred time, versioned conflict protection, load/save
-recovery, and Settings editing. It does not yet schedule around ineligible days.
+recovery, and Settings setup or editing even when an existing workspace has no saved
+schedule. It does not yet schedule around ineligible days.

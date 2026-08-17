@@ -129,7 +129,9 @@ Slice 2 was accepted and merged on 2026-08-17. Slice 3 now persists working days
 weekly capacity, and preferred time in the owner workspace. Versioned transactions
 reject stale concurrent saves; invalid or failed saves retain the last accepted value.
 Settings reopens the same schedule for editing. This slice does not yet make Today
-skip ineligible days; that remains tracked in [Pending features](PENDING_FEATURES.md).
+skip ineligible days. Existing workspaces without a saved schedule instead expose a
+clear Set availability action in Settings; the remaining scheduling behavior stays
+tracked in [Pending features](PENDING_FEATURES.md).
 
 The remaining judged surfaces and the replacement status of every gallery asset are
 tracked in [Hackathon readiness](HACKATHON_READINESS.md).

@@ -145,6 +145,14 @@ describe('authentication journey', () => {
     expect(save).toHaveBeenCalledWith(expect.objectContaining({ uid: 'owner' }), expect.objectContaining({ weeklyHours: 15, preferredTime: 'evening' }), 3);
   });
 
+  it('lets an existing workspace set availability from Settings', async () => {
+    localStorage.setItem('longview:onboarding', 'complete');
+    render(<App gateway={gateway({ uid: 'owner', isAnonymous: false, displayName: 'Owner' })} workspaceGateway={workspaceGateway} availabilityGateway={availabilityGateway} planGateway={planGateway} />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Settings' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Set availability' }));
+    expect(screen.getByRole('heading', { name: 'Protect time you can actually keep.' })).toBeVisible();
+  });
+
   it('signs out from Settings without clearing saved onboarding', async () => {
     localStorage.setItem('longview:onboarding', 'complete');
     const mock = gateway({ uid: 'owner', isAnonymous: false, displayName: 'Owner' });

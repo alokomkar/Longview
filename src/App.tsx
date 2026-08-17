@@ -57,7 +57,7 @@ const createEmptyPlanDraft = (): PlanDraft => ({
 });
 const claraFailureCopy: Record<ClaraFailure, [string, string]> = {
   offline: ['You’re offline.', 'Reconnect and try again. Your step and Plan are unchanged.'],
-  timeout: ['Clara took too long.', 'The request stopped safely. Your step and Plan are unchanged.'],
+  timeout: ['Clara didn’t respond in time.', 'Longview stopped the request safely. Your step and Plan are unchanged.'],
   malformed: ['Clara’s response could not be used.', 'It did not match the expected format, so nothing was applied.'],
   unavailable: ['Clara is unavailable.', 'Try again shortly. Your step and Plan are unchanged.']
 };

@@ -1,6 +1,6 @@
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { ClaraContext, ClaraGateway } from './types';
+import { ClaraGatewayTimeoutError, type ClaraContext, type ClaraGateway } from './types';
 import { useClaraRecommendation } from './useClaraRecommendation';
 
 const context: ClaraContext = {
@@ -44,6 +44,15 @@ describe('useClaraRecommendation', () => {
     const { result } = renderHook(() => useClaraRecommendation(gateway, 5));
     act(() => { void result.current.ask(context); });
     await waitFor(() => expect(result.current.snapshot).toMatchObject({ status: 'error', failure: 'timeout' }));
+  });
+
+  it('reports the managed API timeout before the browser guard expires', async () => {
+    const gateway: ClaraGateway = {
+      recommend: vi.fn(async () => { throw new ClaraGatewayTimeoutError(); })
+    };
+    const { result } = renderHook(() => useClaraRecommendation(gateway));
+    await act(async () => { await result.current.ask(context); });
+    expect(result.current.snapshot).toMatchObject({ status: 'error', failure: 'timeout' });
   });
 
   it.each([

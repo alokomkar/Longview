@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import type { ClaraContext } from './types';
+import { ClaraGatewayTimeoutError, type ClaraContext } from './types';
 import { createManagedClaraGateway } from './managedGateway';
 
 const context: ClaraContext = {
@@ -106,12 +106,21 @@ describe('managed Clara gateway', () => {
     expect(fetcher).toHaveBeenCalledTimes(2);
   });
 
-  it.each([401, 503, 504])('rejects non-success status %s', async status => {
+  it.each([401, 503])('rejects non-success status %s', async status => {
     const gateway = createManagedClaraGateway(
       'https://clara.example.test', identity(),
       vi.fn(async () => new Response(null, { status }))
     );
     await expect(gateway.recommend(context, new AbortController().signal)).rejects.toThrow(String(status));
+  });
+
+  it('identifies a managed API timeout', async () => {
+    const gateway = createManagedClaraGateway(
+      'https://clara.example.test', identity(),
+      vi.fn(async () => new Response(null, { status: 504 }))
+    );
+    await expect(gateway.recommend(context, new AbortController().signal))
+      .rejects.toBeInstanceOf(ClaraGatewayTimeoutError);
   });
 
   it('passes cancellation to fetch', async () => {

@@ -143,6 +143,23 @@ def test_timeout_and_unavailable_dependency_are_distinct():
     assert unavailable.status_code == 503
 
 
+def test_default_timeout_reads_the_service_configuration(monkeypatch):
+    monkeypatch.setenv("CLARA_TIMEOUT_SECONDS", "0.001")
+    response = TestClient(create_app(Verifier(), Engine(delay=0.05))).post(
+        "/v1/clara/recommendations", json=REQUEST, headers={"Authorization": "Bearer token"}
+    )
+    assert response.status_code == 504
+
+
+def test_rejects_a_non_positive_timeout(monkeypatch):
+    monkeypatch.setenv("CLARA_TIMEOUT_SECONDS", "0")
+    try:
+        create_app(Verifier(), Engine())
+        raise AssertionError("expected invalid timeout to be rejected")
+    except ValueError as error:
+        assert str(error) == "CLARA_TIMEOUT_SECONDS must be greater than zero"
+
+
 def test_malformed_mismatched_and_write_bearing_outputs_fail_closed():
     cases = [
         {"invalid": True},

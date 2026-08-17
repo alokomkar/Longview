@@ -1,5 +1,10 @@
 import { auth } from '../firebase/config';
-import { parseClaraRecommendation, type ClaraGateway, type ClaraRecommendation } from './types';
+import {
+  ClaraGatewayTimeoutError,
+  parseClaraRecommendation,
+  type ClaraGateway,
+  type ClaraRecommendation
+} from './types';
 
 type Identity = { uid: string; getToken(): Promise<string> };
 type IdentityProvider = () => Promise<Identity>;
@@ -58,6 +63,7 @@ export function createManagedClaraGateway(
         body: JSON.stringify(context),
         signal
       });
+      if (response.status === 504) throw new ClaraGatewayTimeoutError();
       if (!response.ok) throw new Error(`Clara request failed with status ${response.status}`);
       const value: unknown = await response.json();
       const recommendation = parseClaraRecommendation(value, context);

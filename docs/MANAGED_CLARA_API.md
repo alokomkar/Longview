@@ -32,7 +32,9 @@ background run, or claim a deployed Cloud Run revision.
 
 - Missing or invalid authentication returns `401` without invoking the model.
 - Invalid context returns `422`; oversized or unknown fields are rejected.
-- Timeout returns `504`; unavailable dependencies return `503`.
+- The managed model call has a 15-second budget and returns `504` when exhausted.
+  The PWA waits up to 18 seconds so it can classify that response as a timeout;
+  unavailable dependencies return `503`.
 - Malformed, mismatched, or write-bearing model output returns `502`.
 - Cancellation stops the client request. No retry writes or durable side effects exist.
 
@@ -48,6 +50,7 @@ background run, or claim a deployed Cloud Run revision.
   `GOOGLE_GENAI_USE_VERTEXAI=TRUE`.
 - `CLARA_ALLOWED_ORIGINS` is a comma-separated exact allowlist. It defaults to the
   Firebase Hosting production origin; local origins must be opted in explicitly.
+- `CLARA_TIMEOUT_SECONDS` controls the managed model budget and defaults to `15`.
 
 Deployment, IAM grants, API enablement, Firebase Hosting rewrites, Cloud Logging proof,
 and production endpoint evidence require a separate explicit deployment approval.

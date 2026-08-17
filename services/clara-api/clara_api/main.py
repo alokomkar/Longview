@@ -19,10 +19,15 @@ def default_engine() -> RecommendationEngine:
 def create_app(
     verifier: TokenVerifier | None = None,
     engine: RecommendationEngine | None = None,
-    timeout_seconds: float = 8,
+    timeout_seconds: float | None = None,
     allowed_origins: list[str] | None = None,
 ) -> FastAPI:
     app = FastAPI(title="Longview Clara API", version="0.1.0")
+    request_timeout = timeout_seconds if timeout_seconds is not None else float(
+        os.getenv("CLARA_TIMEOUT_SECONDS", "15")
+    )
+    if request_timeout <= 0:
+        raise ValueError("CLARA_TIMEOUT_SECONDS must be greater than zero")
     origins = allowed_origins if allowed_origins is not None else [
         origin.strip()
         for origin in os.getenv("CLARA_ALLOWED_ORIGINS", "https://longview-505611.web.app").split(",")
@@ -54,7 +59,7 @@ def create_app(
         try:
             active_engine = engine or default_engine()
             raw = await asyncio.wait_for(
-                active_engine.recommend(context, user_id), timeout=timeout_seconds
+                active_engine.recommend(context, user_id), timeout=request_timeout
             )
         except TimeoutError as error:
             raise HTTPException(status_code=504, detail="Recommendation timed out") from error

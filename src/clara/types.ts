@@ -26,6 +26,13 @@ export interface ClaraGateway {
   recommend(context: ClaraContext, signal: AbortSignal): Promise<unknown>;
 }
 
+export class ClaraGatewayTimeoutError extends Error {
+  constructor() {
+    super('Clara request timed out');
+    this.name = 'ClaraGatewayTimeoutError';
+  }
+}
+
 export function buildClaraContext(plan: Plan, step: TodayStep, requestId: string): ClaraContext {
   return {
     schemaVersion: 1,

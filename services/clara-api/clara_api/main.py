@@ -1,5 +1,6 @@
 import asyncio
 import os
+from datetime import date
 from functools import lru_cache
 
 from fastapi import FastAPI, Header, HTTPException
@@ -13,12 +14,22 @@ from .approval import (
     ApprovalUnavailableError,
     default_approval_repository,
 )
+from .approved_days import (
+    ApprovedDayConflictError,
+    ApprovedDayNotFoundError,
+    ApprovedDayRepository,
+    ApprovedDayUnavailableError,
+    default_approved_day_repository,
+)
 from .auth import AuthenticationError, FirebaseTokenVerifier, TokenVerifier, bearer_token
 from .engine import AdkRecommendationEngine, EngineUnavailableError, RecommendationEngine
 from .models import (
     ApprovalRequest,
     ApprovalResponse,
+    ApprovedDay,
     CreateScheduleRunRequest,
+    DayApprovalRequest,
+    DayApprovalResponse,
     RecommendationRequest,
     RecommendationResponse,
     ScheduleRun,
@@ -41,6 +52,7 @@ def create_app(
     engine: RecommendationEngine | None = None,
     approval_repository: ApprovalRepository | None = None,
     schedule_run_coordinator: ScheduleRunCoordinator | None = None,
+    approved_day_repository: ApprovedDayRepository | None = None,
     timeout_seconds: float | None = None,
     allowed_origins: list[str] | None = None,
 ) -> FastAPI:
@@ -127,6 +139,9 @@ def create_app(
     def runs() -> ScheduleRunCoordinator:
         return schedule_run_coordinator or default_schedule_run_coordinator()
 
+    def approved_days() -> ApprovedDayRepository:
+        return approved_day_repository or default_approved_day_repository()
+
     @app.post(
         "/v1/clara/schedule-runs",
         response_model=ScheduleRun,
@@ -176,6 +191,43 @@ def create_app(
             raise HTTPException(status_code=404, detail="Schedule run not found") from error
         except ScheduleRunUnavailableError as error:
             raise HTTPException(status_code=503, detail="Schedule run unavailable") from error
+
+    @app.get(
+        "/v1/clara/approved-days/{selected_date}",
+        response_model=ApprovedDay,
+        response_model_by_alias=True,
+    )
+    async def get_approved_day(
+        selected_date: date,
+        authorization: str | None = Header(default=None),
+    ) -> ApprovedDay:
+        user_id = await authenticated_user(authorization)
+        try:
+            return await approved_days().get(user_id, selected_date.isoformat())
+        except ApprovedDayNotFoundError as error:
+            raise HTTPException(status_code=404, detail="Approved day not found") from error
+        except ApprovedDayUnavailableError as error:
+            raise HTTPException(status_code=503, detail="Approved day unavailable") from error
+
+    @app.post(
+        "/v1/clara/schedule-runs/{run_id}/approve",
+        response_model=DayApprovalResponse,
+        response_model_by_alias=True,
+    )
+    async def approve_schedule_run(
+        run_id: str,
+        request: DayApprovalRequest,
+        authorization: str | None = Header(default=None),
+    ) -> DayApprovalResponse:
+        user_id = await authenticated_user(authorization)
+        try:
+            return await approved_days().approve(user_id, run_id, request)
+        except ApprovedDayNotFoundError as error:
+            raise HTTPException(status_code=404, detail="Schedule run not found") from error
+        except ApprovedDayConflictError as error:
+            raise HTTPException(status_code=409, detail=str(error)) from error
+        except ApprovedDayUnavailableError as error:
+            raise HTTPException(status_code=503, detail="Approved day unavailable") from error
 
     return app
 

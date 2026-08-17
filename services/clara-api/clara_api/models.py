@@ -215,3 +215,43 @@ class ScheduleRun(StrictModel):
         if self.status in {"failed", "timed-out"} and not self.failure:
             raise ValueError("failed runs require a reason")
         return self
+
+
+class DayApprovalRequest(StrictModel):
+    schema_version: Literal[1] = Field(alias="schemaVersion")
+    idempotency_key: str = Field(alias="idempotencyKey", min_length=8, max_length=128)
+    expected_day_revision: int = Field(alias="expectedDayRevision", ge=0)
+    replace_current: bool = Field(alias="replaceCurrent")
+
+
+class ApprovedDayBlock(ScheduleBlock):
+    order: int = Field(ge=1, le=10)
+
+
+class ApprovedDay(StrictModel):
+    schema_version: Literal[1] = Field(alias="schemaVersion")
+    selected_date: date = Field(alias="selectedDate")
+    revision: int = Field(ge=1)
+    source_run_id: str = Field(alias="sourceRunId", min_length=1, max_length=128)
+    capacity_minutes: int = Field(alias="capacityMinutes", ge=30, le=480)
+    total_minutes: int = Field(alias="totalMinutes", ge=1, le=480)
+    blocks: list[ApprovedDayBlock] = Field(min_length=1, max_length=10)
+    status: Literal["approved"]
+    approval_event_id: str = Field(alias="approvalEventId", min_length=8, max_length=128)
+
+    @model_validator(mode="after")
+    def validate_day(self):
+        if self.total_minutes > self.capacity_minutes:
+            raise ValueError("approved day exceeds capacity")
+        if sum(block.duration_minutes for block in self.blocks) != self.total_minutes:
+            raise ValueError("approved day total must equal its blocks")
+        if [block.order for block in self.blocks] != list(range(1, len(self.blocks) + 1)):
+            raise ValueError("approved day blocks must use consecutive order")
+        return self
+
+
+class DayApprovalResponse(StrictModel):
+    schema_version: Literal[1] = Field(alias="schemaVersion")
+    idempotency_key: str = Field(alias="idempotencyKey", min_length=8, max_length=128)
+    duplicate: bool
+    approved_day: ApprovedDay = Field(alias="approvedDay")

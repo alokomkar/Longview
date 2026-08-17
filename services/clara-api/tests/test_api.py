@@ -4,9 +4,10 @@ from fastapi.testclient import TestClient
 
 from clara_api.auth import AuthenticationError
 from clara_api.approval import ApprovalConflictError, ApprovalNotFoundError, ApprovalUnavailableError
+from clara_api.approved_days import ApprovedDayConflictError, ApprovedDayNotFoundError, ApprovedDayUnavailableError
 from clara_api.engine import EngineUnavailableError
 from clara_api.main import create_app
-from clara_api.models import ApprovalResponse, ScheduleRun
+from clara_api.models import ApprovalResponse, ApprovedDay, DayApprovalResponse, ScheduleRun
 from clara_api.schedule_runs import ScheduleRunNotFoundError, ScheduleRunUnavailableError
 
 
@@ -123,10 +124,38 @@ class ScheduleCoordinator:
         return ScheduleRun.model_validate({**self.result.model_dump(by_alias=True), "status": "cancelled"})
 
 
-def client(verifier=None, engine=None, timeout=8, approval_repository=None, schedule_run_coordinator=None):
+APPROVED_DAY = ApprovedDay.model_validate({
+    "schemaVersion": 1, "selectedDate": "2026-08-17", "revision": 1,
+    "sourceRunId": "run-1", "capacityMinutes": 120, "totalMinutes": 60,
+    "blocks": [{"order": 1, "planId": "plan-1", "planTitle": "Launch Longview",
+                "title": "Define the first proof", "durationMinutes": 60}],
+    "status": "approved", "approvalEventId": "day-approval-1",
+})
+
+
+class ApprovedDayRepository:
+    def __init__(self, error=None):
+        self.error, self.calls = error, []
+
+    async def get(self, user_id, selected_date):
+        self.calls.append(("get", user_id, selected_date))
+        if self.error: raise self.error
+        return APPROVED_DAY
+
+    async def approve(self, user_id, run_id, request):
+        self.calls.append(("approve", user_id, run_id, request))
+        if self.error: raise self.error
+        return DayApprovalResponse(
+            schemaVersion=1, idempotencyKey=request.idempotency_key,
+            duplicate=False, approvedDay=APPROVED_DAY,
+        )
+
+
+def client(verifier=None, engine=None, timeout=8, approval_repository=None, schedule_run_coordinator=None, approved_day_repository=None):
     return TestClient(create_app(
         verifier=verifier or Verifier(), engine=engine or Engine(),
         approval_repository=approval_repository, schedule_run_coordinator=schedule_run_coordinator,
+        approved_day_repository=approved_day_repository,
         timeout_seconds=timeout
     ))
 
@@ -189,6 +218,52 @@ def test_schedule_run_maps_missing_and_unavailable_without_leaking_details():
     )
     assert missing.status_code == 404
     assert unavailable.status_code == 503
+
+
+def test_approved_day_load_and_approval_are_owner_scoped():
+    repository = ApprovedDayRepository()
+    api = client(approved_day_repository=repository)
+    headers = {"Authorization": "Bearer token"}
+    loaded = api.get("/v1/clara/approved-days/2026-08-17", headers=headers)
+    approved = api.post(
+        "/v1/clara/schedule-runs/run-1/approve",
+        json={"schemaVersion": 1, "idempotencyKey": "day-approval-1",
+              "expectedDayRevision": 0, "replaceCurrent": False},
+        headers=headers,
+    )
+    assert loaded.status_code == approved.status_code == 200
+    assert approved.json()["approvedDay"]["revision"] == 1
+    assert [(call[0], call[1]) for call in repository.calls] == [("get", "owner-1"), ("approve", "owner-1")]
+
+
+def test_approved_day_maps_missing_conflict_and_unavailable():
+    headers = {"Authorization": "Bearer token"}
+    for error, status in (
+        (ApprovedDayNotFoundError(), 404),
+        (ApprovedDayConflictError("changed"), 409),
+        (ApprovedDayUnavailableError(), 503),
+    ):
+        repository = ApprovedDayRepository(error)
+        response = client(approved_day_repository=repository).post(
+            "/v1/clara/schedule-runs/run-1/approve",
+            json={"schemaVersion": 1, "idempotencyKey": "day-approval-1",
+                  "expectedDayRevision": 0, "replaceCurrent": False},
+            headers=headers,
+        )
+        assert response.status_code == status
+
+
+def test_approved_day_rejects_invalid_date_payload_and_missing_auth():
+    repository = ApprovedDayRepository()
+    api = client(approved_day_repository=repository)
+    assert api.get("/v1/clara/approved-days/not-a-date", headers={"Authorization": "Bearer token"}).status_code == 422
+    assert api.post(
+        "/v1/clara/schedule-runs/run-1/approve",
+        json={"schemaVersion": 1, "idempotencyKey": "short", "expectedDayRevision": 0, "replaceCurrent": False},
+        headers={"Authorization": "Bearer token"},
+    ).status_code == 422
+    assert api.get("/v1/clara/approved-days/2026-08-17").status_code == 401
+    assert repository.calls == []
 
 
 def test_verifies_token_and_returns_strict_read_only_response():

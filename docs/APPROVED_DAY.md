@@ -1,6 +1,6 @@
 # Calendar Approved Day
 
-Status: Review required before runtime implementation
+Status: Localhost implementation complete; production evidence remains pending
 
 Updated: 2026-08-17
 
@@ -57,3 +57,20 @@ timed-out run can never be approved.
 5. A proposal from a failed, cancelled, timed-out, or differently owned run is rejected.
 6. The progress indicator remains visible until success or failure is known.
 7. The approved blocks exactly match the terminal run result and contain no clock times.
+
+## Localhost implementation
+
+The PWA loads today’s approved revision through the authenticated API before allowing a
+replacement. A terminal proposal exposes an explicit Approve or Replace action, keeps an
+indeterminate progress indicator visible for the entire request, and renders the
+committed revision, source run, approval record, ordered blocks, and minute totals.
+
+FastAPI validates the authenticated owner and terminal run, then a Firestore transaction
+copies the server-published proposal into the selected day. The same transaction writes
+one immutable audit result. Expected revision and explicit replacement flags reject
+stale writes; the same idempotency key returns the original result. Reload reads the
+owner-scoped saved day. Failed, cancelled, timed-out, missing, malformed, or differently
+owned runs cannot replace it.
+
+The localhost worker and Firestore Emulator prove the contract without claiming
+production Cloud deployment. Break carryover and clock-time scheduling remain separate.

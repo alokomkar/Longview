@@ -31,7 +31,7 @@ Sources: [PRD](PRODUCT_REQUIREMENTS.md) | [Implementation phases](IMPLEMENTATION
 | 9 | Human approval | Before/after preview and approved write | Implemented locally | Capture production Cloud evidence for the exact preview, rejection, stale check, audit, and idempotent write. |
 | 10 | Research review | Accept/reject/defer evidence | Missing | Add attributed cards and non-destructive review states. |
 | 11 | Versioned memory | User-approved brief version | Missing | Add editable proposal, attribution, version history, and explicit save. |
-| 12 | Calendar success | One approved capacity-bounded day | Missing | Add propose, adjust, approve, break, retry, and one-day persistence. |
+| 12 | Calendar success | One approved capacity-bounded day | Partial | Local proposal, adjustment, approval, replacement, retry, persistence, reload, and recovery are implemented. Add break carryover and production Cloud evidence. |
 | 13 | Failure recovery | Failed agent run preserves state | Partial | Local managed timeout, malformed output, cancellation, stale write, and atomic transaction behavior are covered; add production recovery evidence. |
 
 ## Completed implementation
@@ -50,6 +50,9 @@ Sources: [PRD](PRODUCT_REQUIREMENTS.md) | [Implementation phases](IMPLEMENTATION
 - Local Clara schedule-change proposal with exact before/after review, explicit
   rejection, authenticated version check, idempotent transaction, immutable audit
   record, and authoritative refresh.
+- Local Calendar approved-day transaction with exact terminal-run copying, explicit
+  replacement, owner/date scoping, revision conflict protection, idempotent audit,
+  durable reload, and failure preservation.
 
 ## Deadline delivery order
 

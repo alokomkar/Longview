@@ -1,7 +1,7 @@
 # Longview Implementation Phases
 
-Status: Phase 1 implementation started - subject to change
-Updated: 2026-08-16
+Status: Authentication slice deployed - subject to change
+Updated: 2026-08-17
 Links: [PRD](PRODUCT_REQUIREMENTS.md) | [Mockup](design/longview-pwa-interactive-mockup.html) | [Stack](TECH_STACK.md)
 
 ## Rules
@@ -55,4 +55,9 @@ lazy-loads Firestore after authentication, exposes offline/update status, captur
 realistic weekly availability budget, and lands on Empty Today with mobile navigation.
 Settings includes explicit sign-out and confirmed local-data clearing. Local clearing
 removes browser preferences and cached PWA files, then signs out; it never deletes the
-cloud or emulator workspace.
+cloud or emulator workspace. Anonymous sessions retain a Google-link action in Settings
+after onboarding, so cross-device protection is never hidden by local progress.
+
+The authentication slice is deployed to Firebase Hosting for production-domain
+acceptance. The hosted build uses Google and anonymous authentication plus owner-scoped
+production Firestore rules; emulator flags remain limited to local development.

@@ -107,4 +107,13 @@ describe('authentication journey', () => {
     expect(await screen.findByRole('button', { name: 'Continue with Google' })).toBeVisible();
     expect(localStorage.getItem('longview:onboarding')).toBeNull();
   });
+
+  it('keeps Google linking available in Settings after anonymous onboarding', async () => {
+    localStorage.setItem('longview:onboarding', 'complete');
+    const mock = gateway({ uid: 'anon-1', isAnonymous: true, displayName: null });
+    render(<App gateway={mock} workspaceGateway={workspaceGateway} />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Settings' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Link Google account' }));
+    expect(mock.linkGoogle).toHaveBeenCalledOnce();
+  });
 });

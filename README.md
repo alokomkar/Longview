@@ -13,11 +13,11 @@ changes, and preserve the reasoning behind important decisions.
 
 ## Current status
 
-Phase 1 local implementation has started on `feature/authentication-phases`. It includes
+Phase 1 authentication implementation is available on Firebase Hosting. It includes
 the PWA shell, Firebase Auth boundary, local emulator configuration, production-safe
 Firestore rules, idempotent user/default-workspace provisioning, and representative
-unit/mobile E2E tests. Nothing is deployed. Local provisioning writes only to the
-Firestore emulator while Google authentication uses the configured Firebase project.
+unit/mobile E2E tests. Local development writes only to the Firestore emulator while
+the hosted build uses production Firestore rules and Google authentication.
 Settings provides separate sign-out and confirmed browser-local data clearing actions;
 neither action deletes the workspace record.
 
@@ -34,6 +34,8 @@ neither action deletes the workspace record.
 
 Verification: `npm test`, `npm run test:rules`, `npm run build`, and
 `npm run test:e2e`. The emulator requires Java 21+ compiled for the host CPU.
+
+Hosted authentication acceptance: `https://longview-505611.web.app/`.
 
 ## Review the mockup
 

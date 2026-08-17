@@ -1,11 +1,11 @@
-.DS_Store
 node_modules/
 dist/
+dev-dist/
+.DS_Store
+*.tsbuildinfo
 .env
-.env.*
-!.env.example
-coverage/
+.env.local
 playwright-report/
 test-results/
-__pycache__/
-.pytest_cache/
+*-debug.log
+.firebase/

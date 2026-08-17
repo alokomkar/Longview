@@ -117,3 +117,13 @@ Slice 1 was accepted and merged on 2026-08-17.
    and malformed-response states leave all durable data unchanged. This slice uses a
    deterministic preview adapter to validate the client contract; the managed model
    and API adapter are the next boundary and are not claimed here.
+3. **Availability days:** Persist at least one user-selected working day with the
+   weekly budget, restore it across sessions, and make it editable from Settings.
+   Empty, invalid, offline, retry, and concurrent-session behavior must preserve the
+   last accepted availability.
+4. **Plan Details:** Make every Plan card navigable and show the saved outcome,
+   rationale, target, weekly allocation, working days, and current Today status.
+   Loading, malformed data, missing Plan, and failed-read recovery are explicit.
+
+The remaining judged surfaces and the replacement status of every gallery asset are
+tracked in [Hackathon readiness](HACKATHON_READINESS.md).

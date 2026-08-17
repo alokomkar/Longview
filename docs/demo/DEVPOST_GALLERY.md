@@ -22,5 +22,8 @@ All images are 2400 x 1600 PNGs in `docs/demo/devpost-gallery/`:
 
 Recommended gallery cover: `02-portfolio.png`.
 
+Implementation and replacement status for all 13 images is tracked in the
+[Hackathon readiness ledger](../HACKATHON_READINESS.md).
+
 These images are labelled as an interactive prototype. Replace that label only after
 the corresponding behavior is implemented and verified in the PWA.

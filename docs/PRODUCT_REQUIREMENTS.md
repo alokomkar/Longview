@@ -8,6 +8,8 @@ Target: All Things Agentic hackathon PWA
 
 Visual specification: [Longview interactive PWA mockup](design/longview-pwa-interactive-mockup.html)
 
+Delivery evidence: [Hackathon readiness ledger](HACKATHON_READINESS.md)
+
 ## 1. Product definition
 
 Longview is a personal AI chief of staff for people pursuing several meaningful,
@@ -87,6 +89,9 @@ them without approval.
 ### Onboarding
 
 - Welcome, anonymous/Google authentication, explanation, availability, Empty Today.
+- Availability must let the user select at least one working day plus a realistic
+  weekly time budget before scheduling begins. The selection is durable, editable
+  from Settings, and visible wherever Longview explains scheduling eligibility.
 - Anonymous work remains usable and can later be linked without creating a duplicate
   workspace.
 - Authentication cancellation returns safely to Sign in.
@@ -118,6 +123,8 @@ them without approval.
 
 ### Goal Details
 
+- Selecting any Plan card opens its Plan Details screen; the Plans list is not a
+  terminal surface.
 - Overview, current task, timeline, allocated time and days, execution history,
   decisions, research cards, current Goal Brief, and version history.
 - Research cards support Accept, Reject, and Not now.
@@ -191,6 +198,10 @@ the submission narrative.
 ## 12. Acceptance criteria
 
 - A judge can anonymously complete the canonical journey in a hosted installable PWA.
+- Onboarding persists at least one selected working day and Settings can reopen and
+  edit the same availability without creating another workspace.
+- Every Plan card opens Plan Details showing the saved outcome, rationale, target,
+  weekly allocation, working days, and current Today-step/completion state.
 - Three Goals share one visible finite-capacity portfolio.
 - Clara uses Gemini 3.5 Flash or newer through Google ADK and Vertex AI.
 - One Pub/Sub-triggered Cloud Run worker completes a checkpointed asynchronous run.
@@ -205,6 +216,10 @@ the submission narrative.
   Cloud Run/Logging evidence shown in the approximately four-minute demo.
 - Android, iOS, and behavior from pre-existing applications are not claimed as
   hackathon output.
+
+The current implementation and every submitted gallery asset are tracked individually
+in the [Hackathon readiness ledger](HACKATHON_READINESS.md). Prototype screenshots and
+the prototype video remain design evidence until replaced by verified PWA captures.
 
 ## 13. Deferred decisions
 

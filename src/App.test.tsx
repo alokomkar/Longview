@@ -8,6 +8,7 @@ import type { TodayGateway } from './today/types';
 import type { ClaraGateway } from './clara/types';
 import type { ClaraApprovalGateway } from './clara/approvalTypes';
 import type { ScheduleRunGateway } from './scheduleRun/types';
+import { ApprovedDayConflictError, type ApprovedDay, type ApprovedDayGateway, type DayApprovalRequest, type DayApprovalResult } from './approvedDay/types';
 
 const workspaceGateway: WorkspaceGateway = {
   ensure: vi.fn(async (user: AuthUser) => ({ id: 'default' as const, ownerUid: user.uid, schemaVersion: 1 as const }))
@@ -39,6 +40,25 @@ const todayGateway: TodayGateway = {
     stepKey: 'first-proof-v1' as const, completedDate: step.date, durationMinutes: step.durationMinutes,
     status: 'completed' as const, schemaVersion: 1 as const
   }))
+};
+
+const approvedDayGateway: ApprovedDayGateway = {
+  get: vi.fn(async () => null),
+  approve: vi.fn(async () => { throw new Error('not configured'); })
+};
+
+const succeededScheduleRun = {
+  schemaVersion: 1 as const, runId: 'run-1', requestId: 'schedule-request-1', selectedDate: '2026-08-17',
+  status: 'succeeded' as const, checkpoint: 4 as const, checkpointLabel: 'Result published', retryOf: null, failure: null,
+  proposal: { selectedDate: '2026-08-17', capacityMinutes: 120, totalMinutes: 60,
+    rationale: 'The nearest active target comes first within capacity.',
+    blocks: [{ planId: 'plan-1', planTitle: 'Launch Longview', title: 'Define the first proof', durationMinutes: 60 }] }
+};
+
+const savedApprovedDay: ApprovedDay = {
+  schemaVersion: 1, selectedDate: '2026-08-17', revision: 1, sourceRunId: 'run-1',
+  capacityMinutes: 120, totalMinutes: 60, status: 'approved', approvalEventId: 'day-approval-1',
+  blocks: [{ order: 1, planId: 'plan-1', planTitle: 'Launch Longview', title: 'Define the first proof', durationMinutes: 60 }]
 };
 
 beforeEach(() => localStorage.clear());
@@ -484,7 +504,7 @@ describe('authentication journey', () => {
     } : null);
     const start = vi.fn((_context: Parameters<ScheduleRunGateway['start']>[0], _signal: AbortSignal) => new Promise<never>(() => undefined));
     const scheduleRunGateway = { start, get: vi.fn(), cancel: vi.fn() } as unknown as ScheduleRunGateway;
-    render(<App gateway={gateway({ uid: 'owner', isAnonymous: false, displayName: 'Owner' })} workspaceGateway={workspaceGateway} planGateway={{ ...planGateway, list: vi.fn(async () => [first, second]) }} todayGateway={{ get, complete: vi.fn(todayGateway.complete) }} scheduleRunGateway={scheduleRunGateway} />);
+    render(<App gateway={gateway({ uid: 'owner', isAnonymous: false, displayName: 'Owner' })} workspaceGateway={workspaceGateway} planGateway={{ ...planGateway, list: vi.fn(async () => [first, second]) }} todayGateway={{ get, complete: vi.fn(todayGateway.complete) }} scheduleRunGateway={scheduleRunGateway} approvedDayGateway={approvedDayGateway} />);
     fireEvent.click(await screen.findByRole('button', { name: 'Calendar' }));
     fireEvent.click(await screen.findByRole('button', { name: 'Prepare today' }));
     await waitFor(() => expect(start).toHaveBeenCalledOnce());
@@ -501,6 +521,51 @@ describe('authentication journey', () => {
     expect(await screen.findByRole('heading', { name: 'Today’s progress could not be checked.' })).toBeVisible();
     expect(screen.queryByRole('button', { name: 'Prepare today' })).not.toBeInTheDocument();
     expect(start).not.toHaveBeenCalled();
+  });
+
+  it('restores an approved day from the owner-scoped service', async () => {
+    localStorage.setItem('longview:onboarding', 'complete');
+    const get = vi.fn(async () => savedApprovedDay);
+    render(<App gateway={gateway({ uid: 'owner', isAnonymous: false, displayName: 'Owner' })} workspaceGateway={workspaceGateway} planGateway={{ ...planGateway, list: vi.fn(async () => [scheduledPlan()]) }} todayGateway={{ get: vi.fn(async () => null), complete: vi.fn(todayGateway.complete) }} approvedDayGateway={{ get, approve: vi.fn() }} />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Calendar' }));
+    expect(await screen.findByRole('heading', { name: '17th August 2026 is ready.' })).toBeVisible();
+    expect(screen.getByText('Approved day · revision 1')).toBeVisible();
+    expect(screen.getByText('run-1')).toBeVisible();
+    expect(get).toHaveBeenCalledWith('2026-08-17', expect.any(AbortSignal));
+  });
+
+  it('keeps approval progress visible and shows the committed day', async () => {
+    localStorage.setItem('longview:onboarding', 'complete');
+    let finish: () => void = () => undefined;
+    const approve = vi.fn((_runId: string, request: DayApprovalRequest, _signal: AbortSignal) => new Promise<DayApprovalResult>(resolve => {
+      finish = () => resolve({ schemaVersion: 1, idempotencyKey: request.idempotencyKey, duplicate: false, approvedDay: savedApprovedDay });
+    }));
+    const scheduleRunGateway: ScheduleRunGateway = { start: vi.fn(async () => succeededScheduleRun), get: vi.fn(), cancel: vi.fn() };
+    render(<App gateway={gateway({ uid: 'owner', isAnonymous: false, displayName: 'Owner' })} workspaceGateway={workspaceGateway} planGateway={{ ...planGateway, list: vi.fn(async () => [scheduledPlan()]) }} todayGateway={{ get: vi.fn(async () => null), complete: vi.fn(todayGateway.complete) }} scheduleRunGateway={scheduleRunGateway} approvedDayGateway={{ get: vi.fn(async () => null), approve }} />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Calendar' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Prepare today' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Approve this order' }));
+    expect(screen.getByRole('progressbar', { name: 'Saving approved day' })).toBeVisible();
+    finish();
+    expect(await screen.findByRole('heading', { name: '17th August 2026 is ready.' })).toBeVisible();
+    expect(screen.queryByRole('progressbar', { name: 'Saving approved day' })).not.toBeInTheDocument();
+    expect(approve.mock.calls[0][1]).toMatchObject({ expectedDayRevision: 0, replaceCurrent: false });
+  });
+
+  it.each([
+    [new Error('offline'), 'Today was not changed.', 'Try approval again'],
+    [new ApprovedDayConflictError('changed'), 'This proposal is out of date.', 'Review latest day']
+  ])('preserves the previous approved day when replacement fails', async (failure, heading, action) => {
+    localStorage.setItem('longview:onboarding', 'complete');
+    const approve = vi.fn(async (_runId: string, _request: DayApprovalRequest, _signal: AbortSignal): Promise<DayApprovalResult> => { throw failure; });
+    const scheduleRunGateway: ScheduleRunGateway = { start: vi.fn(async () => ({ ...succeededScheduleRun, runId: 'run-2' })), get: vi.fn(), cancel: vi.fn() };
+    render(<App gateway={gateway({ uid: 'owner', isAnonymous: false, displayName: 'Owner' })} workspaceGateway={workspaceGateway} planGateway={{ ...planGateway, list: vi.fn(async () => [scheduledPlan()]) }} todayGateway={{ get: vi.fn(async () => null), complete: vi.fn(todayGateway.complete) }} scheduleRunGateway={scheduleRunGateway} approvedDayGateway={{ get: vi.fn(async () => savedApprovedDay), approve }} />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Calendar' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Prepare replacement' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Replace approved day' }));
+    expect(await screen.findByRole('heading', { name: heading })).toBeVisible();
+    expect(screen.getByRole('button', { name: action })).toBeVisible();
+    expect(approve.mock.calls[0][1]).toMatchObject({ expectedDayRevision: 1, replaceCurrent: true });
   });
 
   it('retries completion-state loading without changing the step', async () => {

@@ -31,7 +31,7 @@ Sources: [PRD](PRODUCT_REQUIREMENTS.md) | [Implementation phases](IMPLEMENTATION
 | 9 | Human approval | Before/after preview and approved write | Implemented locally | Capture production Cloud evidence for the exact preview, rejection, stale check, audit, and idempotent write. |
 | 10 | Research review | Accept/reject/defer evidence | Missing | Add attributed cards and non-destructive review states. |
 | 11 | Versioned memory | User-approved brief version | Missing | Add editable proposal, attribution, version history, and explicit save. |
-| 12 | Calendar success | One approved capacity-bounded day | Partial | Local proposal, adjustment, approval, replacement, retry, persistence, reload, and recovery are implemented. Add break carryover and production Cloud evidence. |
+| 12 | Calendar success | One approved capacity-bounded day | Partial | Local proposal, adjustment, approval, replacement, retry, persistence, reload, recovery, and next-eligible-day break carryover are implemented. Production Cloud evidence remains. |
 | 13 | Failure recovery | Failed agent run preserves state | Partial | Local managed timeout, malformed output, cancellation, stale write, and atomic transaction behavior are covered; add production recovery evidence. |
 
 ## Completed implementation
@@ -53,6 +53,9 @@ Sources: [PRD](PRODUCT_REQUIREMENTS.md) | [Implementation phases](IMPLEMENTATION
 - Local Calendar approved-day transaction with exact terminal-run copying, explicit
   replacement, owner/date scoping, revision conflict protection, idempotent audit,
   durable reload, and failure preservation.
+- Local Calendar break transaction with authoritative destination preview, explicit
+  confirmation, atomic pending carryovers, reload, destination proposal enrichment,
+  idempotent audit, and preservation on stale or future-day conflicts.
 
 ## Deadline delivery order
 

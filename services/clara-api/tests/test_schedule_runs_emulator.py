@@ -68,3 +68,40 @@ async def test_emulator_timeout_is_terminal_and_retry_gets_a_new_correlated_id()
     retry = await coordinator.create(user_id, request(str(uuid.uuid4()), terminal.run_id))
     assert retry.run_id != terminal.run_id
     assert retry.retry_of == terminal.run_id
+
+
+@pytest.mark.asyncio
+async def test_pending_carryover_joins_its_destination_proposal():
+    user_id = f"schedule-carryover-test-{uuid.uuid4()}"
+    coordinator = FirestoreScheduleRunCoordinator(step_delay_seconds=.02, deadline_seconds=2)
+    root = f"users/{user_id}/workspaces/default"
+    pending_refs = [
+        coordinator.client().document(f"{root}/pendingCarryovers/carryover-1"),
+        coordinator.client().document(f"{root}/pendingCarryovers/carryover-2"),
+    ]
+    pending_refs[0].set({
+        "id": "carryover-1", "ownerUid": user_id, "workspaceId": "default",
+        "sourceDate": "2026-08-16", "destinationDate": "2026-08-17",
+        "planId": "plan-1", "planTitle": "Launch Longview",
+        "title": "Carry the reviewed proof", "durationMinutes": 45,
+        "order": 1, "scheduleVersion": 1, "status": "pending",
+    })
+    pending_refs[1].set({
+        "id": "carryover-2", "ownerUid": user_id, "workspaceId": "default",
+        "sourceDate": "2026-08-15", "destinationDate": "2026-08-17",
+        "planId": "plan-1", "planTitle": "Launch Longview",
+        "title": "Carry the earlier proof", "durationMinutes": 30,
+        "order": 1, "scheduleVersion": 1, "status": "pending",
+    })
+    try:
+        created = await coordinator.create(user_id, request(str(uuid.uuid4())))
+        terminal = await wait_for_terminal(coordinator, user_id, created.run_id)
+        assert terminal.proposal is not None
+        assert [block.title for block in terminal.proposal.blocks] == [
+            "Carry the earlier proof", "Carry the reviewed proof"
+        ]
+        assert [block.duration_minutes for block in terminal.proposal.blocks] == [30, 45]
+        stored = coordinator._run_ref(user_id, created.run_id).get().to_dict()
+        assert stored["carryoverIds"] == ["carryover-1", "carryover-2"]
+    finally:
+        for pending_ref in pending_refs: pending_ref.delete()

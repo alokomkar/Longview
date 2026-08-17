@@ -51,7 +51,8 @@ def _public_day(value: dict) -> ApprovedDay:
     return ApprovedDay.model_validate({
         key: value.get(key) for key in (
             "schemaVersion", "selectedDate", "revision", "sourceRunId", "capacityMinutes",
-            "totalMinutes", "blocks", "status", "approvalEventId"
+            "totalMinutes", "blocks", "status", "approvalEventId", "breakEventId",
+            "carryoverCount"
         )
     })
 
@@ -142,6 +143,23 @@ class FirestoreApprovedDayRepository:
             if day_snapshot.exists != request.replace_current:
                 raise ApprovedDayConflictError("replacement confirmation no longer matches")
 
+            carryover_refs = []
+            for carryover_id in stored_run.get("carryoverIds", []):
+                if not isinstance(carryover_id, str):
+                    raise ApprovedDayConflictError("schedule run carryover is invalid")
+                carryover_ref = client.document(f"{root}/pendingCarryovers/{carryover_id}")
+                carryover_snapshot = carryover_ref.get(transaction=active_transaction)
+                carryover = carryover_snapshot.to_dict() or {}
+                if (
+                    not carryover_snapshot.exists
+                    or carryover.get("ownerUid") != user_id
+                    or carryover.get("workspaceId") != "default"
+                    or carryover.get("destinationDate") != selected_date
+                    or carryover.get("status") != "pending"
+                ):
+                    raise ApprovedDayConflictError("schedule run carryover changed")
+                carryover_refs.append(carryover_ref)
+
             next_revision = current_revision + 1
             proposal = run.proposal
             blocks = [
@@ -184,6 +202,12 @@ class FirestoreApprovedDayRepository:
                 "result": result.model_dump(mode="json", by_alias=True),
                 "createdAt": firestore.SERVER_TIMESTAMP,
             })
+            for carryover_ref in carryover_refs:
+                active_transaction.update(carryover_ref, {
+                    "status": "approved",
+                    "approvedDayDate": selected_date,
+                    "updatedAt": firestore.SERVER_TIMESTAMP,
+                })
             return result
 
         return approve_transaction(transaction)

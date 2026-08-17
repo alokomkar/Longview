@@ -73,4 +73,6 @@ owner-scoped saved day. Failed, cancelled, timed-out, missing, malformed, or dif
 owned runs cannot replace it.
 
 The localhost worker and Firestore Emulator prove the contract without claiming
-production Cloud deployment. Break carryover and clock-time scheduling remain separate.
+production Cloud deployment. Break carryover is implemented in the linked
+[Calendar break contract](CALENDAR_BREAK_CARRYOVER.md); clock-time scheduling remains
+separate.

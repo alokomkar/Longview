@@ -1,6 +1,6 @@
 # Longview Implementation Phases
 
-Status: Day 2 Slice 5 accepted and merged; Slice 6 review artifacts ready - subject to change
+Status: Day 2 Slice 5 accepted and merged; Slice 6 verified locally and awaiting acceptance
 Updated: 2026-08-17
 Links: [PRD](PRODUCT_REQUIREMENTS.md) | [Mockup](design/longview-pwa-interactive-mockup.html) | [Stack](TECH_STACK.md)
 
@@ -167,6 +167,14 @@ production evidence are not yet claimed.
    Cancellation writes nothing; stale or duplicate approval fails safely or returns the
    original result. Clock times, daily task moves, and cross-Plan writes remain later
    slices. See [the reviewed contract](APPROVED_CLARA_WRITES.md).
+
+Slice 6 is implemented on the feature branch and verified locally on 2026-08-17. The
+managed response is wrapped in trusted Plan identity and schedule version, then parsed
+again by the PWA. Approval re-reads the owner-scoped Plan and transactionally saves one
+schedule update plus one immutable audit record. The same key returns the original
+result; rejection creates no write; stale, malformed, unauthenticated, and unavailable
+paths fail closed. Browser acceptance confirmed version 1 to 2 with a refreshed Plans
+view. Production deployment is not part of this local acceptance gate.
 
 The remaining judged surfaces and the replacement status of every gallery asset are
 tracked in [Hackathon readiness](HACKATHON_READINESS.md).

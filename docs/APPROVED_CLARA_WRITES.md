@@ -1,6 +1,6 @@
 # Approved Clara Plan-schedule Writes
 
-Status: Review contract before implementation
+Status: Implemented and verified locally; awaiting product-owner acceptance
 
 Updated: 2026-08-17
 
@@ -37,3 +37,12 @@ Authentication failure, invalid fields, empty working days, changed weekly hours
 cross-owner access, stale versions, offline requests, cancellation, transaction failure,
 and partial result reads leave the Plan unchanged. Audit events contain bounded IDs and
 before/after values, not model reasoning traces or authentication tokens.
+
+## Local verification
+
+The localhost PWA and FastAPI service implement this contract against the Firestore
+Emulator. Browser acceptance verified a managed recommendation, exact before/after
+review, one approved transaction, version increment, audit record, and authoritative
+Plans refresh. Tests cover rejection, malformed proposals, authentication failure,
+stale state, unavailable storage, and stable idempotency fingerprints. No production
+deployment is claimed by this verification.

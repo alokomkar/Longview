@@ -1,4 +1,5 @@
 import type { Plan } from './types';
+import { formatLongDate } from '../date/formatLongDate';
 
 export type PortfolioMode = 'Focus' | 'Maintain' | 'Prepare';
 export type PortfolioEntry = { plan: Plan; mode: PortfolioMode; percent: number };
@@ -18,7 +19,7 @@ export function derivePortfolio(plans: Plan[]): PortfolioSummary {
   const first = entries[0]?.plan;
   const recommendation = first
     ? active.length === 1
-      ? `Protect ${first.title} until its ${first.targetDate} target.`
+      ? `Protect ${first.title} until its ${formatLongDate(first.targetDate)} target.`
       : `Protect ${first.title}, the nearest target. Review the other allocations first if time becomes tight.`
     : 'Create a Plan to start allocating your weekly time.';
   return { entries, totalWeeklyHours, recommendation };

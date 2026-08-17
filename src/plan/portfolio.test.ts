@@ -25,6 +25,6 @@ describe('derivePortfolio', () => {
     expect(derivePortfolio([])).toEqual({ entries: [], totalWeeklyHours: 0, recommendation: 'Create a Plan to start allocating your weekly time.' });
     const summary = derivePortfolio([plan('one', '2026-09-01', 5)]);
     expect(summary.entries[0]).toMatchObject({ mode: 'Focus', percent: 100 });
-    expect(summary.recommendation).toContain('Protect Plan one');
+    expect(summary.recommendation).toBe('Protect Plan one until its 1st September 2026 target.');
   });
 });

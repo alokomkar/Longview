@@ -268,6 +268,7 @@ describe('authentication journey', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'View Plan details' }));
     expect(await screen.findByRole('heading', { name: 'Plan overview' })).toBeVisible();
     expect(get).toHaveBeenCalledWith(expect.objectContaining({ uid: 'owner' }), 'plan-1');
+    expect(screen.getByText('20th August 2026')).toBeVisible();
     expect(screen.getByRole('heading', { name: 'Define the first proof of progress' })).toBeVisible();
     fireEvent.click(screen.getByRole('button', { name: 'Decisions' }));
     expect(screen.getByText('No decisions have been recorded for this Plan yet.')).toBeVisible();

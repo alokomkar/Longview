@@ -96,6 +96,9 @@ them without approval.
 - There is no workspace-level availability. Every Plan owns exactly one schedule:
   at least one working day plus its weekly allocation. Clock time and per-day hour
   allocation are deferred beyond the hackathon MVP.
+- Persist calendar dates as ISO `YYYY-MM-DD`. Render saved Plan, schedule, and
+  completion dates as ordinal day, full month, and year (for example,
+  `17th August 2026`). Native date inputs may retain the browser's locale-aware control.
 - Anonymous work remains usable and can later be linked without creating a duplicate
   workspace.
 - Authentication cancellation returns safely to Sign in.

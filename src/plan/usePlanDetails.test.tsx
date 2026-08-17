@@ -16,7 +16,7 @@ describe('usePlanDetails', () => {
     const pending = new Map<string, (value: Plan) => void>();
     const gateway: PlanGateway = {
       create: vi.fn(), list: vi.fn(), updateSchedule: vi.fn(),
-      get: vi.fn((_user, id) => new Promise(resolve => pending.set(id, resolve)))
+      get: vi.fn((_user, id) => new Promise<Plan>(resolve => pending.set(id, resolve)))
     };
     const { result, rerender } = renderHook(
       ({ id }) => usePlanDetails(user, gateway, id, true),

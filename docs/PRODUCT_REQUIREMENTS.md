@@ -8,6 +8,8 @@ Target: All Things Agentic hackathon PWA
 
 Visual specification: [Longview interactive PWA mockup](design/longview-pwa-interactive-mockup.html)
 
+Acceptance simulation: [Longview hackathon acceptance demo](design/longview-hackathon-acceptance-demo.html)
+
 Delivery evidence: [Hackathon readiness ledger](HACKATHON_READINESS.md)
 
 ## 1. Product definition

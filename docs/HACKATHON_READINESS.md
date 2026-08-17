@@ -4,7 +4,7 @@ Status: Active delivery checklist
 
 Updated: 2026-08-17
 
-Sources: [PRD](PRODUCT_REQUIREMENTS.md) | [Implementation phases](IMPLEMENTATION_PHASES.md) | [Interactive mockup](design/longview-pwa-interactive-mockup.html) | [Gallery](demo/DEVPOST_GALLERY.md) | [Demo script](demo/PROTOTYPE_DEMO_SCRIPT.md)
+Sources: [PRD](PRODUCT_REQUIREMENTS.md) | [Implementation phases](IMPLEMENTATION_PHASES.md) | [Interactive mockup](design/longview-pwa-interactive-mockup.html) | [Acceptance demo](design/longview-hackathon-acceptance-demo.html) | [Gallery](demo/DEVPOST_GALLERY.md) | [Demo script](demo/PROTOTYPE_DEMO_SCRIPT.md)
 
 ## Submission evidence inventory
 
@@ -58,3 +58,6 @@ Sources: [PRD](PRODUCT_REQUIREMENTS.md) | [Implementation phases](IMPLEMENTATION
 No prototype screenshot or narration claim is implementation proof. Final submission
 copy must distinguish verified PWA behavior, managed cloud behavior, and design-only
 screens until every corresponding acceptance check passes.
+
+The acceptance demo is the review control room for these requirements. Its reviewed
+checkmarks record manual mockup review only; implementation status remains authoritative.

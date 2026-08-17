@@ -11,6 +11,7 @@ changes, and preserve the reasoning behind important decisions.
 - [Hackathon tech stack](docs/TECH_STACK.md)
 - [Hackathon readiness ledger](docs/HACKATHON_READINESS.md)
 - [Interactive PWA mockup](docs/design/longview-pwa-interactive-mockup.html)
+- [Hackathon acceptance demo](docs/design/longview-hackathon-acceptance-demo.html)
 
 ## Current status
 

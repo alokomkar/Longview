@@ -8,6 +8,7 @@ changes, and preserve the reasoning behind important decisions.
 
 - [Product requirements](docs/PRODUCT_REQUIREMENTS.md)
 - [Implementation phases](docs/IMPLEMENTATION_PHASES.md)
+- [Pending feature ledger](docs/PENDING_FEATURES.md)
 - [Hackathon tech stack](docs/TECH_STACK.md)
 - [Hackathon readiness ledger](docs/HACKATHON_READINESS.md)
 - [Interactive PWA mockup](docs/design/longview-pwa-interactive-mockup.html)
@@ -26,12 +27,13 @@ Anonymous users can complete onboarding without linking Google; linking remains 
 optional cross-device access action.
 Because MVP recovery is unavailable, anonymous sign-out warns about losing access and
 offers Google linking before confirmation.
-Validated Plan creation uses an explicit review and idempotent owner-scoped Firestore
-write. The Plans tab now loads the owner's saved Plans with loading, empty, failure,
-retry, and populated states. Today deterministically selects the nearest active target
-and prepares one bounded 30–60 minute proof-of-progress step. Stored Plans are checked
-at runtime before use, and this step performs no automatic write. Editing, deletion,
-collaboration, and model recommendations remain outside this slice.
+Validated Plan creation includes working days and a weekly time allocation, followed
+by explicit review and an idempotent owner-scoped Firestore write. Plan Details is the
+single place to inspect or change that Plan's schedule; older Plans are prompted to
+add one. The Plans tab includes loading, empty, failure, retry, and populated states.
+Today deterministically selects the nearest active target from Plans scheduled for
+that day and prepares one bounded 30–60 minute proof-of-progress step. Stored Plans
+are checked at runtime before use, and this step performs no automatic write.
 Today-step completion now requires explicit confirmation and records one immutable,
 owner-scoped event. Retrying reuses the same completion ID, reload restores the result,
 and neither the Plan nor schedule is changed.
@@ -47,8 +49,10 @@ contract; it is not a managed model call and cannot change durable data.
 3. Copy `.env.example` to `.env.local`; production Firebase values remain local. Set
    `VITE_USE_FIREBASE_EMULATORS=false` to test the real Google account chooser, or
    `true` for deterministic emulator tests.
-4. Run `npm run dev:local`; it waits for Firestore Emulator before starting Vite.
-5. Open `http://127.0.0.1:5173`. Google Auth is real; Firestore remains local.
+4. Run `npm run dev:local`; it starts the Auth and Firestore emulators before Vite.
+5. Open `http://127.0.0.1:5173`. Local sign-in and data stay in the emulators. To
+   test the real Google chooser, set `VITE_USE_FIREBASE_EMULATORS=false` and run
+   `npm run dev` instead.
 
 Verification: `npm test`, `npm run test:rules`, `npm run build`, and
 `npm run test:e2e`. The emulator requires Java 21+ compiled for the host CPU.

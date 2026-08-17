@@ -12,6 +12,8 @@ Acceptance simulation: [Longview hackathon acceptance demo](design/longview-hack
 
 Delivery evidence: [Hackathon readiness ledger](HACKATHON_READINESS.md)
 
+Pending delivery: [Pending feature ledger](PENDING_FEATURES.md)
+
 ## 1. Product definition
 
 Longview is a personal AI chief of staff for people pursuing several meaningful,
@@ -71,10 +73,10 @@ them without approval.
 
 1. The user learns that Longview coordinates several ambitions one day at a time.
 2. They continue anonymously or sign in with Google.
-3. They set available days and weekly capacity.
-4. Empty Today invites them to create their first Goal.
-5. Clara extracts the outcome and recommends target date, operating mode, and time.
-6. The user edits or confirms the Goal before it enters the portfolio.
+3. Empty Today invites them to create their first Goal.
+4. They set the Plan's working days and weekly allocation while creating it.
+5. Clara extracts the outcome and may recommend target date and operating mode.
+6. The user edits or confirms the Plan before it enters the portfolio.
 7. Today shows only scheduled work plus a compact Clara insight.
 8. Portfolio explains allocation and the tradeoff across all active Goals.
 9. Ask Clara exposes context-aware Quick Actions and Chat.
@@ -90,10 +92,10 @@ them without approval.
 
 ### Onboarding
 
-- Welcome, anonymous/Google authentication, explanation, availability, Empty Today.
-- Availability must let the user select at least one working day plus a realistic
-  weekly time budget before scheduling begins. The selection is durable, editable
-  from Settings, and visible wherever Longview explains scheduling eligibility.
+- Welcome, anonymous/Google authentication, explanation, and Empty Today.
+- There is no workspace-level availability. Every Plan owns exactly one schedule:
+  at least one working day plus its weekly allocation. Clock time and per-day hour
+  allocation are deferred beyond the hackathon MVP.
 - Anonymous work remains usable and can later be linked without creating a duplicate
   workspace.
 - Authentication cancellation returns safely to Sign in.
@@ -141,7 +143,8 @@ them without approval.
 
 ### Settings and subscription
 
-- Account/linking, availability, notifications, data controls, and appearance.
+- Account/linking, notifications, data controls, and appearance. Plan schedules are
+  edited only from Plan Details, never from Settings.
 - Theme palette, system/light/dark mode, reading font, and text size with live preview.
 - Web checkout uses Stripe internationally and Razorpay in India; entitlement is
   backend-verified before paid access changes.
@@ -200,8 +203,8 @@ the submission narrative.
 ## 12. Acceptance criteria
 
 - A judge can anonymously complete the canonical journey in a hosted installable PWA.
-- Onboarding persists at least one selected working day and Settings can reopen and
-  edit the same availability without creating another workspace.
+- New Plans persist at least one selected working day and their weekly allocation.
+  Existing Plans without a schedule remain intact and expose Add schedule in Details.
 - Every Plan card opens Plan Details showing the saved outcome, rationale, target,
   weekly allocation, working days, and current Today-step/completion state.
 - Three Goals share one visible finite-capacity portfolio.
@@ -231,3 +234,21 @@ the prototype video remain design evidence until replaced by verified PWA captur
 - Voice conversation and multilingual speech.
 - Automated multi-day planning or autonomous external actions.
 - Trademark, domain, App Store, and Play Store clearance for Longview and Clara.
+
+### Post-hackathon MVP candidate: time-aware daily scheduling
+
+If the judged path is complete with time remaining, extend each Plan schedule with a
+default start time and a duration in 30-minute increments. Materialize versioned daily
+task occurrences so deterministic application code can detect overlapping time ranges.
+The model may explain a conflict or propose a move, but it cannot decide overlap or
+persist a schedule change without confirmation.
+
+A blocked task records a structured reason plus an optional short note. The user may
+move it to the next free slot today, request tomorrow, choose another time, or skip it.
+Every move checks the destination for conflicts, rejects stale or duplicate carryover,
+and preserves the original occurrence in history. “Tomorrow” means the nearest free
+eligible slot after revalidation, not an unconditional write at the same time.
+
+The first version excludes external calendars, per-day working-hour templates, task
+splitting, automatic movement of other tasks, travel-time-zone handling, and autonomous
+rescheduling. Those boundaries keep conflict handling deterministic and reviewable.

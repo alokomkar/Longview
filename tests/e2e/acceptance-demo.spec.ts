@@ -9,14 +9,14 @@ test.beforeEach(async ({ page }) => {
   await page.reload();
 });
 
-test('all 55 acceptance cases load an interactive product state', async ({ page }) => {
+test('all 57 acceptance cases load an interactive product state', async ({ page }) => {
   const pageErrors: string[] = [];
   page.on('pageerror', (error) => pageErrors.push(error.message));
 
-  await expect(page.getByText('0 / 55 reviewed')).toBeVisible();
-  await expect(page.locator('.case')).toHaveCount(55);
+  await expect(page.getByText('0 / 57 reviewed')).toBeVisible();
+  await expect(page.locator('.case')).toHaveCount(57);
 
-  for (let index = 0; index < 55; index += 1) {
+  for (let index = 0; index < 57; index += 1) {
     await page.locator(`[data-index="${index}"]`).click();
     await expect(page.locator('#prototype')).toHaveAttribute('src', /acceptance=/);
     await expect(page.frameLocator('#prototype').locator('body')).not.toBeEmpty();
@@ -27,9 +27,9 @@ test('all 55 acceptance cases load an interactive product state', async ({ page 
 
 test('review state persists and risk filters isolate missing P0 cases', async ({ page }) => {
   await page.getByRole('button', { name: 'Mark reviewed' }).click();
-  await expect(page.getByText('1 / 55 reviewed')).toBeVisible();
+  await expect(page.getByText('1 / 57 reviewed')).toBeVisible();
   await page.reload();
-  await expect(page.getByText('1 / 55 reviewed')).toBeVisible();
+  await expect(page.getByText('1 / 57 reviewed')).toBeVisible();
 
   await page.getByRole('button', { name: 'Missing', exact: true }).click();
   await page.getByRole('button', { name: 'P0', exact: true }).click();
@@ -41,10 +41,10 @@ test('review state persists and risk filters isolate missing P0 cases', async ({
 test('critical recovery states and mobile layout remain usable', async ({ page }) => {
   await page.getByRole('button', { name: /No working day selected/ }).click();
   await expect(
-    page.frameLocator('#prototype').getByText('Longview needs at least one working day')
+    page.frameLocator('#prototype').getByText('Choose at least one working day')
   ).toBeVisible();
 
-  await page.getByRole('button', { name: /Plan Details/ }).click();
+  await page.getByRole('button', { name: /Plan Details PLAN-07/ }).click();
   await expect(page.frameLocator('#prototype').getByText('Why it matters')).toBeVisible();
   await expect(page.frameLocator('#prototype').getByText(/Mon, Tue, Thu/)).toBeVisible();
 

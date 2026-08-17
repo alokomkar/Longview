@@ -5,9 +5,22 @@ import { lazyFirebaseWorkspaceGateway } from './workspace/lazyWorkspaceGateway';
 import type { WorkspaceGateway } from './workspace/types';
 import { useWorkspace } from './workspace/useWorkspace';
 import { lazyFirebasePlanGateway } from './plan/lazyPlanGateway';
-import { validatePlanDraft, type PlanDraft, type PlanErrors, type PlanGateway } from './plan/types';
+import {
+  PlanScheduleConflictError,
+  orderWorkingDays,
+  validatePlanDraft,
+  validatePlanSchedule,
+  workingDays,
+  type Plan,
+  type PlanDraft,
+  type PlanErrors,
+  type PlanGateway,
+  type PlanScheduleDraft,
+  type PlanScheduleErrors,
+  type WorkingDay
+} from './plan/types';
 import { usePlans } from './plan/usePlans';
-import { deriveTodayStep, type TodayStep } from './today/deriveTodayStep';
+import { deriveTodayStep, findNextScheduledDate, type TodayStep } from './today/deriveTodayStep';
 import { lazyFirebaseTodayGateway } from './today/lazyTodayGateway';
 import type { TodayGateway } from './today/types';
 import { useTodayCompletion } from './today/useTodayCompletion';
@@ -30,8 +43,15 @@ const localDate = () => {
   const part = (value: number) => String(value).padStart(2, '0');
   return `${date.getFullYear()}-${part(date.getMonth() + 1)}-${part(date.getDate())}`;
 };
+const displayDate = (value: string) => new Intl.DateTimeFormat(undefined, {
+  weekday: 'long', month: 'short', day: 'numeric', timeZone: 'UTC'
+}).format(new Date(`${value}T00:00:00.000Z`));
 
 const requestId = () => globalThis.crypto?.randomUUID?.() ?? `plan-${Date.now()}`;
+const dayLabels: Record<WorkingDay, string> = {
+  mon: 'Mon', tue: 'Tue', wed: 'Wed', thu: 'Thu', fri: 'Fri', sat: 'Sat', sun: 'Sun'
+};
+const defaultWorkingDays: WorkingDay[] = ['mon', 'wed', 'fri'];
 const claraFailureCopy: Record<ClaraFailure, [string, string]> = {
   offline: ['You’re offline.', 'Reconnect and try again. Your step and Plan are unchanged.'],
   timeout: ['Clara took too long.', 'The request stopped safely. Your step and Plan are unchanged.'],
@@ -67,23 +87,30 @@ function WorkspaceReady({ auth, gateway, planGateway, todayGateway, claraGateway
   const snapshot = auth.snapshot;
   if (snapshot.status !== 'authenticated') return null;
   const workspace = useWorkspace(snapshot.user, gateway);
-  const [stage, setStage] = useState<'workspace' | 'availability' | 'today' | 'plan-create' | 'plan-review' | 'plan-saved'>(() =>
+  const [stage, setStage] = useState<'workspace' | 'today' | 'plan-create' | 'plan-review' | 'plan-saved' | 'plan-details' | 'plan-schedule'>(() =>
     localStorage.getItem('longview:onboarding') === 'complete' ? 'today' : 'workspace'
   );
-  const [hours, setHours] = useState(10);
   const [view, setView] = useState<'today' | 'plans' | 'settings'>('today');
   const [confirmClear, setConfirmClear] = useState(false);
   const [confirmSignOut, setConfirmSignOut] = useState(false);
   const [confirmComplete, setConfirmComplete] = useState(false);
   const [showClara, setShowClara] = useState(false);
+  const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null);
+  const [scheduleDraft, setScheduleDraft] = useState<PlanScheduleDraft>({ workingDays: defaultWorkingDays, weeklyHours: 5 });
+  const [scheduleErrors, setScheduleErrors] = useState<PlanScheduleErrors>({});
+  const [scheduleFailure, setScheduleFailure] = useState<'conflict' | 'unavailable' | null>(null);
+  const [savingSchedule, setSavingSchedule] = useState(false);
   const [planDraft, setPlanDraft] = useState<PlanDraft>(() => ({
-    clientRequestId: requestId(), title: '', outcome: '', why: '', targetDate: localDate(), weeklyHours: 5
+    clientRequestId: requestId(), title: '', outcome: '', why: '', targetDate: localDate(), weeklyHours: 5,
+    workingDays: [...defaultWorkingDays]
   }));
   const [planErrors, setPlanErrors] = useState<PlanErrors>({});
   const [savingPlan, setSavingPlan] = useState(false);
   const [planSaveFailed, setPlanSaveFailed] = useState(false);
-  const plans = usePlans(snapshot.user, planGateway, stage === 'today' && view !== 'settings');
+  const plans = usePlans(snapshot.user, planGateway, (stage === 'today' && view !== 'settings') || stage === 'plan-details' || stage === 'plan-schedule');
   const todayStep = useMemo(() => deriveTodayStep(plans.snapshot.plans, localDate()), [plans.snapshot.plans]);
+  const nextScheduledDate = useMemo(() => findNextScheduledDate(plans.snapshot.plans, localDate()), [plans.snapshot.plans]);
+  const selectedDetailsPlan = useMemo(() => plans.snapshot.plans.find(plan => plan.id === selectedPlanId) ?? null, [plans.snapshot.plans, selectedPlanId]);
   const selectedPlan = useMemo(() => plans.snapshot.plans.find(plan => plan.id === todayStep?.planId) ?? null, [plans.snapshot.plans, todayStep?.planId]);
   const completion = useTodayCompletion(snapshot.user, todayStep, todayGateway, stage === 'today' && view === 'today' && plans.snapshot.status === 'ready');
   const clara = useClaraRecommendation(claraGateway);
@@ -124,6 +151,50 @@ function WorkspaceReady({ auth, gateway, planGateway, todayGateway, claraGateway
     }
   };
 
+  const continueSetup = () => {
+    localStorage.setItem('longview:onboarding', 'complete');
+    setStage('today');
+  };
+
+  const openPlanDetails = (plan: Plan) => {
+    setSelectedPlanId(plan.id);
+    setStage('plan-details');
+  };
+
+  const openPlanSchedule = (plan: Plan) => {
+    setSelectedPlanId(plan.id);
+    setScheduleDraft({
+      workingDays: plan.workingDays ? [...plan.workingDays] : [...defaultWorkingDays],
+      weeklyHours: plan.weeklyHours
+    });
+    setScheduleErrors({});
+    setScheduleFailure(null);
+    setStage('plan-schedule');
+  };
+
+  const savePlanSchedule = async () => {
+    if (!selectedDetailsPlan || savingSchedule) return;
+    const errors = validatePlanSchedule(scheduleDraft);
+    setScheduleErrors(errors);
+    if (Object.keys(errors).length > 0) return;
+    setSavingSchedule(true);
+    setScheduleFailure(null);
+    try {
+      const updated = await planGateway.updateSchedule(
+        snapshot.user,
+        selectedDetailsPlan.id,
+        scheduleDraft,
+        selectedDetailsPlan.scheduleVersion ?? 0
+      );
+      plans.replace(updated);
+      setStage('plan-details');
+    } catch (error) {
+      setScheduleFailure(error instanceof PlanScheduleConflictError ? 'conflict' : 'unavailable');
+    } finally {
+      setSavingSchedule(false);
+    }
+  };
+
   const clearLocalData = async () => {
     localStorage.clear();
     if ('serviceWorker' in navigator) {
@@ -143,8 +214,14 @@ function WorkspaceReady({ auth, gateway, planGateway, todayGateway, claraGateway
     return <main className="shell"><p className="eyebrow">Longview</p><section className="card"><span className="status">Workspace unavailable</span><h1>Your account is safe.</h1><p>Longview could not prepare the workspace. Check the local emulator and retry.</p><button onClick={workspace.retry}>Retry workspace setup</button></section></main>;
   }
 
-  if (stage === 'availability') {
-    return <main className="shell"><p className="eyebrow">Longview</p><section className="card"><span className="status">Your availability</span><h1>Protect time you can actually keep.</h1><p>Choose a realistic weekly planning budget. You can change this later.</p><div className="choices" role="group" aria-label="Weekly availability">{[5, 10, 15].map(value => <button key={value} className={hours === value ? '' : 'secondary'} onClick={() => setHours(value)}>{value} hours</button>)}</div><button onClick={() => { localStorage.setItem('longview:onboarding', 'complete'); setStage('today'); }}>Save availability</button></section></main>;
+  if (stage === 'plan-details') {
+    if (!selectedDetailsPlan) return <main className="shell"><p className="eyebrow">Longview</p><section className="card"><span className="status">Plan unavailable</span><h1>This Plan could not be found.</h1><p>Return to Plans and reload the latest list.</p><button onClick={() => { setStage('today'); setView('plans'); plans.retry(); }}>Return to Plans</button></section></main>;
+    return <main className="shell"><p className="eyebrow">Longview</p><section className="card"><span className="status">Plan details</span><h1>{selectedDetailsPlan.title}</h1><p>{selectedDetailsPlan.outcome}</p><dl><dt>Why it matters</dt><dd>{selectedDetailsPlan.why}</dd><dt>Target date</dt><dd>{selectedDetailsPlan.targetDate}</dd><dt>Weekly time</dt><dd>{selectedDetailsPlan.weeklyHours} hours</dd><dt>Working days</dt><dd>{selectedDetailsPlan.workingDays ? orderWorkingDays(selectedDetailsPlan.workingDays).map(day => dayLabels[day]).join(', ') : 'Schedule not set'}</dd></dl><div className="actions"><button onClick={() => openPlanSchedule(selectedDetailsPlan)}>{selectedDetailsPlan.workingDays ? 'Edit schedule' : 'Add schedule'}</button><button className="secondary" onClick={() => { setStage('today'); setView('plans'); }}>Return to Plans</button></div></section></main>;
+  }
+
+  if (stage === 'plan-schedule') {
+    if (!selectedDetailsPlan) return <main className="shell"><p className="eyebrow">Longview</p><section className="card"><h1>This Plan could not be found.</h1><button onClick={() => { setStage('today'); setView('plans'); plans.retry(); }}>Return to Plans</button></section></main>;
+    return <main className="shell"><p className="eyebrow">Longview</p><section className="card"><span className="status">Plan schedule</span><h1>When will you work on {selectedDetailsPlan.title}?</h1><p>Choose working days and a weekly allocation. Clock times can be added later.</p><fieldset><legend>Working days</legend><div className="day-choices">{workingDays.map(day => <button type="button" key={day} aria-pressed={scheduleDraft.workingDays.includes(day)} className={scheduleDraft.workingDays.includes(day) ? '' : 'secondary'} onClick={() => { setScheduleDraft(current => ({ ...current, workingDays: current.workingDays.includes(day) ? current.workingDays.filter(value => value !== day) : [...current.workingDays, day] })); setScheduleErrors(current => ({ ...current, workingDays: undefined })); }}>{dayLabels[day]}</button>)}</div></fieldset>{scheduleErrors.workingDays && <small role="alert">{scheduleErrors.workingDays}</small>}<label>Hours for this Plan each week<input type="number" min="1" max="40" value={scheduleDraft.weeklyHours} onChange={event => { setScheduleDraft(current => ({ ...current, weeklyHours: Number(event.target.value) })); setScheduleErrors(current => ({ ...current, weeklyHours: undefined })); }} /></label>{scheduleErrors.weeklyHours && <small role="alert">{scheduleErrors.weeklyHours}</small>}{scheduleFailure === 'unavailable' && <div className="notice" role="alert">The schedule wasn’t saved. The existing Plan is unchanged. Check your connection and try again.</div>}{scheduleFailure === 'conflict' && <div className="notice" role="alert">This Plan was updated in another session. Your changes weren’t saved. Reload the Plan before editing again.<button onClick={() => { plans.retry(); setStage('today'); setView('plans'); }}>Reload Plan</button></div>}<div className="actions"><button onClick={savePlanSchedule} disabled={savingSchedule}>{savingSchedule ? 'Saving schedule…' : 'Save schedule'}</button><button className="secondary" onClick={() => setStage('plan-details')} disabled={savingSchedule}>Cancel</button></div></section></main>;
   }
 
   if (stage === 'plan-create') {
@@ -153,13 +230,14 @@ function WorkspaceReady({ auth, gateway, planGateway, todayGateway, claraGateway
       <label>Desired outcome<textarea value={planDraft.outcome} maxLength={300} onChange={event => updatePlan('outcome', event.target.value)} /></label>{planErrors.outcome && <small role="alert">{planErrors.outcome}</small>}
       <label>Why this matters<textarea value={planDraft.why} maxLength={300} onChange={event => updatePlan('why', event.target.value)} /></label>{planErrors.why && <small role="alert">{planErrors.why}</small>}
       <label>Target date<input type="date" min={localDate()} value={planDraft.targetDate} onChange={event => updatePlan('targetDate', event.target.value)} /></label>{planErrors.targetDate && <small role="alert">{planErrors.targetDate}</small>}
-      <label>Hours available each week<input type="number" min="1" max="40" value={planDraft.weeklyHours} onChange={event => updatePlan('weeklyHours', Number(event.target.value))} /></label>{planErrors.weeklyHours && <small role="alert">{planErrors.weeklyHours}</small>}
+      <fieldset><legend>Working days for this Plan</legend><div className="day-choices">{workingDays.map(day => <button type="button" key={day} aria-pressed={planDraft.workingDays.includes(day)} className={planDraft.workingDays.includes(day) ? '' : 'secondary'} onClick={() => { setPlanDraft(current => ({ ...current, workingDays: current.workingDays.includes(day) ? current.workingDays.filter(value => value !== day) : [...current.workingDays, day] })); setPlanErrors(current => ({ ...current, workingDays: undefined })); }}>{dayLabels[day]}</button>)}</div></fieldset>{planErrors.workingDays && <small role="alert">{planErrors.workingDays}</small>}
+      <label>Hours for this Plan each week<input type="number" min="1" max="40" value={planDraft.weeklyHours} onChange={event => updatePlan('weeklyHours', Number(event.target.value))} /></label>{planErrors.weeklyHours && <small role="alert">{planErrors.weeklyHours}</small>}
       <div className="actions"><button type="submit">Review Plan</button><button type="button" className="secondary" onClick={() => setStage('today')}>Cancel</button></div>
     </form></section></main>;
   }
 
   if (stage === 'plan-review') {
-    return <main className="shell"><p className="eyebrow">Longview</p><section className="card"><span className="status">Review your Plan</span><h1>{planDraft.title.trim()}</h1><dl><dt>Desired outcome</dt><dd>{planDraft.outcome.trim()}</dd><dt>Why it matters</dt><dd>{planDraft.why.trim()}</dd><dt>Target date</dt><dd>{planDraft.targetDate}</dd><dt>Weekly time</dt><dd>{planDraft.weeklyHours} hours</dd></dl>{planSaveFailed && <div className="notice" role="alert">Your Plan wasn’t saved. Check your connection and try again.</div>}<div className="actions"><button onClick={savePlan} disabled={savingPlan}>{savingPlan ? 'Saving Plan…' : 'Create Plan'}</button><button className="secondary" onClick={() => setStage('plan-create')} disabled={savingPlan}>Edit</button><button className="secondary" onClick={() => setStage('today')} disabled={savingPlan}>Cancel</button></div></section></main>;
+    return <main className="shell"><p className="eyebrow">Longview</p><section className="card"><span className="status">Review your Plan</span><h1>{planDraft.title.trim()}</h1><dl><dt>Desired outcome</dt><dd>{planDraft.outcome.trim()}</dd><dt>Why it matters</dt><dd>{planDraft.why.trim()}</dd><dt>Target date</dt><dd>{planDraft.targetDate}</dd><dt>Working days</dt><dd>{orderWorkingDays(planDraft.workingDays).map(day => dayLabels[day]).join(', ')}</dd><dt>Weekly time</dt><dd>{planDraft.weeklyHours} hours</dd></dl>{planSaveFailed && <div className="notice" role="alert">Your Plan wasn’t saved. Check your connection and try again.</div>}<div className="actions"><button onClick={savePlan} disabled={savingPlan}>{savingPlan ? 'Saving Plan…' : 'Create Plan'}</button><button className="secondary" onClick={() => setStage('plan-create')} disabled={savingPlan}>Edit</button><button className="secondary" onClick={() => setStage('today')} disabled={savingPlan}>Cancel</button></div></section></main>;
   }
 
   if (stage === 'plan-saved') {
@@ -167,11 +245,13 @@ function WorkspaceReady({ auth, gateway, planGateway, todayGateway, claraGateway
   }
 
   if (stage === 'today') {
-    return <main className="app-shell"><header><p className="eyebrow">Longview</p><span className="status">{hours} hours/week</span></header>
+    return <main className="app-shell"><header><p className="eyebrow">Longview</p><span className="status">Plan-based schedules</span></header>
       {view === 'today' && <section className="today-view" aria-busy={plans.snapshot.status === 'idle' || plans.snapshot.status === 'loading'}><span className="status">Today</span>
         {(plans.snapshot.status === 'idle' || plans.snapshot.status === 'loading') && <div className="empty"><h1>Preparing Today…</h1><p>Finding one useful step from your saved Plans.</p></div>}
         {plans.snapshot.status === 'error' && <div className="empty"><h1>Today couldn’t be prepared.</h1><p>Your Plans are unchanged. Check your connection and try again.</p><button onClick={plans.retry}>Try again</button></div>}
-        {plans.snapshot.status === 'ready' && !todayStep && <div className="empty"><h1>Nothing is scheduled yet.</h1><p>Create your first Plan and Longview will shape a realistic day around your availability.</p><button onClick={() => setStage('plan-create')}>Create first Plan</button></div>}
+        {plans.snapshot.status === 'ready' && !todayStep && plans.snapshot.plans.length === 0 && <div className="empty"><h1>Nothing is scheduled yet.</h1><p>Create your first Plan and choose the days you want to work on it.</p><button onClick={() => setStage('plan-create')}>Create first Plan</button></div>}
+        {plans.snapshot.status === 'ready' && !todayStep && plans.snapshot.plans.length > 0 && plans.snapshot.plans.some(plan => !plan.workingDays) && <div className="empty"><h1>A Plan needs a schedule.</h1><p>Open the Plan and add at least one working day before it can appear in Today.</p><button onClick={() => setView('plans')}>View Plans</button></div>}
+        {plans.snapshot.status === 'ready' && !todayStep && plans.snapshot.plans.length > 0 && plans.snapshot.plans.every(plan => plan.workingDays) && <div className="empty"><h1>Nothing scheduled today.</h1><p>{nextScheduledDate ? `Your next scheduled Plan day is ${displayDate(nextScheduledDate)}.` : 'No active Plan has an upcoming working day.'}</p><button onClick={() => setView('plans')}>View Plans</button></div>}
         {plans.snapshot.status === 'ready' && todayStep && completion.snapshot.status === 'ready' && completion.snapshot.completion && <div className="today-content"><h1>Today’s step is complete.</h1><p>You recorded meaningful progress without changing your Plan.</p><TodayStepCard step={todayStep} completed /><button className="secondary" onClick={() => setView('plans')}>View all Plans</button></div>}
         {plans.snapshot.status === 'ready' && todayStep && completion.snapshot.status !== 'ready' && <div className="today-content"><h1>One useful step is enough.</h1><p>Start with the nearest active Plan. You can refine the step later.</p><TodayStepCard step={todayStep} />{completion.snapshot.status === 'error' ? <div className="notice" role="alert">Progress couldn’t be checked. Nothing was changed.<button onClick={completion.retry}>Try again</button></div> : <button disabled>Checking progress…</button>}</div>}
         {plans.snapshot.status === 'ready' && todayStep && completion.snapshot.status === 'ready' && !completion.snapshot.completion && <div className="today-content"><h1>One useful step is enough.</h1><p>Start with the nearest active Plan. You can refine the step later.</p><TodayStepCard step={todayStep} />{showClara ? <ClaraPanel clara={clara} onClose={() => { clara.cancel(); setShowClara(false); }} /> : <button className="secondary" onClick={askClara}>Ask Clara about this step</button>}{completion.saveFailed && <div className="notice" role="alert">Completion wasn’t saved. Your step is still open. Try again.</div>}{confirmComplete ? <div className="notice" role="alert"><p>Mark this step complete for today? Your Plan and schedule will stay the same.</p><div className="actions"><button onClick={async () => { if (await completion.complete()) setConfirmComplete(false); }} disabled={completion.completing}>{completion.completing ? 'Saving completion…' : 'Confirm completion'}</button><button className="secondary" onClick={() => setConfirmComplete(false)} disabled={completion.completing}>Keep working</button></div></div> : <div className="actions"><button onClick={() => setConfirmComplete(true)}>Mark step complete</button><button className="secondary" onClick={() => setView('plans')}>View all Plans</button></div>}</div>}
@@ -180,9 +260,9 @@ function WorkspaceReady({ auth, gateway, planGateway, todayGateway, claraGateway
         {(plans.snapshot.status === 'idle' || plans.snapshot.status === 'loading') && <div className="empty"><h1>Loading your Plans…</h1><p>Bringing your priorities into view.</p></div>}
         {plans.snapshot.status === 'error' && <div className="empty"><h1>Your Plans couldn’t be loaded.</h1><p>Check your connection and try again. Nothing has been changed.</p><button onClick={plans.retry}>Try again</button></div>}
         {plans.snapshot.status === 'ready' && plans.snapshot.plans.length === 0 && <div className="empty"><h1>No Plans yet.</h1><p>Your long-term priorities will appear here after you create your first Plan.</p><button onClick={() => setStage('plan-create')}>Create first Plan</button></div>}
-        {plans.snapshot.status === 'ready' && plans.snapshot.plans.length > 0 && <><div className="plans-heading"><div><h1>Your Plans</h1><p>Keep your meaningful outcomes in one place.</p></div><button onClick={() => setStage('plan-create')}>Create Plan</button></div><div className="plan-grid">{plans.snapshot.plans.map(plan => <article className="plan-card" key={plan.id}><span className="status">{plan.status}</span><h2>{plan.title}</h2><p>{plan.outcome}</p><dl><dt>Target</dt><dd>{plan.targetDate}</dd><dt>Weekly time</dt><dd>{plan.weeklyHours} hours</dd></dl></article>)}</div></>}
+        {plans.snapshot.status === 'ready' && plans.snapshot.plans.length > 0 && <><div className="plans-heading"><div><h1>Your Plans</h1><p>Keep your meaningful outcomes and schedules in one place.</p></div><button onClick={() => setStage('plan-create')}>Create Plan</button></div><div className="plan-grid">{plans.snapshot.plans.map(plan => <article className="plan-card" key={plan.id}><span className="status">{plan.workingDays ? plan.status : 'Schedule not set'}</span><h2>{plan.title}</h2><p>{plan.outcome}</p><dl><dt>Target</dt><dd>{plan.targetDate}</dd><dt>Working days</dt><dd>{plan.workingDays ? orderWorkingDays(plan.workingDays).map(day => dayLabels[day]).join(', ') : 'Not set'}</dd><dt>Weekly time</dt><dd>{plan.weeklyHours} hours</dd></dl><button onClick={() => openPlanDetails(plan)}>View Plan details</button></article>)}</div></>}
       </section>}
-      {view === 'settings' && <section className="empty"><span className="status">Settings</span><h1>Account and this device</h1><p>Sign out to switch accounts, or clear this device to remove Longview’s saved settings.</p>{snapshot.user.isAnonymous && !confirmSignOut && !confirmClear && <button onClick={auth.linkGoogle} disabled={snapshot.linking}>{snapshot.linking ? 'Opening Google…' : 'Link Google account'}</button>}<div className="actions"><button className="secondary" onClick={() => snapshot.user.isAnonymous ? setConfirmSignOut(true) : auth.signOut()}>Sign out</button><button className="danger" onClick={() => setConfirmClear(true)}>Clear this device</button></div>{snapshot.failure && <div className="notice" role="alert">{failureCopy[snapshot.failure]}{snapshot.failure === 'account-conflict' && snapshot.user.isAnonymous && <button onClick={auth.useExistingGoogle}>Use existing Google workspace</button>}</div>}{confirmSignOut && <div className="notice" role="alert"><p>If you sign out now, you won’t be able to return to this workspace. Link a Google account first if you want to keep access.</p><div className="actions"><button onClick={auth.linkGoogle}>Link Google account</button><button className="danger" onClick={auth.signOut}>Sign out and lose access</button><button className="secondary" onClick={() => setConfirmSignOut(false)}>Cancel</button></div></div>}{confirmClear && <div className="notice" role="alert"><p>{snapshot.user.isAnonymous ? 'Clearing this device will sign you out. Because you’re using Longview without an account, you won’t be able to return to this workspace. Link Google first to keep access.' : 'This removes Longview’s saved settings from this device and signs you out. Your workspace will still be available when you sign in again.'}</p><div className="actions">{snapshot.user.isAnonymous && <button onClick={auth.linkGoogle}>Link Google account</button>}<button className="danger" onClick={clearLocalData}>Clear this device and sign out</button><button className="secondary" onClick={() => setConfirmClear(false)}>Cancel</button></div></div>}</section>}
+      {view === 'settings' && <section className="empty"><span className="status">Settings</span><h1>Account and privacy</h1><p>Plan schedules are managed inside each Plan.</p>{snapshot.user.isAnonymous && !confirmSignOut && !confirmClear && <button onClick={auth.linkGoogle} disabled={snapshot.linking}>{snapshot.linking ? 'Opening Google…' : 'Link Google account'}</button>}<div className="actions"><button className="secondary" onClick={() => snapshot.user.isAnonymous ? setConfirmSignOut(true) : auth.signOut()}>Sign out</button><button className="danger" onClick={() => setConfirmClear(true)}>Clear this device</button></div>{snapshot.failure && <div className="notice" role="alert">{failureCopy[snapshot.failure]}{snapshot.failure === 'account-conflict' && snapshot.user.isAnonymous && <button onClick={auth.useExistingGoogle}>Use existing Google workspace</button>}</div>}{confirmSignOut && <div className="notice" role="alert"><p>If you sign out now, you won’t be able to return to this workspace. Link a Google account first if you want to keep access.</p><div className="actions"><button onClick={auth.linkGoogle}>Link Google account</button><button className="danger" onClick={auth.signOut}>Sign out and lose access</button><button className="secondary" onClick={() => setConfirmSignOut(false)}>Cancel</button></div></div>}{confirmClear && <div className="notice" role="alert"><p>{snapshot.user.isAnonymous ? 'Clearing this device will sign you out. Because you’re using Longview without an account, you won’t be able to return to this workspace. Link Google first to keep access.' : 'This removes Longview’s saved settings from this device and signs you out. Your workspace will still be available when you sign in again.'}</p><div className="actions">{snapshot.user.isAnonymous && <button onClick={auth.linkGoogle}>Link Google account</button>}<button className="danger" onClick={clearLocalData}>Clear this device and sign out</button><button className="secondary" onClick={() => setConfirmClear(false)}>Cancel</button></div></div>}</section>}
       <nav aria-label="Primary"><button aria-current={view === 'today' ? 'page' : undefined} className={view === 'today' ? '' : 'secondary'} onClick={() => setView('today')}>Today</button><button aria-current={view === 'plans' ? 'page' : undefined} className={view === 'plans' ? '' : 'secondary'} onClick={() => setView('plans')}>Plans</button><button aria-current={view === 'settings' ? 'page' : undefined} className={view === 'settings' ? '' : 'secondary'} onClick={() => setView('settings')}>Settings</button></nav></main>;
   }
 
@@ -197,8 +277,8 @@ function WorkspaceReady({ auth, gateway, planGateway, todayGateway, claraGateway
           : 'Your workspace is protected by your Google account.'}</p>
         {snapshot.failure && <div className="notice" role="alert">{failureCopy[snapshot.failure]}</div>}
         {snapshot.failure === 'account-conflict' && snapshot.user.isAnonymous && <button onClick={auth.useExistingGoogle}>Use existing Google workspace</button>}
-        {snapshot.user.isAnonymous && <div className="actions"><button onClick={() => setStage('availability')}>Continue setup</button><button className="secondary" onClick={auth.linkGoogle} disabled={snapshot.linking}>{snapshot.linking ? 'Opening Google…' : 'Link Google account'}</button></div>}
-        {!snapshot.user.isAnonymous && <button onClick={() => setStage('availability')}>Continue setup</button>}
+        {snapshot.user.isAnonymous && <div className="actions"><button onClick={continueSetup}>Continue setup</button><button className="secondary" onClick={auth.linkGoogle} disabled={snapshot.linking}>{snapshot.linking ? 'Opening Google…' : 'Link Google account'}</button></div>}
+        {!snapshot.user.isAnonymous && <button onClick={continueSetup}>Continue setup</button>}
       </section>
     </main>
   );

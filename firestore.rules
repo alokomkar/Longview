@@ -22,11 +22,11 @@ service cloud.firestore {
         allow read: if owns(uid);
         allow create: if owns(uid)
           && request.resource.data.ownerUid == uid
-          && request.resource.data.id == workspaceId;
-        allow update: if owns(uid)
-          && request.resource.data.ownerUid == resource.data.ownerUid
-          && request.resource.data.ownerUid == uid
-          && request.resource.data.id == resource.data.id;
+          && request.resource.data.id == workspaceId
+          && request.resource.data.keys().hasOnly([
+            'id', 'ownerUid', 'schemaVersion', 'createdAt', 'updatedAt'
+          ]);
+        allow update: if false;
         allow delete: if false;
 
         match /plans/{planId} {
@@ -35,14 +35,15 @@ service cloud.firestore {
             && workspaceId == 'default'
             && request.resource.data.keys().hasOnly([
               'id', 'ownerUid', 'workspaceId', 'clientRequestId', 'title',
-              'outcome', 'why', 'targetDate', 'weeklyHours', 'status',
-              'schemaVersion', 'createdAt', 'updatedAt'
+              'outcome', 'why', 'targetDate', 'weeklyHours', 'workingDays',
+              'status', 'schemaVersion', 'scheduleVersion', 'createdAt', 'updatedAt'
             ])
             && request.resource.data.id == planId
             && request.resource.data.clientRequestId == planId
             && request.resource.data.ownerUid == uid
             && request.resource.data.workspaceId == workspaceId
-            && request.resource.data.schemaVersion == 1
+            && request.resource.data.schemaVersion == 2
+            && request.resource.data.scheduleVersion == 1
             && request.resource.data.status == 'active'
             && request.resource.data.title is string
             && request.resource.data.title.size() >= 3
@@ -58,8 +59,44 @@ service cloud.firestore {
             && request.resource.data.targetDate.matches('^[0-9]{4}-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$')
             && request.resource.data.weeklyHours is int
             && request.resource.data.weeklyHours >= 1
-            && request.resource.data.weeklyHours <= 40;
-          allow update, delete: if false;
+            && request.resource.data.weeklyHours <= 40
+            && request.resource.data.workingDays is list
+            && request.resource.data.workingDays.size() >= 1
+            && request.resource.data.workingDays.size() <= 7
+            && request.resource.data.workingDays.toSet().size() == request.resource.data.workingDays.size()
+            && request.resource.data.workingDays
+              .hasOnly(['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun']);
+          allow update: if owns(uid)
+            && workspaceId == 'default'
+            && request.resource.data.id == resource.data.id
+            && request.resource.data.ownerUid == resource.data.ownerUid
+            && request.resource.data.ownerUid == uid
+            && request.resource.data.workspaceId == resource.data.workspaceId
+            && request.resource.data.clientRequestId == resource.data.clientRequestId
+            && request.resource.data.title == resource.data.title
+            && request.resource.data.outcome == resource.data.outcome
+            && request.resource.data.why == resource.data.why
+            && request.resource.data.targetDate == resource.data.targetDate
+            && request.resource.data.status == resource.data.status
+            && request.resource.data.createdAt == resource.data.createdAt
+            && request.resource.data.diff(resource.data).affectedKeys()
+              .hasOnly(['workingDays', 'weeklyHours', 'schemaVersion', 'scheduleVersion', 'updatedAt'])
+            && request.resource.data.schemaVersion == 2
+            && request.resource.data.scheduleVersion == (
+              resource.data.keys().hasAll(['scheduleVersion'])
+                ? resource.data.scheduleVersion + 1
+                : 1
+            )
+            && request.resource.data.weeklyHours is int
+            && request.resource.data.weeklyHours >= 1
+            && request.resource.data.weeklyHours <= 40
+            && request.resource.data.workingDays is list
+            && request.resource.data.workingDays.size() >= 1
+            && request.resource.data.workingDays.size() <= 7
+            && request.resource.data.workingDays.toSet().size() == request.resource.data.workingDays.size()
+            && request.resource.data.workingDays
+              .hasOnly(['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun']);
+          allow delete: if false;
         }
 
         match /todayCompletions/{completionId} {

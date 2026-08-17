@@ -1,6 +1,6 @@
 # Longview Implementation Phases
 
-Status: Day 2 Slice 2 implemented - subject to change
+Status: Day 2 Slice 3 implemented locally, awaiting acceptance - subject to change
 Updated: 2026-08-17
 Links: [PRD](PRODUCT_REQUIREMENTS.md) | [Mockup](design/longview-pwa-interactive-mockup.html) | [Stack](TECH_STACK.md)
 
@@ -22,7 +22,7 @@ Links: [PRD](PRODUCT_REQUIREMENTS.md) | [Mockup](design/longview-pwa-interactive
    malformed tokens, concurrent tabs, offline return, duplicates, and account
    collisions. Linking must retain exactly one workspace transactionally.
 3. **PWA foundation:** Add routing, responsive shell, manifest, service worker,
-   accessibility, availability onboarding, IndexedDB outbox, and update recovery.
+   accessibility, IndexedDB outbox, and update recovery.
 4. **Goal authority:** Add versioned schemas, Firestore rules, Goals, Today, Portfolio,
    deterministic scheduling, cross-user isolation, audit events, and emulator seeds.
 5. **Clara read loop:** Use Google ADK with Gemini 3.5 Flash or newer through Vertex AI.
@@ -51,8 +51,8 @@ the Firebase UID, so the same workspace remains authoritative. Provisioning fail
 keeps the authenticated session, exposes retry, and never creates a second workspace.
 
 The local PWA foundation now gates Vite startup on Firestore Emulator readiness,
-lazy-loads Firestore after authentication, exposes offline/update status, captures a
-realistic weekly availability budget, and lands on Empty Today with mobile navigation.
+lazy-loads Firestore after authentication, exposes offline/update status, and lands on
+Empty Today with mobile navigation.
 Settings includes explicit sign-out and confirmed local-data clearing. Local clearing
 removes browser preferences and cached PWA files, then signs out; it never deletes the
 cloud or emulator workspace. Anonymous sessions retain a Google-link action in Settings
@@ -66,7 +66,7 @@ preserves the anonymous workspace and offers an explicit switch to the existing 
 workspace. Local-data clearing also unregisters the service worker before deleting its
 caches to prevent a controlled page from referencing an empty cache.
 Anonymous authentication never gates onboarding on account linking. Workspace-ready
-users can continue directly to availability and Today, while Google linking remains an
+users can continue directly to Today, while Google linking remains an
 optional secondary action available again from Settings.
 Anonymous sign-out and local-data clearing require a loss-of-access warning and offer
 Google linking first. Recovering an unlinked anonymous session is explicitly deferred
@@ -117,13 +117,30 @@ Slice 1 was accepted and merged on 2026-08-17.
    and malformed-response states leave all durable data unchanged. This slice uses a
    deterministic preview adapter to validate the client contract; the managed model
    and API adapter are the next boundary and are not claimed here.
-3. **Availability days:** Persist at least one user-selected working day with the
-   weekly budget, restore it across sessions, and make it editable from Settings.
-   Empty, invalid, offline, retry, and concurrent-session behavior must preserve the
-   last accepted availability.
+3. **Plan schedule:** Persist at least one working day and weekly allocation on each
+   Plan, restore it across sessions, and edit it from Plan Details. Empty, invalid,
+   offline, retry, and concurrent-session behavior preserve the last accepted schedule.
+   Workspace availability, clock time, and per-day hour allocation are out of scope.
 4. **Plan Details:** Make every Plan card navigable and show the saved outcome,
    rationale, target, weekly allocation, working days, and current Today status.
    Loading, malformed data, missing Plan, and failed-read recovery are explicit.
 
+Slice 2 was accepted and merged on 2026-08-17. The product owner replaced the initial
+workspace-availability design before merge. Slice 3 now stores working days and weekly
+allocation on each Plan, applies eligible days to Today, and edits the versioned
+schedule from Plan Details. Existing unscheduled Plans are preserved and clearly ask
+for a schedule. Clock time and per-day allocation remain out of scope.
+
 The remaining judged surfaces and the replacement status of every gallery asset are
 tracked in [Hackathon readiness](HACKATHON_READINESS.md).
+
+## Post-hackathon MVP candidate — only if the judged path is complete
+
+1. Add a default start time and 30-minute duration to each Plan schedule.
+2. Materialize versioned daily task occurrences and detect overlaps deterministically.
+3. Let users mark a task blocked with a structured reason and optional note.
+4. Offer confirmed moves to the next free slot today, the nearest free eligible slot
+   tomorrow, or a chosen time; also allow Skip.
+5. Test collision, no-free-slot, stale-tab, duplicate-carryover, offline retry, and
+   history preservation. Keep external calendars, task splitting, and automatic
+   rescheduling of other tasks out of this enhancement.

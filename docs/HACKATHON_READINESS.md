@@ -25,9 +25,9 @@ Sources: [PRD](PRODUCT_REQUIREMENTS.md) | [Implementation phases](IMPLEMENTATION
 | 3 | Plan creation | Reviewed structured Plan | Partial | Working-day selection is implemented; advisor-assisted suggestions remain. |
 | 4 | Plan details | One Plan with execution and context | Partial | Authoritative details, current step, schedule, and context entry points exist; persisted history, decisions, research, and brief content remain. |
 | 5 | Plan achievement | Outcome and consented reflection | Missing | Add completion evidence, reflection, and explicit reusable-memory consent. |
-| 6 | Clara context | Visible bounded context | Partial | Current preview uses one Plan and Today step; add deployed managed API and multi-Plan context where required. |
+| 6 | Clara context | Visible bounded context | Partial | Local managed boundary uses one Plan and Today step; add deployed-model evidence and multi-Plan context where required. |
 | 7 | Agentic actions | Bounded action catalogue | Missing | Add judged quick actions backed by typed agent tools. |
-| 8 | Tradeoff recommendation | Cross-Plan managed recommendation | Missing | Add managed model call, structured response, timeout/malformed protection, and rationale. |
+| 8 | Tradeoff recommendation | Cross-Plan managed recommendation | Missing | The local single-Plan managed boundary is ready; add deployed cross-Plan reasoning and evidence. |
 | 9 | Human approval | Before/after preview and approved write | Partial | Today completion is approval-gated; schedule-change preview, rejection, stale check, audit, and idempotent write remain. |
 | 10 | Research review | Accept/reject/defer evidence | Missing | Add attributed cards and non-destructive review states. |
 | 11 | Versioned memory | User-approved brief version | Missing | Add editable proposal, attribution, version history, and explicit save. |

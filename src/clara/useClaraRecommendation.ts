@@ -1,5 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { parseClaraRecommendation, type ClaraContext, type ClaraGateway, type ClaraRecommendation } from './types';
+import {
+  ClaraGatewayTimeoutError,
+  parseClaraRecommendation,
+  type ClaraContext,
+  type ClaraGateway,
+  type ClaraRecommendation
+} from './types';
 
 export type ClaraFailure = 'offline' | 'timeout' | 'malformed' | 'unavailable';
 type ClaraSnapshot =
@@ -10,7 +16,7 @@ type ClaraSnapshot =
 
 const newRequestId = () => globalThis.crypto?.randomUUID?.() ?? `clara-${Date.now()}`;
 
-export function useClaraRecommendation(gateway: ClaraGateway, timeoutMs = 8000) {
+export function useClaraRecommendation(gateway: ClaraGateway, timeoutMs = 18000) {
   const [snapshot, setSnapshot] = useState<ClaraSnapshot>({ status: 'idle', recommendation: null, failure: null });
   const active = useRef<AbortController | null>(null);
   const previous = useRef<ClaraContext | null>(null);
@@ -30,12 +36,14 @@ export function useClaraRecommendation(gateway: ClaraGateway, timeoutMs = 8000) 
       setSnapshot(recommendation
         ? { status: 'ready', recommendation, failure: null }
         : { status: 'error', recommendation: null, failure: 'malformed' });
-    } catch {
+    } catch (error) {
       if (active.current !== controller) return;
       if (controller.signal.aborted && !timedOut) return;
       setSnapshot({
         status: 'error', recommendation: null,
-        failure: timedOut ? 'timeout' : navigator.onLine === false ? 'offline' : 'unavailable'
+        failure: timedOut || error instanceof ClaraGatewayTimeoutError
+          ? 'timeout'
+          : navigator.onLine === false ? 'offline' : 'unavailable'
       });
     } finally {
       window.clearTimeout(timeout);

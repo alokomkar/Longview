@@ -1,6 +1,6 @@
 # Longview Implementation Phases
 
-Status: Day 2 Slice 3 implemented locally, awaiting acceptance - subject to change
+Status: Day 2 Slice 5 implemented locally, awaiting acceptance - subject to change
 Updated: 2026-08-17
 Links: [PRD](PRODUCT_REQUIREMENTS.md) | [Mockup](design/longview-pwa-interactive-mockup.html) | [Stack](TECH_STACK.md)
 
@@ -25,7 +25,7 @@ Links: [PRD](PRODUCT_REQUIREMENTS.md) | [Mockup](design/longview-pwa-interactive
    accessibility, IndexedDB outbox, and update recovery.
 4. **Goal authority:** Add versioned schemas, Firestore rules, Goals, Today, Portfolio,
    deterministic scheduling, cross-user isolation, audit events, and emulator seeds.
-5. **Clara read loop:** Use Google ADK with Gemini 3.5 Flash or newer through Vertex AI.
+5. **Clara read loop:** Use Google ADK with Gemini 3.6 Flash through Vertex AI.
    Return scoped recommendations and clarification; fail closed on timeout, malformed
    output, or prompt injection. No model-direct writes.
 6. **Approved writes:** Show exact before/after previews; enforce authorization,
@@ -140,10 +140,23 @@ allocation on each Plan, applies eligible days to Today, and edits the versioned
 schedule from Plan Details. Existing unscheduled Plans are preserved and clearly ask
 for a schedule. Clock time and per-day allocation remain out of scope.
 
-Slice 4 is implemented on `feature/plan-details` pending acceptance. It totals committed
+Slice 4 was accepted and merged on 2026-08-17. It totals committed
 weekly hours, derives target-ordered Focus/Maintain/Prepare modes, and shows one
 deterministic non-writing portfolio recommendation. Selecting a Plan performs a fresh
 owner-scoped read and exposes current-step, context-empty, missing, and retry states.
+
+5. **Managed Clara recommendation API:** Add an authenticated FastAPI boundary for the
+   existing versioned context and response schemas. Google ADK calls Vertex AI model
+   `gemini-3.6-flash`; Firebase ID token verification binds the caller. Authentication,
+   validation, timeout, unavailable, malformed-output, cancellation, and clarification
+   paths remain read-only. The preview adapter stays available only when a managed API
+   URL is not configured. Deployment and Cloud evidence require explicit approval.
+
+The Slice 5 local implementation verifies Firebase ID tokens, enforces strict request
+and response schemas, invokes an ADK runner behind an eight-second timeout, and applies
+an exact browser-origin allowlist. Backend and PWA adapters are tested without using
+production credentials. A real Vertex response and Cloud Run revision are not yet
+claimed; both remain part of the deployment acceptance gate.
 
 The remaining judged surfaces and the replacement status of every gallery asset are
 tracked in [Hackathon readiness](HACKATHON_READINESS.md).

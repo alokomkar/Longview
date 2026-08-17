@@ -9,3 +9,8 @@ playwright-report/
 test-results/
 *-debug.log
 .firebase/
+__pycache__/
+.pytest_cache/
+*.pyc
+.venv/
+*.egg-info/

@@ -41,9 +41,11 @@ are checked at runtime before use, and this step performs no automatic write.
 Today-step completion now requires explicit confirmation and records one immutable,
 owner-scoped event. Retrying reuses the same completion ID, reload restores the result,
 and neither the Plan nor schedule is changed.
-A typed, read-only Clara recommendation preview now shows its source facts, rationale,
-and confidence. Its deterministic preview adapter validates the UI and failure
-contract; it is not a managed model call and cannot change durable data.
+A typed, read-only Clara recommendation shows its source facts, rationale, and
+confidence. With `VITE_CLARA_API_URL`, the PWA sends a Firebase-authenticated bounded
+context to the local managed API; without it, the deterministic preview remains
+available for UI development. Neither path can change durable data. Cloud deployment
+and a real Vertex response have not yet been accepted or claimed.
 
 ## Local development
 
@@ -60,6 +62,21 @@ contract; it is not a managed model call and cannot change durable data.
 
 Verification: `npm test`, `npm run test:rules`, `npm run build`, and
 `npm run test:e2e`. The emulator requires Java 21+ compiled for the host CPU.
+
+For the managed API, use Python 3.11+ and run the following from
+`services/clara-api`:
+
+```bash
+python3.12 -m venv .venv
+.venv/bin/python -m pip install -e '.[test]'
+cp .env.example .env.local
+.venv/bin/uvicorn clara_api.main:app --host 127.0.0.1 --port 8787 --env-file .env.local
+```
+
+Run `.venv/bin/python -m pytest -q` for its deterministic contract tests. Add
+`VITE_CLARA_API_URL=http://127.0.0.1:8787` to the PWA `.env.local` only when testing
+the managed path. Runtime configuration and the cloud-credential gate are documented
+in [the managed Clara API contract](docs/MANAGED_CLARA_API.md).
 
 Hosted authentication acceptance: `https://longview-505611.web.app/`.
 

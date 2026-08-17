@@ -468,17 +468,25 @@ describe('authentication journey', () => {
   it('shows a scoped read-only Clara recommendation without writing', async () => {
     localStorage.setItem('longview:onboarding', 'complete');
     const list = vi.fn(async () => [scheduledPlan()]);
-    const recommend = vi.fn(async context => ({
-      schemaVersion: 1, requestId: context.requestId, sourcePlanId: context.plan.id,
-      headline: 'Protect the smallest proof', recommendation: 'Finish this step before adding new work.',
-      rationale: 'It creates evidence for the nearest active target.', confidence: 'medium',
-      requiresClarification: false, sourceFacts: ['Plan: Launch Longview', 'Today step: 60 minutes'], proposedChange: null
+    let finishRecommendation: () => void = () => undefined;
+    const recommend = vi.fn(context => new Promise(resolve => {
+      finishRecommendation = () => resolve({
+        schemaVersion: 1, requestId: context.requestId, sourcePlanId: context.plan.id,
+        headline: 'Protect the smallest proof', recommendation: 'Finish this step before adding new work.',
+        rationale: 'It creates evidence for the nearest active target.', confidence: 'medium',
+        requiresClarification: false, sourceFacts: ['Plan: Launch Longview', 'Today step: 60 minutes'], proposedChange: null
+      });
     }));
     const complete = vi.fn(todayGateway.complete);
     render(<App gateway={gateway({ uid: 'owner', isAnonymous: false, displayName: 'Owner' })} workspaceGateway={workspaceGateway} planGateway={{ ...planGateway, list }} todayGateway={{ get: vi.fn(async () => null), complete }} claraGateway={{ recommend }} />);
     fireEvent.click(await screen.findByRole('button', { name: 'Ask Clara about this step' }));
+    const progress = await screen.findByRole('progressbar', { name: 'Waiting for Clara' });
+    expect(progress).not.toHaveAttribute('aria-valuenow');
+    expect(screen.getByRole('button', { name: 'Cancel and return' })).toBeVisible();
+    finishRecommendation();
     expect(await screen.findByRole('heading', { name: 'Protect the smallest proof' })).toBeVisible();
-    expect(screen.getByText('Preview adapter · Nothing was changed.')).toBeVisible();
+    expect(screen.queryByRole('progressbar', { name: 'Waiting for Clara' })).not.toBeInTheDocument();
+    expect(screen.getByText('Recommendation only · Nothing was changed.')).toBeVisible();
     expect(recommend.mock.calls[0][0].plan).toMatchObject({ id: 'plan-1', title: 'Launch Longview' });
     expect(complete).not.toHaveBeenCalled();
   });

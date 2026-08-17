@@ -27,7 +27,7 @@ import { lazyFirebaseTodayGateway } from './today/lazyTodayGateway';
 import type { TodayGateway } from './today/types';
 import { useTodayCompletion } from './today/useTodayCompletion';
 import { buildClaraContext, type ClaraGateway } from './clara/types';
-import { previewClaraGateway } from './clara/previewGateway';
+import { lazyClaraGateway } from './clara/lazyClaraGateway';
 import { useClaraRecommendation, type ClaraFailure } from './clara/useClaraRecommendation';
 import { formatLongDate } from './date/formatLongDate';
 import { useEffect, useMemo, useState } from 'react';
@@ -57,7 +57,7 @@ const createEmptyPlanDraft = (): PlanDraft => ({
 });
 const claraFailureCopy: Record<ClaraFailure, [string, string]> = {
   offline: ['You’re offline.', 'Reconnect and try again. Your step and Plan are unchanged.'],
-  timeout: ['Clara took too long.', 'The request stopped safely. Your step and Plan are unchanged.'],
+  timeout: ['Clara didn’t respond in time.', 'Longview stopped the request safely. Your step and Plan are unchanged.'],
   malformed: ['Clara’s response could not be used.', 'It did not match the expected format, so nothing was applied.'],
   unavailable: ['Clara is unavailable.', 'Try again shortly. Your step and Plan are unchanged.']
 };
@@ -71,12 +71,12 @@ function ClaraPanel({ clara, onClose }: {
   onClose: () => void;
 }) {
   const { snapshot } = clara;
-  if (snapshot.status === 'loading') return <aside className="plan-card clara-card" aria-busy="true"><span className="status">Clara · read only</span><h2>Reviewing this step…</h2><p>Using only the selected Plan and Today step.</p><button className="secondary" onClick={onClose}>Cancel</button></aside>;
+  if (snapshot.status === 'loading') return <aside className="plan-card clara-card clara-loading" aria-busy="true"><span className="status">Clara · read only</span><h2>Clara is reviewing this step…</h2><p>Using only this Plan and today’s step to prepare a recommendation.</p><div className="clara-progress" role="progressbar" aria-label="Waiting for Clara" aria-valuetext="Clara is preparing a recommendation"><span /></div><small>This usually takes a few seconds.</small><button className="secondary" onClick={onClose}>Cancel and return</button></aside>;
   if (snapshot.status === 'error') {
     const [title, detail] = claraFailureCopy[snapshot.failure];
     return <aside className="plan-card clara-card" role="alert"><span className="status">Nothing changed</span><h2>{title}</h2><p>{detail}</p><div className="actions"><button onClick={clara.retry}>Try again</button><button className="secondary" onClick={onClose}>Close</button></div></aside>;
   }
-  if (snapshot.status === 'ready') return <aside className="plan-card clara-card"><span className="status">Read-only recommendation · {snapshot.recommendation.confidence} confidence</span><h2>{snapshot.recommendation.headline}</h2><p>{snapshot.recommendation.recommendation}</p><p><strong>Why:</strong> {snapshot.recommendation.rationale}</p><dl>{snapshot.recommendation.sourceFacts.map(fact => <div key={fact}><dt>Context used</dt><dd>{fact}</dd></div>)}</dl><small>Preview adapter · Nothing was changed.</small><button className="secondary" onClick={onClose}>Close recommendation</button></aside>;
+  if (snapshot.status === 'ready') return <aside className="plan-card clara-card"><span className="status">Read-only recommendation · {snapshot.recommendation.confidence} confidence</span><h2>{snapshot.recommendation.headline}</h2><p>{snapshot.recommendation.recommendation}</p><p><strong>Why:</strong> {snapshot.recommendation.rationale}</p><dl>{snapshot.recommendation.sourceFacts.map(fact => <div key={fact}><dt>Context used</dt><dd>{fact}</dd></div>)}</dl><small>Recommendation only · Nothing was changed.</small><button className="secondary" onClick={onClose}>Close recommendation</button></aside>;
   return null;
 }
 
@@ -311,7 +311,7 @@ function WorkspaceReady({ auth, gateway, planGateway, todayGateway, claraGateway
   );
 }
 
-export function App({ gateway = firebaseAuthGateway, workspaceGateway = lazyFirebaseWorkspaceGateway, planGateway = lazyFirebasePlanGateway, todayGateway = lazyFirebaseTodayGateway, claraGateway = previewClaraGateway }: { gateway?: AuthGateway; workspaceGateway?: WorkspaceGateway; planGateway?: PlanGateway; todayGateway?: TodayGateway; claraGateway?: ClaraGateway }) {
+export function App({ gateway = firebaseAuthGateway, workspaceGateway = lazyFirebaseWorkspaceGateway, planGateway = lazyFirebasePlanGateway, todayGateway = lazyFirebaseTodayGateway, claraGateway = lazyClaraGateway }: { gateway?: AuthGateway; workspaceGateway?: WorkspaceGateway; planGateway?: PlanGateway; todayGateway?: TodayGateway; claraGateway?: ClaraGateway }) {
   const auth = useAuth(gateway);
   const { snapshot } = auth;
 

@@ -1,0 +1,21 @@
+[project]
+name = "longview-clara-api"
+version = "0.1.0"
+description = "Authenticated, read-only Clara recommendation service."
+requires-python = ">=3.11"
+dependencies = [
+  "fastapi[standard]>=0.116,<1",
+  "firebase-admin>=7,<8",
+  "google-adk>=2,<3",
+]
+
+[project.optional-dependencies]
+test = [
+  "httpx>=0.28,<1",
+  "pytest>=8,<9",
+  "pytest-asyncio>=0.24,<2",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]

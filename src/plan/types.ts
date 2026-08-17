@@ -30,6 +30,7 @@ export type PlanScheduleDraft = Pick<PlanDraft, 'workingDays' | 'weeklyHours'>;
 export interface PlanGateway {
   create(user: AuthUser, draft: PlanDraft): Promise<Plan>;
   list(user: AuthUser): Promise<Plan[]>;
+  get(user: AuthUser, planId: string): Promise<Plan | null>;
   updateSchedule(user: AuthUser, planId: string, draft: PlanScheduleDraft, expectedVersion: number): Promise<Plan>;
 }
 

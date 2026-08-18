@@ -1,6 +1,6 @@
 # Longview PWA Product Requirements
 
-Status: Release 2 deployed
+Status: Release 2 deployed; Release 3 local implementation
 
 Last updated: 2026-08-18
 
@@ -77,6 +77,15 @@ cancellation write nothing. Approval must verify owner, current schedule version
 current values, and idempotency inside one transaction that also creates the audit
 record. The full contract is in
 [Release 2: Clara Schedule Review](RELEASE_TWO_CLARA_SCHEDULE_REVIEW.md).
+
+### Release 3 daily schedule boundary
+
+Release 3 exposes Calendar for one selected day. It prepares a capacity-bounded,
+advisory order across eligible unfinished Plan steps, shows visible run checkpoints,
+and writes only after explicit approval. Replacements require the latest approved-day
+revision. A reviewed break carries unfinished work only to each Plan's next eligible
+day without approving or overwriting that destination. The full contract is in
+[Release 3: Daily Schedule](RELEASE_THREE_DAILY_SCHEDULE.md).
 
 ## 4. Canonical demo portfolio
 

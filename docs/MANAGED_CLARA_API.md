@@ -16,7 +16,7 @@ background run, or claim a deployed Cloud Run revision.
 - The API verifies a Firebase ID token and uses its UID as the only user identity.
 - The request contains one selected Plan and one derived Today step; no unrelated Plan,
   browser state, or Firestore document is available to the model.
-- Google ADK invokes Vertex AI model `gemini-3.6-flash` and returns the existing strict
+- Google ADK invokes Vertex AI model `gemini-2.5-flash` and returns the existing strict
   recommendation payload. The API supplies trusted request and Plan identifiers plus
   `proposedChange: null`, then parses the complete response before it reaches the PWA.
 - A response may request clarification, but `proposedChange` must remain `null` in this

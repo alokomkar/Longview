@@ -487,7 +487,7 @@ describe('authentication journey', () => {
     const list = vi.fn(async () => [scheduledPlan()]);
     const complete = vi.fn(todayGateway.complete);
     render(<App gateway={gateway({ uid: 'owner', isAnonymous: false, displayName: 'Owner' })} workspaceGateway={workspaceGateway} planGateway={{ ...planGateway, list }} todayGateway={{ get: vi.fn(async () => null), complete }} />);
-    fireEvent.click(screen.getByRole('button', { name: 'Mark step complete' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Mark step complete' }));
     expect(screen.getByRole('alert')).toHaveTextContent('Plan and schedule will stay the same');
     expect(complete).not.toHaveBeenCalled();
     fireEvent.click(screen.getByRole('button', { name: 'Keep working' }));
@@ -932,5 +932,60 @@ describe('Phase 0 release surface', () => {
 
     expect(await screen.findByRole('heading', { name: 'Today’s step is complete.' })).toBeVisible();
     expect(complete).toHaveBeenCalledOnce();
+  });
+});
+
+describe('Release 1 Ask Clara surface', () => {
+  it('shows read-only step guidance without loading Calendar or approvals', async () => {
+    localStorage.setItem('longview:onboarding', 'complete');
+    const getApprovedDay = vi.fn();
+    const apply = vi.fn();
+    const recommend = vi.fn(async context => ({
+      schemaVersion: 1, requestId: context.requestId, sourcePlanId: context.plan.id,
+      headline: 'Protect the smallest proof', recommendation: 'Finish this step before adding new work.',
+      rationale: 'It creates evidence for the nearest active target.', confidence: 'medium',
+      requiresClarification: false, sourceFacts: ['Plan: Launch Longview'], proposedChange: null
+    }));
+    render(<App
+      releaseSurface="release-one"
+      gateway={gateway({ uid: 'owner', isAnonymous: false, displayName: 'Owner' })}
+      workspaceGateway={workspaceGateway}
+      planGateway={{ ...planGateway, list: vi.fn(async () => [scheduledPlan()]) }}
+      todayGateway={todayGateway}
+      claraGateway={{ recommend }}
+      claraApprovalGateway={{ apply }}
+      approvedDayGateway={{ get: getApprovedDay, approve: vi.fn() }}
+    />);
+    expect(await screen.findByText('Ask Clara · read only')).toBeVisible();
+    expect(screen.queryByRole('button', { name: 'Calendar' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Ask Clara' })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Ask Clara about this step' }));
+    expect(await screen.findByRole('heading', { name: 'Protect the smallest proof' })).toBeVisible();
+    expect(recommend.mock.calls[0][0]).toMatchObject({ scope: 'today-step' });
+    expect(getApprovedDay).not.toHaveBeenCalled();
+    expect(apply).not.toHaveBeenCalled();
+  });
+
+  it('asks about a Plan without attaching a fabricated step', async () => {
+    localStorage.setItem('longview:onboarding', 'complete');
+    const recommend = vi.fn(async context => ({
+      schemaVersion: 1, requestId: context.requestId, sourcePlanId: context.plan.id,
+      headline: 'Define one proof', recommendation: 'Name one result that demonstrates meaningful progress.',
+      rationale: 'The Plan has a clear outcome but needs a measurable proof.', confidence: 'low',
+      requiresClarification: true, sourceFacts: ['Plan: Launch Longview'], proposedChange: null
+    }));
+    render(<App
+      releaseSurface="release-one"
+      gateway={gateway({ uid: 'owner', isAnonymous: false, displayName: 'Owner' })}
+      workspaceGateway={workspaceGateway}
+      planGateway={{ ...planGateway, list: vi.fn(async () => [scheduledPlan()]) }}
+      claraGateway={{ recommend }}
+    />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Plans' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'View Plan details' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Ask Clara about this Plan' }));
+    expect(await screen.findByRole('heading', { name: 'Define one proof' })).toBeVisible();
+    expect(recommend.mock.calls[0][0]).toMatchObject({ scope: 'plan' });
+    expect(recommend.mock.calls[0][0]).not.toHaveProperty('step');
   });
 });

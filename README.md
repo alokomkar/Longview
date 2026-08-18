@@ -9,6 +9,7 @@ changes, and preserve the reasoning behind important decisions.
 - [Product requirements](docs/PRODUCT_REQUIREMENTS.md)
 - [Implementation phases](docs/IMPLEMENTATION_PHASES.md)
 - [Phase 0 release contract](docs/PHASE_ZERO_RELEASE.md)
+- [Release 1 Ask Clara contract](docs/RELEASE_ONE_ASK_CLARA.md)
 - [Pending feature ledger](docs/PENDING_FEATURES.md)
 - [Hackathon tech stack](docs/TECH_STACK.md)
 - [Hackathon readiness ledger](docs/HACKATHON_READINESS.md)
@@ -22,6 +23,9 @@ its working days, receive one deterministic Today step, and explicitly record
 completion. Its production navigation is limited to Today, Plans, and Settings.
 Calendar, Clara, research, Plan Briefs, and offline cold-start recovery are not part of
 this release and do not block Today.
+
+Release 1 adds authenticated, read-only Clara guidance for a selected Plan or today's
+step. Its Cloud Run API cannot expose or apply agent-driven writes.
 
 Authentication and Day 1 Plan creation are available on Firebase Hosting. They include
 the PWA shell, Firebase Auth boundary, local emulator configuration, production-safe

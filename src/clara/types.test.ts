@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { Plan } from '../plan/types';
 import type { TodayStep } from '../today/deriveTodayStep';
-import { buildClaraContext, parseClaraRecommendation } from './types';
+import { buildClaraContext, buildClaraPlanContext, parseClaraRecommendation } from './types';
 
 const plan: Plan = {
   id: 'plan-1', clientRequestId: 'plan-1', ownerUid: 'owner', workspaceId: 'default',
@@ -31,6 +31,13 @@ describe('Clara recommendation contract', () => {
       step: { title: step.title, description: step.description, durationMinutes: 60, date: '2026-08-17' }
     });
     expect(context).not.toHaveProperty('ownerUid');
+  });
+
+  it('sends Plan-only context without inventing a step', () => {
+    const planContext = buildClaraPlanContext(plan, 'request-plan');
+    expect(planContext.scope).toBe('plan');
+    expect(planContext).not.toHaveProperty('step');
+    expect(planContext.plan.id).toBe('plan-1');
   });
 
   it('accepts a matching read-only response', () => {

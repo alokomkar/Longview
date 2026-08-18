@@ -1,6 +1,6 @@
 # Longview Implementation Phases
 
-Status: Phase 0 release candidate
+Status: Release 1 implementation
 Updated: 2026-08-18
 Links: [PRD](PRODUCT_REQUIREMENTS.md) | [Mockup](design/longview-pwa-interactive-mockup.html) | [Stack](TECH_STACK.md)
 
@@ -25,6 +25,15 @@ behind the full development surface and cannot block the core journey. See the
 
 The numbered implementation roadmap below remains the post-release expansion order.
 
+### Release 1: Ask Clara
+
+Add authenticated, read-only guidance for a selected Plan or today's step. The hosted
+PWA shows context, recommendation, rationale, confidence, clarification, progress,
+timeout, cancellation, invalid-response, and unavailable states. A dedicated FastAPI
+entry point on Cloud Run exposes recommendation and health routes only; write-capable
+Clara routes remain unavailable. See the [release contract](RELEASE_ONE_ASK_CLARA.md)
+and [interactive acceptance](design/longview-release-one-ask-clara.html).
+
 1. **Cloud prerequisite:** Create one Google Cloud project and enable Firebase on it;
    claim credits, configure budgets, emulators, least-privilege identities, and secrets.
    Choose Firestore/Cloud Run regions only after confirming Vertex AI availability.
@@ -36,7 +45,7 @@ The numbered implementation roadmap below remains the post-release expansion ord
    accessibility, IndexedDB outbox, and update recovery.
 4. **Goal authority:** Add versioned schemas, Firestore rules, Goals, Today, Portfolio,
    deterministic scheduling, cross-user isolation, audit events, and emulator seeds.
-5. **Clara read loop:** Use Google ADK with Gemini 3.6 Flash through Vertex AI.
+5. **Clara read loop:** Use Google ADK with Gemini 2.5 Flash through Vertex AI.
    Return scoped recommendations and clarification; fail closed on timeout, malformed
    output, or prompt injection. No model-direct writes. Bounded Quick Actions first
    route to existing Calendar or Plans review surfaces; opening the catalogue never
@@ -160,7 +169,7 @@ owner-scoped read and exposes current-step, context-empty, missing, and retry st
 
 5. **Managed Clara recommendation API:** Add an authenticated FastAPI boundary for the
    existing versioned context and response schemas. Google ADK calls Vertex AI model
-   `gemini-3.6-flash`; Firebase ID token verification binds the caller. Authentication,
+   `gemini-2.5-flash`; Firebase ID token verification binds the caller. Authentication,
    validation, timeout, unavailable, malformed-output, cancellation, and clarification
    paths remain read-only. The preview adapter stays available only when a managed API
    URL is not configured. Deployment and Cloud evidence require explicit approval.

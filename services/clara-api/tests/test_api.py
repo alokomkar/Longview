@@ -160,8 +160,15 @@ def client(verifier=None, engine=None, timeout=8, approval_repository=None, sche
     ))
 
 
+def read_only_client(engine=None):
+    return TestClient(create_app(
+        verifier=Verifier(), engine=engine or Engine(), timeout_seconds=8,
+        release_mode="read-only",
+    ))
+
+
 def test_health_does_not_require_authentication():
-    assert client().get("/healthz").json() == {"status": "ok"}
+    assert client().get("/health").json() == {"status": "ok"}
 
 
 def test_cors_allows_only_the_configured_pwa_origin():
@@ -284,6 +291,41 @@ def test_accepts_a_read_only_clarification():
     )
     assert response.status_code == 200
     assert response.json()["requiresClarification"] is True
+
+
+def test_accepts_plan_scope_without_a_step_and_rejects_scope_mismatches():
+    plan_request = {key: value for key, value in REQUEST.items() if key != "step"}
+    plan_request["scope"] = "plan"
+    accepted = client().post(
+        "/v1/clara/recommendations", json=plan_request,
+        headers={"Authorization": "Bearer token"},
+    )
+    assert accepted.status_code == 200
+    for body in ({**REQUEST, "step": None}, {**plan_request, "step": REQUEST["step"]}):
+        assert client().post(
+            "/v1/clara/recommendations", json=body,
+            headers={"Authorization": "Bearer token"},
+        ).status_code == 422
+
+
+def test_release_one_exposes_only_health_and_read_only_recommendations():
+    api = read_only_client()
+    schema_paths = set(api.get("/openapi.json").json()["paths"])
+    assert schema_paths == {"/health", "/v1/clara/recommendations"}
+    assert api.post(
+        "/v1/clara/approvals", json={}, headers={"Authorization": "Bearer token"}
+    ).status_code == 404
+    assert api.post(
+        "/v1/clara/schedule-runs", json={}, headers={"Authorization": "Bearer token"}
+    ).status_code == 404
+
+
+def test_release_one_rejects_a_model_proposed_change():
+    response = read_only_client(Engine({**RESPONSE, "proposedChange": PROPOSAL})).post(
+        "/v1/clara/recommendations", json=REQUEST,
+        headers={"Authorization": "Bearer token"},
+    )
+    assert response.status_code == 502
 
 
 def test_accepts_one_bounded_plan_schedule_proposal():

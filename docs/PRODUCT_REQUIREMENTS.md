@@ -1,6 +1,6 @@
 # Longview PWA Product Requirements
 
-Status: Phase 0 release candidate
+Status: Release 1 implementation
 
 Last updated: 2026-08-18
 
@@ -57,6 +57,16 @@ are defined in [Phase 0 Early Access Release](PHASE_ZERO_RELEASE.md).
 Calendar proposals, day breaks, Clara, research, Plan Briefs, and execution history
 remain outside the Phase 0 production surface. They must not block Today or appear as
 available actions until their managed services pass an independent release gate.
+
+### Release 1 production boundary
+
+Release 1 promotes only Clara's authenticated read path. A user may ask about a saved
+Plan or today's selected step and inspect the exact context, recommendation, rationale,
+confidence, and clarification question. The Cloud Run service exposes no approval,
+schedule-run, approved-day, or day-break endpoint. Any response containing a proposed
+change fails closed. Calendar, Quick Actions, writes, research, Plan Briefs, and offline
+cold-start recovery remain hidden. The complete contract is in
+[Release 1: Ask Clara](RELEASE_ONE_ASK_CLARA.md).
 
 ## 4. Canonical demo portfolio
 
@@ -125,6 +135,8 @@ them without approval.
 
 ### Clara
 
+- The first production Clara release is strictly read-only and supports a selected
+  Plan or today's step. It cannot return or apply a proposed change.
 - Today context includes every active Goal, today's tasks, capacity, and decisions.
 - Goal context is restricted to that Goal and descendants.
 - Quick Actions are grouped by outcome and route only to typed, existing review
@@ -171,7 +183,7 @@ them without approval.
 
 The React/TypeScript PWA is hosted on Firebase Hosting and calls a FastAPI service on
 Cloud Run. A separate Cloud Run worker receives Pub/Sub events for asynchronous
-follow-through runs. Google ADK invokes Gemini 3.6 Flash through Vertex AI;
+follow-through runs. Google ADK invokes Gemini 2.5 Flash through Vertex AI;
 Firestore stores run checkpoints, versions, idempotency records, and audit events.
 
 Clara receives a minimal typed context packet and returns a strict schema containing
@@ -226,7 +238,7 @@ the submission narrative.
 - Every Plan card opens Plan Details showing the saved outcome, rationale, target,
   weekly allocation, working days, and current Today-step/completion state.
 - Three Goals share one visible finite-capacity portfolio.
-- Clara uses Gemini 3.6 Flash through Google ADK and Vertex AI.
+- Clara uses Gemini 2.5 Flash through Google ADK and Vertex AI.
 - One Pub/Sub-triggered Cloud Run worker completes a checkpointed asynchronous run.
 - At least one recommendation produces a specific preview and approved durable write.
 - Rejection, duplicate approval, timeout, malformed output, offline mode, stale data,

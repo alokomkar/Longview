@@ -1,16 +1,19 @@
 import type { Plan, WorkingDay } from '../plan/types';
 import type { TodayStep } from '../today/deriveTodayStep';
 
-export type ClaraContext = {
+type ClaraPlanContext = {
   schemaVersion: 1;
   requestId: string;
-  scope: 'today-step';
   plan: Pick<Plan, 'id' | 'title' | 'outcome' | 'targetDate' | 'weeklyHours'> & {
     workingDays: WorkingDay[];
     scheduleVersion: number;
   };
-  step: Pick<TodayStep, 'title' | 'description' | 'durationMinutes' | 'date'>;
 };
+
+export type ClaraContext = ClaraPlanContext & (
+  | { scope: 'plan'; step?: never }
+  | { scope: 'today-step'; step: Pick<TodayStep, 'title' | 'description' | 'durationMinutes' | 'date'> }
+);
 
 export type ClaraPlanScheduleChange = {
   kind: 'plan-working-days';
@@ -47,14 +50,13 @@ export class ClaraGatewayTimeoutError extends Error {
   }
 }
 
-export function buildClaraContext(plan: Plan, step: TodayStep, requestId: string): ClaraContext {
+function buildPlanContext(plan: Plan, requestId: string): ClaraPlanContext {
   if (!plan.workingDays?.length || !plan.scheduleVersion) {
     throw new Error('Clara requires a versioned Plan schedule.');
   }
   return {
     schemaVersion: 1,
     requestId,
-    scope: 'today-step',
     plan: {
       id: plan.id,
       title: plan.title,
@@ -63,7 +65,18 @@ export function buildClaraContext(plan: Plan, step: TodayStep, requestId: string
       weeklyHours: plan.weeklyHours,
       workingDays: plan.workingDays,
       scheduleVersion: plan.scheduleVersion
-    },
+    }
+  };
+}
+
+export function buildClaraPlanContext(plan: Plan, requestId: string): ClaraContext {
+  return { ...buildPlanContext(plan, requestId), scope: 'plan' };
+}
+
+export function buildClaraContext(plan: Plan, step: TodayStep, requestId: string): ClaraContext {
+  return {
+    ...buildPlanContext(plan, requestId),
+    scope: 'today-step',
     step: {
       title: step.title,
       description: step.description,

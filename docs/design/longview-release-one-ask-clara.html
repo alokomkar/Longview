@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en" data-palette="ocean" data-mode="dark" data-font="lora" data-size="default">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Longview Release 1 Ask Clara acceptance</title>
+  <link rel="stylesheet" href="longview-release-prototype.css">
+</head>
+<body data-platform="mweb">
+  <main id="prototype" aria-live="polite"></main>
+  <script>
+    (() => {
+      const screens = { today:'Today step', plan:'Plan details', loading:'Clara loading', ready:'Recommendation' };
+      const scenarios = { normal:'Recommendation', clarification:'Clarification needed', timeout:'Timeout', malformed:'Invalid response', offline:'Offline' };
+      const state = { screen:'today', scenario:'normal', origin:'step' };
+      const root = document.getElementById('prototype');
+      const button = (label, go, cls='') => `<button class="btn ${cls}" data-go="${go}">${label}</button>`;
+      const top = (title, sub='') => `<div class="topline"><strong>Longview</strong><span class="badge green">Release 1 · read only</span></div><h1 class="page-title">${title}</h1>${sub?`<p class="page-sub">${sub}</p>`:''}`;
+      const card = () => `<div class="card task-card"><span class="section-label">Launch a useful early release</span><h2 class="card-title">Define the first proof of progress</h2><p class="card-copy">Write one observable result that would prove progress, then name the smallest action you can finish this week.</p><p class="meta">60 minutes · target 31st August 2026</p></div>`;
+      const notice = (title, copy) => `<div class="notice" role="alert"><div><strong>${title}</strong><span>${copy}</span></div></div>`;
+      const renderResult = () => {
+        if (state.scenario==='timeout') return `${notice('Clara did not respond in time.','The request stopped safely. Your Plan and step are unchanged.')}${button('Try again','loading','primary')}${button('Close','today','ghost')}`;
+        if (state.scenario==='malformed') return `${notice('Clara’s response could not be used.','It did not match Longview’s safety format, so no recommendation is shown.')}${button('Try again','loading','primary')}${button('Close','today','ghost')}`;
+        if (state.scenario==='offline') return `${notice('You’re offline.','Reconnect and try again. Your saved work is unchanged.')}${button('Try again','loading','primary')}${button('Close','today','ghost')}`;
+        const clarification = state.scenario==='clarification';
+        return `<div class="card"><span class="badge green">${clarification?'Low':'High'} confidence</span><h2 class="card-title">${clarification?'What result would count as progress?':'Define one observable success signal'}</h2><p class="card-copy">${clarification?'Clara needs one detail before giving useful guidance: what should a user be able to do when this first release succeeds?':'Write a one-sentence success signal, then choose the smallest test that could disprove it this week.'}</p><p><strong>Why:</strong> ${clarification?'The Plan describes the release but not the user result. Guessing would make the advice less useful.':'The selected step asks for proof of progress and the Plan target is close enough to favour a small measurable test.'}</p><div class="notice"><div><strong>Context used</strong><span>Plan outcome, target date, working days${state.origin==='step'?', today’s step, and its duration':''}. No other workspace data.</span></div></div><p class="meta">Recommendation only · Nothing was changed.</p></div>${button('Close recommendation',state.origin==='plan'?'plan':'today','ghost')}`;
+      };
+      const views = {
+        today: () => `<section class="screen">${top('One useful step is enough.','Ask Clara for guidance without changing the Plan.')}${card()}<button class="btn primary" data-ask="step">Ask Clara about this step</button>${button('View Plan details','plan','ghost')}</section>`,
+        plan: () => `<section class="screen">${top('Launch a useful early release','Release a tested PWA to real users.')}<div class="card"><p><strong>Target:</strong> 31st August 2026</p><p><strong>Working days:</strong> Monday, Wednesday, Friday</p><p><strong>Weekly time:</strong> 5 hours</p></div><button class="btn primary" data-ask="plan">Ask Clara about this Plan</button>${button('Return to Today','today','ghost')}</section>`,
+        loading: () => `<section class="screen">${top(`Clara is reviewing this ${state.origin}…`,'Using only the context shown in Longview.')}<div class="card"><span class="badge green">Read only</span><div class="clara-progress" role="progressbar" aria-label="Waiting for Clara"><span></span></div><p class="meta">Your Plan and step cannot change during this request.</p></div>${button('Cancel and return',state.origin==='plan'?'plan':'today','ghost')}<button class="btn primary" data-action="finish">Show response</button></section>`,
+        ready: () => `<section class="screen">${top('Clara’s guidance','Review the recommendation and the context behind it.')}${renderResult()}</section>`
+      };
+      function render() {
+        const menu = `<header class="demo-bar"><div class="demo-identity"><span class="demo-brand">Longview</span><span class="demo-tag">Release 1 acceptance</span></div><div class="demo-menus"><select id="screen">${Object.entries(screens).map(([k,v])=>`<option value="${k}" ${state.screen===k?'selected':''}>${v}</option>`).join('')}</select><select id="scenario">${Object.entries(scenarios).map(([k,v])=>`<option value="${k}" ${state.scenario===k?'selected':''}>${v}</option>`).join('')}</select></div><button class="demo-reset" data-action="reset">Reset</button></header>`;
+        root.innerHTML = `<div class="prototype-page">${menu}<div class="prototype-stage"><section class="device phone mweb"><div class="browser-chrome"><i class="browser-dot"></i><i class="browser-dot"></i><i class="browser-dot"></i><span class="address">longview-505611.web.app</span></div><main class="viewport">${views[state.screen]()}</main><nav class="bottom-nav"><button class="bottom-item on" data-go="today">Today</button><button class="bottom-item" data-go="plan">Plans</button><button class="bottom-item">Settings</button></nav></section></div></div>`;
+        root.querySelector('#screen').onchange=e=>{state.screen=e.target.value;render()};
+        root.querySelector('#scenario').onchange=e=>{state.scenario=e.target.value;render()};
+      }
+      root.addEventListener('click', event => {
+        const target=event.target.closest('[data-go],[data-ask],[data-action]'); if(!target)return;
+        if(target.dataset.go)state.screen=target.dataset.go;
+        if(target.dataset.ask){state.origin=target.dataset.ask;state.screen='loading'}
+        if(target.dataset.action==='finish')state.screen='ready';
+        if(target.dataset.action==='reset')Object.assign(state,{screen:'today',scenario:'normal',origin:'step'});
+        render();
+      });
+      render();
+    })();
+  </script>
+</body>
+</html>

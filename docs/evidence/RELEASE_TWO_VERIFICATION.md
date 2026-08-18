@@ -5,7 +5,7 @@ Status: local release candidate; not merged or deployed.
 ## Automated verification
 
 - PWA unit/integration: 241 passed.
-- FastAPI unit/integration: 48 passed; 10 emulator-only tests skipped in the non-emulator run.
+- FastAPI unit/integration: 48 passed; 11 emulator-only tests skipped in the non-emulator run.
 - Firestore rules: 11 passed.
 - Firestore approval emulator: 2 passed, including concurrent approvals where exactly one succeeds and one receives a stale-version conflict.
 - Mobile Chrome E2E: 18 passed, covering the full acceptance suite and Release 2 success, rejection, timeout, malformed response, network failure, stale conflict, idempotent recovery and responsive layout.

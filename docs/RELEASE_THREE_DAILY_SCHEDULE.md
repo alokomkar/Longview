@@ -72,3 +72,4 @@ advisory. No Plan, completion, or approved day changes while Longview prepares i
 - Full regression, production build size, page load, network latency, responsiveness,
   and a QuickTime acceptance recording are required before requesting merge approval.
 
+Local verification evidence: [Release 3 verification](evidence/RELEASE_THREE_LOCAL_VERIFICATION.md)

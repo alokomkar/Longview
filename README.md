@@ -70,7 +70,9 @@ creates one audit record. A live Vertex response and safe rejection were verifie
 2. Run `npm install`.
 3. Copy `.env.example` to `.env.local`; production Firebase values remain local. Set
    `VITE_USE_FIREBASE_EMULATORS=false` to test the real Google account chooser, or
-   `true` for deterministic emulator tests.
+   `true` for deterministic emulator tests. Set `VITE_RELEASE_SURFACE=release-three`
+   to review only the Release 3 navigation and routes; `full` retains the development
+   workbench.
 4. Run `npm run dev:local`; it starts the Auth and Firestore emulators before Vite.
 5. Open `http://127.0.0.1:5173`. Local sign-in and data stay in the emulators. To
    test the real Google chooser, set `VITE_USE_FIREBASE_EMULATORS=false` and run

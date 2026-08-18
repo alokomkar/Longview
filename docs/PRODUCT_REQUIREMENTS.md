@@ -201,9 +201,11 @@ them without approval.
 ## 8. AI and write architecture
 
 The React/TypeScript PWA is hosted on Firebase Hosting and calls a FastAPI service on
-Cloud Run. A separate Cloud Run worker receives Pub/Sub events for asynchronous
-follow-through runs. Google ADK invokes Gemini 2.5 Flash through Vertex AI;
-Firestore stores run checkpoints, versions, idempotency records, and audit events.
+Cloud Run. Release 3 uses a checkpointed coordinator inside that service and resumes
+a non-terminal Firestore run when it is polled. A separate Pub/Sub-triggered Cloud Run
+worker remains the later reliability target; Release 3 does not claim it. Google ADK
+invokes Gemini 2.5 Flash through Vertex AI; Firestore stores run checkpoints,
+versions, idempotency records, and audit events.
 
 Clara receives a minimal typed context packet and returns a strict schema containing
 recommendation, rationale, confidence, clarification requirement, and optional change

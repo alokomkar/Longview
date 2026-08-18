@@ -39,4 +39,18 @@ describe('useDayBreak', () => {
     await waitFor(() => expect(result.current.snapshot).toEqual(expect.objectContaining({ status: 'error', failure: 'source-changed' })));
     expect(gateway.confirm).not.toHaveBeenCalled();
   });
+
+  it('keeps one break key when confirmation times out and is recovered', async () => {
+    const confirm = vi.fn()
+      .mockImplementationOnce(async () => new Promise<never>(() => undefined))
+      .mockImplementationOnce(async (_date, request) => ({ schemaVersion: 1, idempotencyKey: request.idempotencyKey, duplicate: true, carryovers: preview.carryovers, breakDay: { ...day, revision: 2, status: 'break', breakEventId: request.idempotencyKey, carryoverCount: 1 } }));
+    const gateway: DayBreakGateway = { preview: vi.fn(async () => preview), confirm };
+    const { result } = renderHook(() => useDayBreak(gateway, 5));
+    await act(() => result.current.preview(day));
+    act(() => { void result.current.confirm(); });
+    await waitFor(() => expect(result.current.snapshot).toMatchObject({ status: 'error', failure: 'timeout' }));
+    await act(() => result.current.retry());
+    expect(result.current.snapshot.status).toBe('success');
+    expect(confirm.mock.calls[1][1].idempotencyKey).toBe(confirm.mock.calls[0][1].idempotencyKey);
+  });
 });

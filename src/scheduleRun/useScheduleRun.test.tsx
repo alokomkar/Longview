@@ -1,6 +1,6 @@
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
-import type { ScheduleRun, ScheduleRunContext, ScheduleRunGateway } from './types';
+import { ScheduleRunMalformedError, type ScheduleRun, type ScheduleRunContext, type ScheduleRunGateway } from './types';
 import { useScheduleRun } from './useScheduleRun';
 
 const context = { schemaVersion: 1, requestId: 'request-1', selectedDate: '2026-08-17', capacityMinutes: 60,
@@ -35,5 +35,25 @@ describe('useScheduleRun', () => {
     await act(async () => { await result.current.cancel(); });
     expect(result.current.snapshot.status).toBe('cancelled');
     expect(gateway.get).not.toHaveBeenCalled();
+  });
+
+  it('ends a stalled start at the client deadline', async () => {
+    const gateway: ScheduleRunGateway = {
+      start: vi.fn(async () => new Promise<never>(() => undefined)), get: vi.fn(), cancel: vi.fn()
+    };
+    const { result } = renderHook(() => useScheduleRun(gateway, 1, 5));
+    act(() => { void result.current.start(context); });
+    await waitFor(() => expect(result.current.snapshot).toMatchObject({ status: 'error', failure: 'timeout' }));
+  });
+
+  it.each([
+    [false, new Error('network'), 'offline'],
+    [true, new ScheduleRunMalformedError(), 'malformed']
+  ])('classifies safe terminal client failures', async (online, failure, expected) => {
+    Object.defineProperty(navigator, 'onLine', { configurable: true, value: online });
+    const gateway: ScheduleRunGateway = { start: vi.fn(async () => { throw failure; }), get: vi.fn(), cancel: vi.fn() };
+    const { result } = renderHook(() => useScheduleRun(gateway, 1, 20));
+    await act(async () => { await result.current.start(context); });
+    expect(result.current.snapshot).toMatchObject({ status: 'error', failure: expected });
   });
 });

@@ -52,4 +52,18 @@ describe('useApprovedDay', () => {
     expect(approve.mock.calls[0][1]).toMatchObject({ expectedDayRevision: 1, replaceCurrent: true });
     expect(result.current.snapshot.day?.revision).toBe(2);
   });
+
+  it('keeps one approval key when a stalled request times out and is retried', async () => {
+    const approve = vi.fn()
+      .mockImplementationOnce(async () => new Promise<never>(() => undefined))
+      .mockImplementationOnce(async (_runId, request) => ({ schemaVersion: 1, idempotencyKey: request.idempotencyKey, duplicate: true, approvedDay: day }));
+    const gateway: ApprovedDayGateway = { get: vi.fn(async () => null), approve };
+    const { result } = renderHook(() => useApprovedDay(gateway, '2026-08-17', true, 5));
+    await waitFor(() => expect(result.current.snapshot.status).toBe('ready'));
+    act(() => { void result.current.approve(run); });
+    await waitFor(() => expect(result.current.approval).toMatchObject({ status: 'error', failure: 'timeout' }));
+    await act(() => result.current.retryApproval());
+    expect(result.current.approval.status).toBe('success');
+    expect(approve.mock.calls[1][1].idempotencyKey).toBe(approve.mock.calls[0][1].idempotencyKey);
+  });
 });

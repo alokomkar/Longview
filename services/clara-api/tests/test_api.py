@@ -174,6 +174,13 @@ def release_two_client(engine=None, approval_repository=None):
     ))
 
 
+def release_three_client():
+    return TestClient(create_app(
+        verifier=Verifier(), engine=Engine(), timeout_seconds=8,
+        release_mode="release-three",
+    ))
+
+
 def test_health_does_not_require_authentication():
     assert client().get("/health").json() == {"status": "ok"}
 
@@ -359,6 +366,19 @@ def test_release_two_returns_the_atomic_approval_result():
     assert response.status_code == 200
     assert response.json()["auditEventId"] == "approval-123"
     assert repository.calls[0][0] == "owner-1"
+
+
+def test_release_three_exposes_only_reviewed_daily_schedule_routes():
+    schema_paths = set(release_three_client().get("/openapi.json").json()["paths"])
+    assert schema_paths == {
+        "/health", "/v1/clara/recommendations", "/v1/clara/approvals",
+        "/v1/clara/schedule-runs", "/v1/clara/schedule-runs/{run_id}",
+        "/v1/clara/schedule-runs/{run_id}/cancel",
+        "/v1/clara/schedule-runs/{run_id}/approve",
+        "/v1/clara/approved-days/{selected_date}",
+        "/v1/clara/approved-days/{selected_date}/break-preview",
+        "/v1/clara/approved-days/{selected_date}/break",
+    }
 
 
 def test_accepts_one_bounded_plan_schedule_proposal():

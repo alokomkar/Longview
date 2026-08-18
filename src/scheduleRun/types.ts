@@ -53,7 +53,14 @@ export type ScheduleRun = {
 export interface ScheduleRunGateway {
   start(context: ScheduleRunContext, signal: AbortSignal): Promise<ScheduleRun>;
   get(runId: string, signal: AbortSignal): Promise<ScheduleRun>;
-  cancel(runId: string): Promise<ScheduleRun>;
+  cancel(runId: string, signal: AbortSignal): Promise<ScheduleRun>;
+}
+
+export class ScheduleRunMalformedError extends Error {
+  constructor() {
+    super('Schedule run returned an invalid response');
+    this.name = 'ScheduleRunMalformedError';
+  }
 }
 
 export function buildScheduleRunContext(

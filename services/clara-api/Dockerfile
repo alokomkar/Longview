@@ -7,4 +7,4 @@ COPY pyproject.toml ./
 COPY clara_api ./clara_api
 RUN python -m pip install --no-cache-dir .
 
-CMD ["sh", "-c", "uvicorn clara_api.release2:app --host 0.0.0.0 --port ${PORT}"]
+CMD ["sh", "-c", "uvicorn clara_api.release3:app --host 0.0.0.0 --port ${PORT}"]

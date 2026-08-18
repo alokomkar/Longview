@@ -7,23 +7,25 @@ import {
   type ApprovedDayGateway,
   type DayApprovalResult
 } from './types';
+import { requestTimedOut, withRequestDeadline } from '../network/requestDeadline';
 
 export type ApprovedDaySnapshot =
   | { status: 'idle' | 'loading'; day: ApprovedDay | null; failure: null }
   | { status: 'ready'; day: ApprovedDay | null; failure: null }
-  | { status: 'error'; day: ApprovedDay | null; failure: 'unavailable' };
+  | { status: 'error'; day: ApprovedDay | null; failure: 'unavailable' | 'timeout' };
 
 export type DayApprovalSnapshot =
   | { status: 'idle' | 'applying'; result: null; failure: null }
   | { status: 'success'; result: DayApprovalResult; failure: null }
-  | { status: 'error'; result: null; failure: 'conflict' | 'unavailable' };
+  | { status: 'error'; result: null; failure: 'conflict' | 'unavailable' | 'timeout' };
 
 const createKey = () => globalThis.crypto?.randomUUID?.() ?? `day-approval-${Date.now()}`;
 
 export function useApprovedDay(
   gateway: ApprovedDayGateway,
   selectedDate: string,
-  enabled: boolean
+  enabled: boolean,
+  requestTimeoutMs = 12000
 ) {
   const [snapshot, setSnapshot] = useState<ApprovedDaySnapshot>({ status: 'idle', day: null, failure: null });
   const [approval, setApproval] = useState<DayApprovalSnapshot>({ status: 'idle', result: null, failure: null });
@@ -38,13 +40,14 @@ export function useApprovedDay(
     controller.current = new AbortController();
     setSnapshot(current => ({ status: 'loading', day: current.day, failure: null }));
     try {
-      const day = await gateway.get(selectedDate, controller.current.signal);
+      const active = controller.current;
+      const day = await withRequestDeadline(active, requestTimeoutMs, signal => gateway.get(selectedDate, signal));
       if (version === loadVersion.current) setSnapshot({ status: 'ready', day, failure: null });
     } catch (error) {
       if (error instanceof DOMException && error.name === 'AbortError') return;
-      if (version === loadVersion.current) setSnapshot(current => ({ status: 'error', day: current.day, failure: 'unavailable' }));
+      if (version === loadVersion.current) setSnapshot(current => ({ status: 'error', day: current.day, failure: requestTimedOut(error) ? 'timeout' : 'unavailable' }));
     }
-  }, [gateway, selectedDate]);
+  }, [gateway, requestTimeoutMs, selectedDate]);
 
   useEffect(() => {
     if (!enabled) {
@@ -69,12 +72,13 @@ export function useApprovedDay(
     controller.current = new AbortController();
     setApproval({ status: 'applying', result: null, failure: null });
     try {
-      const result = await gateway.approve(run.runId, {
+      const active = controller.current;
+      const result = await withRequestDeadline(active, requestTimeoutMs, signal => gateway.approve(run.runId, {
         schemaVersion: 1,
         idempotencyKey: key,
         expectedDayRevision: revision,
         replaceCurrent: replace
-      }, controller.current.signal);
+      }, signal));
       if (result.approvedDay.selectedDate !== selectedDate) throw new Error('Approved date did not match.');
       setSnapshot({ status: 'ready', day: result.approvedDay, failure: null });
       setApproval({ status: 'success', result, failure: null });
@@ -82,10 +86,10 @@ export function useApprovedDay(
     } catch (error) {
       if (error instanceof DOMException && error.name === 'AbortError') return;
       const conflict = error instanceof ApprovedDayConflictError;
-      setApproval({ status: 'error', result: null, failure: conflict ? 'conflict' : 'unavailable' });
+      setApproval({ status: 'error', result: null, failure: conflict ? 'conflict' : requestTimedOut(error) ? 'timeout' : 'unavailable' });
       if (conflict) pending.current = null;
     }
-  }, [approval.status, gateway, selectedDate, snapshot.day]);
+  }, [approval.status, gateway, requestTimeoutMs, selectedDate, snapshot.day]);
 
   const retryApproval = useCallback(() => {
     if (lastRun.current) void approve(lastRun.current);

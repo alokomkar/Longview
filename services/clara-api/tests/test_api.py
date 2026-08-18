@@ -167,6 +167,13 @@ def read_only_client(engine=None):
     ))
 
 
+def release_two_client(engine=None, approval_repository=None):
+    return TestClient(create_app(
+        verifier=Verifier(), engine=engine or Engine(), timeout_seconds=8,
+        approval_repository=approval_repository, release_mode="release-two",
+    ))
+
+
 def test_health_does_not_require_authentication():
     assert client().get("/health").json() == {"status": "ok"}
 
@@ -326,6 +333,32 @@ def test_release_one_rejects_a_model_proposed_change():
         headers={"Authorization": "Bearer token"},
     )
     assert response.status_code == 502
+
+
+def test_release_two_exposes_only_recommendation_and_approval_paths():
+    api = release_two_client()
+    schema_paths = set(api.get("/openapi.json").json()["paths"])
+    assert schema_paths == {"/health", "/v1/clara/recommendations", "/v1/clara/approvals"}
+    assert api.post(
+        "/v1/clara/schedule-runs", json={}, headers={"Authorization": "Bearer token"}
+    ).status_code == 404
+
+
+def test_release_two_returns_the_atomic_approval_result():
+    result = ApprovalResponse.model_validate({
+        "schemaVersion": 1, "idempotencyKey": "approval-123", "planId": "plan-1",
+        "scheduleVersion": 3, "workingDays": ["mon", "wed", "fri"], "weeklyHours": 4,
+        "auditEventId": "approval-123", "duplicate": False,
+    })
+    repository = ApprovalRepository(result=result)
+    response = release_two_client(approval_repository=repository).post(
+        "/v1/clara/approvals",
+        json={"schemaVersion": 1, "idempotencyKey": "approval-123", "proposal": PROPOSAL},
+        headers={"Authorization": "Bearer token"},
+    )
+    assert response.status_code == 200
+    assert response.json()["auditEventId"] == "approval-123"
+    assert repository.calls[0][0] == "owner-1"
 
 
 def test_accepts_one_bounded_plan_schedule_proposal():

@@ -67,7 +67,7 @@ def create_app(
     day_break_repository: DayBreakRepository | None = None,
     timeout_seconds: float | None = None,
     allowed_origins: list[str] | None = None,
-    release_mode: Literal["read-only", "full"] = "full",
+    release_mode: Literal["read-only", "release-two", "full"] = "full",
 ) -> FastAPI:
     app = FastAPI(title="Longview Clara API", version="0.1.0")
     request_timeout = timeout_seconds if timeout_seconds is not None else float(
@@ -107,7 +107,7 @@ def create_app(
         user_id = await authenticated_user(authorization)
 
         try:
-            active_engine = engine or default_engine(release_mode == "full")
+            active_engine = engine or default_engine(release_mode != "read-only")
             raw = await asyncio.wait_for(
                 active_engine.recommend(context, user_id), timeout=request_timeout
             )
@@ -286,11 +286,13 @@ def create_app(
         except DayBreakUnavailableError as error:
             raise HTTPException(status_code=503, detail="Day break unavailable") from error
 
-    if release_mode == "read-only":
+    if release_mode != "full":
         allowed_paths = {
             "/health", "/v1/clara/recommendations", "/openapi.json", "/docs",
             "/docs/oauth2-redirect", "/redoc",
         }
+        if release_mode == "release-two":
+            allowed_paths.add("/v1/clara/approvals")
         app.router.routes = [
             route for route in app.router.routes
             if getattr(route, "path", None) in allowed_paths

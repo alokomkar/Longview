@@ -1,5 +1,6 @@
 import os
 import uuid
+from concurrent.futures import ThreadPoolExecutor
 
 import pytest
 
@@ -54,4 +55,39 @@ def test_emulator_transaction_is_atomic_idempotent_and_conflict_safe():
         assert plan_ref.get().to_dict()["workingDays"] == ["mon", "wed", "fri"]
     finally:
         audit_ref.delete()
+        plan_ref.delete()
+
+
+def test_concurrent_approvals_commit_exactly_one_schedule_version():
+    user_id, plan_id = f"approval-race-{uuid.uuid4()}", f"plan-{uuid.uuid4()}"
+    repository = FirestoreApprovalRepository()
+    client = repository.client()
+    plan_ref = client.document(f"users/{user_id}/workspaces/default/plans/{plan_id}")
+    keys = [f"approval-race-a-{uuid.uuid4()}", f"approval-race-b-{uuid.uuid4()}"]
+    audit_refs = [
+        client.document(f"users/{user_id}/workspaces/default/auditEvents/{key}")
+        for key in keys
+    ]
+    plan_ref.set({
+        "ownerUid": user_id, "workspaceId": "default", "scheduleVersion": 2,
+        "workingDays": ["mon", "fri"], "weeklyHours": 4,
+    })
+    try:
+        def apply(key):
+            try:
+                return repository._apply(user_id, request(plan_id, key=key))
+            except ApprovalConflictError as error:
+                return error
+
+        with ThreadPoolExecutor(max_workers=2) as executor:
+            outcomes = list(executor.map(apply, keys))
+
+        successes = [value for value in outcomes if not isinstance(value, Exception)]
+        conflicts = [value for value in outcomes if isinstance(value, ApprovalConflictError)]
+        assert len(successes) == 1 and len(conflicts) == 1
+        assert plan_ref.get().to_dict()["scheduleVersion"] == 3
+        assert sum(1 for ref in audit_refs if ref.get().exists) == 1
+    finally:
+        for audit_ref in audit_refs:
+            audit_ref.delete()
         plan_ref.delete()

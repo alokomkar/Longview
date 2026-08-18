@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en" data-palette="ocean" data-mode="dark" data-font="lora" data-size="default">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Longview Release 2 schedule review</title>
+  <link rel="stylesheet" href="longview-release-prototype.css">
+</head>
+<body data-platform="mweb"><main id="prototype" aria-live="polite"></main>
+<script>
+(() => {
+  const screens={today:'Today',loading:'Clara loading',recommendation:'Recommendation',review:'Review change',applying:'Saving approval',result:'Result'};
+  const scenarios={success:'Approved',reject:'Rejected',conflict:'Stale conflict',duplicate:'Duplicate recovery',network:'Network failure',timeout:'Recommendation timeout',malformed:'Invalid proposal'};
+  const state={screen:'today',scenario:'success'}; const root=document.getElementById('prototype');
+  const btn=(label,go,cls='')=>`<button class="btn ${cls}" data-go="${go}">${label}</button>`;
+  const top=(title,copy='')=>`<div class="topline"><strong>Longview</strong><span class="badge green">Release 2 · review first</span></div><h1 class="page-title">${title}</h1>${copy?`<p class="page-sub">${copy}</p>`:''}`;
+  const task=()=>`<div class="card"><span class="section-label">Launch a useful early release</span><h2 class="card-title">Define the first proof of progress</h2><p class="meta">Working days: Monday, Friday · 4 hours/week · version 2</p></div>`;
+  const diff=()=>`<div class="card"><span class="section-label">Exact change</span><div class="notice"><div><strong>Before</strong><span>Monday, Friday · 4 hours/week · version 2</span></div></div><div class="notice"><div><strong>After</strong><span>Monday, Wednesday, Friday · 4 hours/week</span></div></div><p><strong>Why:</strong> A midweek checkpoint reduces the gap between sessions.</p><p><strong>Effect:</strong> Today may select this Plan on Wednesday without changing weekly time.</p></div>`;
+  const alert=(title,copy)=>`<div class="notice" role="alert"><div><strong>${title}</strong><span>${copy}</span></div></div>`;
+  const result=()=>{
+    if(state.scenario==='reject')return `${alert('Current schedule kept.','No Plan or audit record was changed.')}${btn('Return to Today','today','primary')}`;
+    if(state.scenario==='conflict')return `${alert('This preview is out of date.','The Plan changed after Clara prepared it. Nothing was overwritten.')}${btn('Reload Plan','today','primary')}`;
+    if(state.scenario==='network')return `${alert('The schedule change was not saved.','The existing Plan is unchanged. Retry uses the same approval request safely.')}${btn('Try approval again','applying','primary')}${btn('Return without changes','today','ghost')}`;
+    if(state.scenario==='timeout')return `${alert('Clara did not respond in time.','The request stopped safely. Nothing changed.')}${btn('Try Clara again','loading','primary')}`;
+    if(state.scenario==='malformed')return `${alert('Clara’s proposal could not be used.','The values did not pass Longview’s safety checks, so review is unavailable.')}${btn('Return to Today','today','primary')}`;
+    return `${alert(state.scenario==='duplicate'?'Already applied once.':'Schedule change approved.',state.scenario==='duplicate'?'The original approval result was restored; no duplicate write or audit event was created.':'The Plan update and approval record were saved together.')}<div class="card"><p><strong>Working days:</strong> Monday, Wednesday, Friday</p><p><strong>Schedule version:</strong> 2 → 3</p><p><strong>Approval record:</strong> approval-123</p></div>${btn('View updated Today','today','primary')}`;
+  };
+  const views={
+    today:()=>`<section class="screen">${top('One useful step is enough.','Clara may recommend a schedule change, but cannot apply it.')}${task()}${btn('Ask Clara about this step','loading','primary')}</section>`,
+    loading:()=>`<section class="screen">${top('Clara is reviewing this step…','Your current schedule remains unchanged.')}<div class="clara-progress" role="progressbar" aria-label="Waiting for Clara"><span></span></div>${btn('Cancel and return','today','ghost')}<button class="btn primary" data-action="finish">Show response</button></section>`,
+    recommendation:()=>state.scenario==='timeout'||state.scenario==='malformed'?`<section class="screen">${top('Nothing changed')}${result()}</section>`:`<section class="screen">${top('Add a midweek checkpoint','Medium confidence · recommendation only')}${task()}<p>A Wednesday checkpoint can shorten the gap between sessions.</p>${btn('Review schedule change','review','primary')}${btn('Close recommendation','today','ghost')}</section>`,
+    review:()=>`<section class="screen">${top('Nothing changes until you approve it.','Review every value before deciding.')}${diff()}<button class="btn primary" data-action="approve">Approve schedule change</button><button class="btn ghost" data-action="reject">Reject and keep current schedule</button></section>`,
+    applying:()=>`<section class="screen">${top('Applying your approved change…','Checking the latest Plan version and saving one audit record.')}<div class="clara-progress" role="progressbar" aria-label="Saving approved change"><span></span></div><button class="btn primary" data-action="saved">Show result</button></section>`,
+    result:()=>`<section class="screen">${top('Approval result')}${result()}</section>`
+  };
+  function render(){const bar=`<header class="demo-bar"><div class="demo-identity"><span class="demo-brand">Longview</span><span class="demo-tag">Release 2 acceptance</span></div><div class="demo-menus"><select id="screen">${Object.entries(screens).map(([k,v])=>`<option value="${k}" ${state.screen===k?'selected':''}>${v}</option>`).join('')}</select><select id="scenario">${Object.entries(scenarios).map(([k,v])=>`<option value="${k}" ${state.scenario===k?'selected':''}>${v}</option>`).join('')}</select></div><button class="demo-reset" data-action="reset">Reset</button></header>`;root.innerHTML=`<div class="prototype-page">${bar}<div class="prototype-stage"><section class="device phone mweb"><div class="browser-chrome"><i class="browser-dot"></i><i class="browser-dot"></i><i class="browser-dot"></i><span class="address">Local review · not deployed</span></div><main class="viewport">${views[state.screen]()}</main><nav class="bottom-nav"><button class="bottom-item on" data-go="today">Today</button><button class="bottom-item">Plans</button><button class="bottom-item">Settings</button></nav></section></div></div>`;root.querySelector('#screen').onchange=e=>{state.screen=e.target.value;render()};root.querySelector('#scenario').onchange=e=>{state.scenario=e.target.value;render()}}
+  root.addEventListener('click',e=>{const t=e.target.closest('[data-go],[data-action]');if(!t)return;if(t.dataset.go)state.screen=t.dataset.go;if(t.dataset.action==='finish')state.screen='recommendation';if(t.dataset.action==='approve')state.screen='applying';if(t.dataset.action==='reject'){state.scenario='reject';state.screen='result'}if(t.dataset.action==='saved')state.screen='result';if(t.dataset.action==='reset')Object.assign(state,{screen:'today',scenario:'success'});render()});render();
+})();
+</script></body></html>

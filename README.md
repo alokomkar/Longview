@@ -10,6 +10,7 @@ changes, and preserve the reasoning behind important decisions.
 - [Implementation phases](docs/IMPLEMENTATION_PHASES.md)
 - [Phase 0 release contract](docs/PHASE_ZERO_RELEASE.md)
 - [Release 1 Ask Clara contract](docs/RELEASE_ONE_ASK_CLARA.md)
+- [Release 2 Clara schedule review](docs/RELEASE_TWO_CLARA_SCHEDULE_REVIEW.md)
 - [Pending feature ledger](docs/PENDING_FEATURES.md)
 - [Hackathon tech stack](docs/TECH_STACK.md)
 - [Hackathon readiness ledger](docs/HACKATHON_READINESS.md)

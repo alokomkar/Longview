@@ -1,6 +1,6 @@
 # Longview Implementation Phases
 
-Status: Release 1 implementation
+Status: Release 2 local implementation
 Updated: 2026-08-18
 Links: [PRD](PRODUCT_REQUIREMENTS.md) | [Mockup](design/longview-pwa-interactive-mockup.html) | [Stack](TECH_STACK.md)
 
@@ -33,6 +33,16 @@ timeout, cancellation, invalid-response, and unavailable states. A dedicated Fas
 entry point on Cloud Run exposes recommendation and health routes only; write-capable
 Clara routes remain unavailable. See the [release contract](RELEASE_ONE_ASK_CLARA.md)
 and [interactive acceptance](design/longview-release-one-ask-clara.html).
+
+### Release 2: Clara schedule review
+
+Promote one narrowly bounded write: Clara may propose changing exactly one Plan
+working day while preserving weekly hours. The user reviews exact before/after values,
+rationale, and downstream effect, then explicitly approves or rejects. Approval uses
+expected-version conflict detection, an idempotency key, one Firestore transaction,
+and one audit event. The release hides Calendar and every unrelated agent write. See
+the [release contract](RELEASE_TWO_CLARA_SCHEDULE_REVIEW.md) and
+[interactive acceptance](design/longview-release-two-clara-approval.html).
 
 1. **Cloud prerequisite:** Create one Google Cloud project and enable Firebase on it;
    claim credits, configure budgets, emulators, least-privilege identities, and secrets.

@@ -1,6 +1,6 @@
 # Longview PWA Product Requirements
 
-Status: Release 1 implementation
+Status: Release 2 local implementation
 
 Last updated: 2026-08-18
 
@@ -67,6 +67,16 @@ schedule-run, approved-day, or day-break endpoint. Any response containing a pro
 change fails closed. Calendar, Quick Actions, writes, research, Plan Briefs, and offline
 cold-start recovery remain hidden. The complete contract is in
 [Release 1: Ask Clara](RELEASE_ONE_ASK_CLARA.md).
+
+### Release 2 review-first write boundary
+
+Release 2 permits one approved mutation: add or remove exactly one working day on the
+selected Plan without changing its weekly allocation. Clara's proposal is advisory.
+The PWA shows exact before/after values and downstream effect; rejection and
+cancellation write nothing. Approval must verify owner, current schedule version,
+current values, and idempotency inside one transaction that also creates the audit
+record. The full contract is in
+[Release 2: Clara Schedule Review](RELEASE_TWO_CLARA_SCHEDULE_REVIEW.md).
 
 ## 4. Canonical demo portfolio
 

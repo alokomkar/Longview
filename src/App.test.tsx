@@ -8,7 +8,7 @@ import { PlanScheduleConflictError, type Plan, type PlanGateway } from './plan/t
 import type { TodayGateway } from './today/types';
 import { pendingCompletionFromStep, type TodayOutbox, type TodayPendingCompletion } from './today/outbox';
 import type { ClaraGateway } from './clara/types';
-import type { ClaraApprovalGateway } from './clara/approvalTypes';
+import { ClaraApprovalConflictError, type ClaraApprovalGateway } from './clara/approvalTypes';
 import type { ScheduleRunGateway } from './scheduleRun/types';
 import { ApprovedDayConflictError, type ApprovedDay, type ApprovedDayGateway, type DayApprovalRequest, type DayApprovalResult } from './approvedDay/types';
 import { DayBreakConflictError, type DayBreakGateway, type DayBreakPreview, type DayBreakRequest, type DayBreakResult } from './dayBreak/types';
@@ -987,5 +987,97 @@ describe('Release 1 Ask Clara surface', () => {
     expect(await screen.findByRole('heading', { name: 'Define one proof' })).toBeVisible();
     expect(recommend.mock.calls[0][0]).toMatchObject({ scope: 'plan' });
     expect(recommend.mock.calls[0][0]).not.toHaveProperty('step');
+  });
+});
+
+describe('Release 2 Clara schedule review surface', () => {
+  const proposalResponse = (context: Parameters<ClaraGateway['recommend']>[0]) => ({
+    schemaVersion: 1 as const, requestId: context.requestId, sourcePlanId: context.plan.id,
+    headline: 'Add a midweek checkpoint', recommendation: 'Use Wednesday to keep progress moving.',
+    rationale: 'The current gap between working days is unnecessarily long.', confidence: 'medium' as const,
+    requiresClarification: false, sourceFacts: ['Working days: Monday'], proposedChange: {
+      kind: 'plan-working-days' as const, planId: 'plan-1', expectedScheduleVersion: 1,
+      workingDaysBefore: ['mon'] as const, workingDaysAfter: ['mon', 'wed'] as const, weeklyHours: 4,
+      rationale: 'A midweek checkpoint reduces the gap between sessions.',
+      downstreamEffect: 'Today can select this Plan on Wednesday without changing weekly time.'
+    }
+  });
+  const approvalResult = (key: string, duplicate = false) => ({
+    schemaVersion: 1 as const, idempotencyKey: key, planId: 'plan-1', scheduleVersion: 2,
+    workingDays: ['mon', 'wed'] as ('mon' | 'wed')[], weeklyHours: 4,
+    auditEventId: key, duplicate
+  });
+
+  it('shows exact values, keeps progress visible, and exposes the audit record after approval', async () => {
+    localStorage.setItem('longview:onboarding', 'complete');
+    let finish: (value: ReturnType<typeof approvalResult>) => void = () => undefined;
+    const apply = vi.fn((_proposal, key: string) => new Promise<ReturnType<typeof approvalResult>>(resolve => { finish = resolve; }));
+    render(<App
+      releaseSurface="release-two"
+      gateway={gateway({ uid: 'owner', isAnonymous: false, displayName: 'Owner' })}
+      workspaceGateway={workspaceGateway}
+      planGateway={{ ...planGateway, list: vi.fn(async () => [scheduledPlan()]) }}
+      todayGateway={todayGateway}
+      claraGateway={{ recommend: vi.fn(async context => proposalResponse(context)) }}
+      claraApprovalGateway={{ apply }}
+    />);
+    expect(await screen.findByText('Clara changes · review first')).toBeVisible();
+    expect(screen.queryByRole('button', { name: 'Calendar' })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Ask Clara about this step' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Review schedule change' }));
+    expect(screen.getByText('Mon, Wed')).toBeVisible();
+    expect(screen.getByText('4 hours/week · version 1')).toBeVisible();
+    expect(screen.getByText(/Today can select this Plan on Wednesday/)).toBeVisible();
+    fireEvent.click(screen.getByRole('button', { name: 'Approve schedule change' }));
+    expect(screen.getByRole('progressbar', { name: 'Saving approved change' })).toBeVisible();
+    const key = apply.mock.calls[0][1];
+    finish(approvalResult(key));
+    expect(await screen.findByRole('heading', { name: 'Schedule change approved' })).toBeVisible();
+    expect(screen.getByText(key)).toBeVisible();
+  });
+
+  it('rejects without writing and retries a network failure with the same idempotency key', async () => {
+    localStorage.setItem('longview:onboarding', 'complete');
+    const apply = vi.fn().mockRejectedValueOnce(new Error('network')).mockImplementation(async (_proposal, key) => approvalResult(key));
+    render(<App
+      releaseSurface="release-two"
+      gateway={gateway({ uid: 'owner', isAnonymous: false, displayName: 'Owner' })}
+      workspaceGateway={workspaceGateway}
+      planGateway={{ ...planGateway, list: vi.fn(async () => [scheduledPlan()]) }}
+      todayGateway={todayGateway}
+      claraGateway={{ recommend: vi.fn(async context => proposalResponse(context)) }}
+      claraApprovalGateway={{ apply }}
+    />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Ask Clara about this step' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Review schedule change' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Reject and keep current schedule' }));
+    expect(await screen.findByRole('button', { name: 'Ask Clara about this step' })).toBeVisible();
+    expect(apply).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: 'Ask Clara about this step' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Review schedule change' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Approve schedule change' }));
+    expect(await screen.findByRole('heading', { name: 'The schedule change wasn’t saved.' })).toBeVisible();
+    fireEvent.click(screen.getByRole('button', { name: 'Try approval again' }));
+    expect(await screen.findByRole('heading', { name: 'Schedule change approved' })).toBeVisible();
+    expect(apply.mock.calls[1][1]).toBe(apply.mock.calls[0][1]);
+  });
+
+  it('fails a stale approval without showing an applied state', async () => {
+    localStorage.setItem('longview:onboarding', 'complete');
+    const apply = vi.fn(async () => { throw new ClaraApprovalConflictError('stale'); });
+    render(<App
+      releaseSurface="release-two"
+      gateway={gateway({ uid: 'owner', isAnonymous: false, displayName: 'Owner' })}
+      workspaceGateway={workspaceGateway}
+      planGateway={{ ...planGateway, list: vi.fn(async () => [scheduledPlan()]) }}
+      todayGateway={todayGateway}
+      claraGateway={{ recommend: vi.fn(async context => proposalResponse(context)) }}
+      claraApprovalGateway={{ apply }}
+    />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Ask Clara about this step' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Review schedule change' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Approve schedule change' }));
+    expect(await screen.findByRole('heading', { name: 'This preview is out of date.' })).toBeVisible();
+    expect(screen.queryByRole('heading', { name: 'Schedule change approved' })).not.toBeInTheDocument();
   });
 });

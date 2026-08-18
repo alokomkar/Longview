@@ -18,7 +18,7 @@ future recommendations. The demo must show useful agent work, not only conversat
 | Client state | TanStack Query, XState, IndexedDB | Server cache, explicit workflow states, offline mutation outbox |
 | Identity | Firebase Authentication | Anonymous accounts and safe Google account linking |
 | API | FastAPI on Cloud Run | Typed authorization boundary, previews, approvals, durable writes |
-| Agent | Google ADK with Gemini 3.6 Flash on Vertex AI | Clarification, planning, recommendations, and structured output |
+| Agent | Google ADK with Gemini 2.5 Flash on Vertex AI | Clarification, planning, recommendations, and structured output |
 | Async runtime | Pub/Sub push to a separate Cloud Run worker | Background follow-through runs, retry isolation, and cancellation |
 | Durable state | Firestore | Goals, versions, run checkpoints, idempotency records, and audit events |
 | Security | Secret Manager and least-privilege service accounts | Credentials and workload isolation |

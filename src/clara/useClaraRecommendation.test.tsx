@@ -55,6 +55,23 @@ describe('useClaraRecommendation', () => {
     expect(result.current.snapshot).toMatchObject({ status: 'error', failure: 'timeout' });
   });
 
+  it('rejects a proposed change when the release is read only', async () => {
+    const proposed = {
+      ...response(),
+      proposedChange: {
+        kind: 'plan-working-days', planId: 'plan-1', expectedScheduleVersion: 2,
+        workingDaysBefore: ['mon', 'fri'], workingDaysAfter: ['mon', 'wed', 'fri'], weeklyHours: 4,
+        rationale: 'A midweek checkpoint reduces the gap between sessions.',
+        downstreamEffect: 'Today can select this Plan on Wednesday without changing weekly time.'
+      }
+    };
+    const { result } = renderHook(() => useClaraRecommendation(
+      { recommend: vi.fn(async () => proposed) }, 18000, false
+    ));
+    await act(async () => { await result.current.ask(context); });
+    expect(result.current.snapshot).toMatchObject({ status: 'error', failure: 'malformed' });
+  });
+
   it.each([
     ['offline', false, 'offline'],
     ['service failure', true, 'unavailable']

@@ -106,3 +106,24 @@ async def test_engine_wraps_a_valid_model_change_in_trusted_plan_identity():
         "rationale": payload["proposedChange"]["rationale"],
         "downstreamEffect": payload["proposedChange"]["downstreamEffect"],
     }
+
+
+@pytest.mark.asyncio
+async def test_read_only_engine_rejects_a_model_change():
+    payload = {
+        "headline": "Add a midweek checkpoint",
+        "recommendation": "Use Wednesday to keep progress moving between sessions.",
+        "rationale": "The current gap between working days is unnecessarily long.",
+        "confidence": "medium",
+        "requiresClarification": False,
+        "sourceFacts": ["Working days: Monday and Friday"],
+        "proposedChange": {
+            "workingDaysAfter": ["mon", "wed", "fri"],
+            "rationale": "A midweek checkpoint reduces the gap between sessions.",
+            "downstreamEffect": "Today can select this Plan on Wednesday without changing weekly time.",
+        },
+    }
+    result = await AdkRecommendationEngine(
+        Runner(payload), allow_proposed_changes=False
+    ).recommend(CONTEXT, "owner-1")
+    assert set(result) == {"malformedModelOutput"}

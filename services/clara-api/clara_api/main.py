@@ -2,6 +2,7 @@ import asyncio
 import os
 from datetime import date
 from functools import lru_cache
+from typing import Literal
 
 from fastapi import FastAPI, Header, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -52,9 +53,9 @@ from .schedule_runs import (
 )
 
 
-@lru_cache(maxsize=1)
-def default_engine() -> RecommendationEngine:
-    return AdkRecommendationEngine()
+@lru_cache(maxsize=2)
+def default_engine(allow_proposed_changes: bool = True) -> RecommendationEngine:
+    return AdkRecommendationEngine(allow_proposed_changes=allow_proposed_changes)
 
 
 def create_app(
@@ -66,6 +67,7 @@ def create_app(
     day_break_repository: DayBreakRepository | None = None,
     timeout_seconds: float | None = None,
     allowed_origins: list[str] | None = None,
+    release_mode: Literal["read-only", "release-two", "full"] = "full",
 ) -> FastAPI:
     app = FastAPI(title="Longview Clara API", version="0.1.0")
     request_timeout = timeout_seconds if timeout_seconds is not None else float(
@@ -93,7 +95,7 @@ def create_app(
         except AuthenticationError as error:
             raise HTTPException(status_code=401, detail="Authentication required") from error
 
-    @app.get("/healthz")
+    @app.get("/health")
     async def health() -> dict[str, str]:
         return {"status": "ok"}
 
@@ -105,7 +107,7 @@ def create_app(
         user_id = await authenticated_user(authorization)
 
         try:
-            active_engine = engine or default_engine()
+            active_engine = engine or default_engine(release_mode != "read-only")
             raw = await asyncio.wait_for(
                 active_engine.recommend(context, user_id), timeout=request_timeout
             )
@@ -121,6 +123,8 @@ def create_app(
         if response.request_id != context.request_id or response.source_plan_id != context.plan.id:
             raise HTTPException(status_code=502, detail="Mismatched recommendation response")
         change = response.proposed_change
+        if release_mode == "read-only" and change is not None:
+            raise HTTPException(status_code=502, detail="Invalid read-only recommendation response")
         if change and (
             change.plan_id != context.plan.id
             or change.expected_schedule_version != context.plan.schedule_version
@@ -281,6 +285,18 @@ def create_app(
             raise HTTPException(status_code=409, detail=error.reason) from error
         except DayBreakUnavailableError as error:
             raise HTTPException(status_code=503, detail="Day break unavailable") from error
+
+    if release_mode != "full":
+        allowed_paths = {
+            "/health", "/v1/clara/recommendations", "/openapi.json", "/docs",
+            "/docs/oauth2-redirect", "/redoc",
+        }
+        if release_mode == "release-two":
+            allowed_paths.add("/v1/clara/approvals")
+        app.router.routes = [
+            route for route in app.router.routes
+            if getattr(route, "path", None) in allowed_paths
+        ]
 
     return app
 

@@ -16,7 +16,11 @@ type ClaraSnapshot =
 
 const newRequestId = () => globalThis.crypto?.randomUUID?.() ?? `clara-${Date.now()}`;
 
-export function useClaraRecommendation(gateway: ClaraGateway, timeoutMs = 18000) {
+export function useClaraRecommendation(
+  gateway: ClaraGateway,
+  timeoutMs = 18000,
+  allowProposedChanges = true
+) {
   const [snapshot, setSnapshot] = useState<ClaraSnapshot>({ status: 'idle', recommendation: null, failure: null });
   const active = useRef<AbortController | null>(null);
   const previous = useRef<ClaraContext | null>(null);
@@ -32,7 +36,8 @@ export function useClaraRecommendation(gateway: ClaraGateway, timeoutMs = 18000)
     try {
       const value = await gateway.recommend(context, controller.signal);
       if (active.current !== controller || controller.signal.aborted) return;
-      const recommendation = parseClaraRecommendation(value, context);
+      const parsed = parseClaraRecommendation(value, context);
+      const recommendation = parsed && (!parsed.proposedChange || allowProposedChanges) ? parsed : null;
       setSnapshot(recommendation
         ? { status: 'ready', recommendation, failure: null }
         : { status: 'error', recommendation: null, failure: 'malformed' });
@@ -49,7 +54,7 @@ export function useClaraRecommendation(gateway: ClaraGateway, timeoutMs = 18000)
       window.clearTimeout(timeout);
       if (active.current === controller) active.current = null;
     }
-  }, [gateway, timeoutMs]);
+  }, [allowProposedChanges, gateway, timeoutMs]);
 
   const cancel = useCallback(() => {
     active.current?.abort();

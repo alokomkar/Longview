@@ -21,8 +21,18 @@ describe('managed Clara approval gateway', () => {
     await expect(gateway.apply(proposal, 'approval-123')).resolves.toEqual(result);
     expect(fetcher).toHaveBeenCalledWith('https://clara.example.test/v1/clara/approvals', {
       method: 'POST', headers: { Authorization: 'Bearer token-1', 'Content-Type': 'application/json' },
-      body: JSON.stringify({ schemaVersion: 1, idempotencyKey: 'approval-123', proposal })
+      body: JSON.stringify({ schemaVersion: 1, idempotencyKey: 'approval-123', proposal }),
+      signal: expect.any(AbortSignal)
     });
+  });
+
+  it('bounds a stalled approval and preserves retry at the caller', async () => {
+    const fetcher = vi.fn((_input, init) => new Promise<Response>((_resolve, reject) => {
+      init?.signal?.addEventListener('abort', () => reject(new DOMException('Aborted', 'AbortError')));
+    }));
+    const gateway = createManagedClaraApprovalGateway('', async () => 'token', fetcher, 5);
+    await expect(gateway.apply(proposal, 'approval-123')).rejects.toMatchObject({ name: 'AbortError' });
+    expect(fetcher).toHaveBeenCalledOnce();
   });
 
   it('distinguishes stale state and rejects malformed success responses', async () => {

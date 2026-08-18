@@ -45,9 +45,17 @@ class StepContext(StrictModel):
 class RecommendationRequest(StrictModel):
     schema_version: Literal[1] = Field(alias="schemaVersion")
     request_id: str = Field(alias="requestId", min_length=1, max_length=128)
-    scope: Literal["today-step"]
+    scope: Literal["plan", "today-step"]
     plan: PlanContext
-    step: StepContext
+    step: StepContext | None = None
+
+    @model_validator(mode="after")
+    def validate_scope(self):
+        if self.scope == "today-step" and self.step is None:
+            raise ValueError("today-step scope requires a step")
+        if self.scope == "plan" and self.step is not None:
+            raise ValueError("plan scope cannot include a step")
+        return self
 
 
 class ModelPlanScheduleChange(StrictModel):

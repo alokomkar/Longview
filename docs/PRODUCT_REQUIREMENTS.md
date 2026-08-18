@@ -116,7 +116,9 @@ them without approval.
 
 - Today context includes every active Goal, today's tasks, capacity, and decisions.
 - Goal context is restricted to that Goal and descendants.
-- Quick Actions are grouped by outcome; Chat uses the identical context boundary.
+- Quick Actions are grouped by outcome and route only to typed, existing review
+  surfaces. Opening the catalogue or an action detail makes no network call and writes
+  nothing. Chat uses the identical context boundary.
 - Clara may explain, recommend, draft, and preview. She may not silently create, move,
   complete, delete, or reprioritize durable data.
 - Every write preview shows the old value, new value, rationale, downstream effect,

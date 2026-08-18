@@ -6,7 +6,7 @@ Updated: 2026-08-18
 
 Sources: [Acceptance demo](design/longview-hackathon-acceptance-demo.html) | [PRD](PRODUCT_REQUIREMENTS.md) | [Readiness ledger](HACKATHON_READINESS.md)
 
-The ledger currently records 27 implemented, 7 partial, and 23 missing cases. Partial
+The ledger currently records 28 implemented, 7 partial, and 22 missing cases. Partial
 means a safe client contract exists but the full judged behavior or cloud evidence does
 not. Review checkmarks in the demo are not implementation status.
 
@@ -18,8 +18,9 @@ not. Review checkmarks in the demo are not implementation status.
    already-open session with owner-scoped reconnect, duplicate, retry, and
    partial-cleanup recovery. Cold offline launch and reload are deferred.
 2. **Managed Clara loop** — the selected-Plan recommendation and approved schedule
-   change are implemented locally. Deployment evidence, quick actions, cross-Plan
-   tradeoff, and judged failure captures remain.
+   change are implemented locally. [Bounded Quick Actions](CLARA_QUICK_ACTIONS.md) now
+   group outcomes and hand off to existing reviewed flows without a menu-time network
+   call. Deployment evidence, cross-Plan tradeoff, and judged failure captures remain.
 3. **Calendar** — CAL-01 through CAL-05 are implemented locally: completion-aware
    preparation, checkpointed proposal generation, explicit approval or replacement,
    owner-scoped one-day persistence, reload, idempotency, stale conflict handling, and

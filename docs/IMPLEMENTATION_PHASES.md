@@ -27,7 +27,9 @@ Links: [PRD](PRODUCT_REQUIREMENTS.md) | [Mockup](design/longview-pwa-interactive
    deterministic scheduling, cross-user isolation, audit events, and emulator seeds.
 5. **Clara read loop:** Use Google ADK with Gemini 3.6 Flash through Vertex AI.
    Return scoped recommendations and clarification; fail closed on timeout, malformed
-   output, or prompt injection. No model-direct writes.
+   output, or prompt injection. No model-direct writes. Bounded Quick Actions first
+   route to existing Calendar or Plans review surfaces; opening the catalogue never
+   invokes the model or changes durable data. See [the Quick Actions contract](CLARA_QUICK_ACTIONS.md).
 6. **Approved writes:** Show exact before/after previews; enforce authorization,
    invariants, expected versions, idempotency, transactions, rejection, and recovery.
 7. **Async follow-through:** Trigger a Cloud Run worker through Pub/Sub; checkpoint,

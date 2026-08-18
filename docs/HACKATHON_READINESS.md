@@ -26,7 +26,7 @@ Sources: [PRD](PRODUCT_REQUIREMENTS.md) | [Implementation phases](IMPLEMENTATION
 | 4 | Plan details | One Plan with execution and context | Partial | Authoritative details, current step, schedule, and context entry points exist; persisted history, decisions, research, and brief content remain. |
 | 5 | Plan achievement | Outcome and consented reflection | Missing | Add completion evidence, reflection, and explicit reusable-memory consent. |
 | 6 | Clara context | Visible bounded context | Partial | Local managed boundary uses one Plan and Today step; add deployed-model evidence and multi-Plan context where required. |
-| 7 | Agentic actions | Bounded action catalogue | Missing | Add judged quick actions backed by typed agent tools. |
+| 7 | Agentic actions | Bounded action catalogue | Implemented locally | Ask Clara exposes grouped, typed Quick Actions that make no menu-time network call or write and hand off to existing Calendar and Plans review flows. |
 | 8 | Tradeoff recommendation | Cross-Plan managed recommendation | Missing | The local single-Plan managed boundary is ready; add deployed cross-Plan reasoning and evidence. |
 | 9 | Human approval | Before/after preview and approved write | Implemented locally | Capture production Cloud evidence for the exact preview, rejection, stale check, audit, and idempotent write. |
 | 10 | Research review | Accept/reject/defer evidence | Missing | Add attributed cards and non-destructive review states. |
@@ -47,6 +47,8 @@ Sources: [PRD](PRODUCT_REQUIREMENTS.md) | [Implementation phases](IMPLEMENTATION
 - No-task Today guidance names the next eligible scheduled Plan day.
 - Typed read-only recommendation preview with cancellation, timeout, offline,
   unavailable, malformed-response, and retry handling.
+- Bounded Clara Quick Actions grouped by outcome, restricted to typed Calendar and
+  Plans destinations, with no menu-time network call or durable write.
 - Versioned Plan working days and weekly allocation with Plan Details editing,
   validation, retry, stale-save rejection, and owner-scoped rules.
 - Finite portfolio allocation summary plus the Plan Details shell with safe

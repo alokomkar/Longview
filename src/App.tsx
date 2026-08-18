@@ -34,6 +34,8 @@ import { lazyClaraGateway } from './clara/lazyClaraGateway';
 import { lazyClaraApprovalGateway } from './clara/lazyApprovalGateway';
 import { ClaraApprovalConflictError, type ClaraApprovalGateway, type ClaraApprovalResult } from './clara/approvalTypes';
 import { useClaraRecommendation, type ClaraFailure } from './clara/useClaraRecommendation';
+import { ClaraHome, ClaraQuickActionDetail, ClaraQuickActions } from './clara/QuickActionViews';
+import type { ClaraQuickActionGroupId, ClaraQuickActionTarget } from './clara/quickActions';
 import { formatLongDate } from './date/formatLongDate';
 import { buildScheduleRunContext, type ScheduleBlock, type ScheduleRunGateway } from './scheduleRun/types';
 import { lazyScheduleRunGateway } from './scheduleRun/lazyGateway';
@@ -243,12 +245,13 @@ function WorkspaceReady({ auth, gateway, planGateway, todayGateway, todayOutbox,
   const [stage, setStage] = useState<'workspace' | 'today' | 'plan-create' | 'plan-review' | 'plan-saved' | 'plan-details' | 'plan-schedule'>(() =>
     localStorage.getItem('longview:onboarding') === 'complete' ? 'today' : 'workspace'
   );
-  const [view, setView] = useState<'today' | 'calendar' | 'plans' | 'settings'>('today');
+  const [view, setView] = useState<'today' | 'calendar' | 'plans' | 'settings' | 'clara-home' | 'clara-actions' | 'clara-action-detail'>('today');
   const [planningWindow, setPlanningWindow] = useState(120);
   const [confirmClear, setConfirmClear] = useState(false);
   const [confirmSignOut, setConfirmSignOut] = useState(false);
   const [confirmComplete, setConfirmComplete] = useState(false);
   const [showClara, setShowClara] = useState(false);
+  const [quickActionGroup, setQuickActionGroup] = useState<ClaraQuickActionGroupId>('plan-day');
   const [approvalProposal, setApprovalProposal] = useState<ClaraPlanScheduleChange | null>(null);
   const [approvalKey, setApprovalKey] = useState('');
   const [approvalState, setApprovalState] = useState<ApprovalState>({ status: 'review', result: null, failure: null });
@@ -325,14 +328,26 @@ function WorkspaceReady({ auth, gateway, planGateway, todayGateway, todayOutbox,
   };
 
   useEffect(() => {
-    setShowClara(false);
-    clara.cancel();
+    if (view !== 'today') {
+      setShowClara(false);
+      clara.cancel();
+    }
   }, [clara.cancel, todayStep?.completionId, view]);
 
   const askClara = () => {
     if (!selectedPlan || !todayStep) return;
     setShowClara(true);
     void clara.ask(buildClaraContext(selectedPlan, todayStep, requestId()));
+  };
+
+  const askClaraFromHub = () => {
+    setView('today');
+    askClara();
+  };
+
+  const openQuickActionTarget = (target: ClaraQuickActionTarget) => {
+    resetCalendarProposal();
+    setView(target);
   };
 
   const reviewClaraChange = (proposal: ClaraPlanScheduleChange) => {
@@ -516,12 +531,15 @@ function WorkspaceReady({ auth, gateway, planGateway, todayGateway, todayOutbox,
         {approvedDay.snapshot.status === 'ready' && !todayBreakDay && plans.snapshot.status === 'ready' && !todayStep && plans.snapshot.plans.length === 0 && <div className="empty"><h1>Nothing is scheduled yet.</h1><p>Create your first Plan and choose the days you want to work on it.</p><button onClick={startNewPlan}>Create first Plan</button></div>}
         {approvedDay.snapshot.status === 'ready' && !todayBreakDay && plans.snapshot.status === 'ready' && !todayStep && plans.snapshot.plans.length > 0 && plans.snapshot.plans.some(plan => !plan.workingDays) && <div className="empty"><h1>A Plan needs a schedule.</h1><p>Open the Plan and add at least one working day before it can appear in Today.</p><button onClick={() => setView('plans')}>View Plans</button></div>}
         {approvedDay.snapshot.status === 'ready' && !todayBreakDay && plans.snapshot.status === 'ready' && !todayStep && plans.snapshot.plans.length > 0 && plans.snapshot.plans.every(plan => plan.workingDays) && <div className="empty"><h1>Nothing scheduled today.</h1><p>{nextScheduledDate ? `Your next scheduled Plan day is ${formatLongDate(nextScheduledDate)}.` : 'No active Plan has an upcoming working day.'}</p><button onClick={() => setView('plans')}>View Plans</button></div>}
-        {approvedDay.snapshot.status === 'ready' && !todayBreakDay && plans.snapshot.status === 'ready' && todayStep && completion.snapshot.status === 'ready' && completion.snapshot.completion && <div className="today-content"><h1>{completion.snapshot.duplicate ? 'Progress already saved.' : 'Today’s step is complete.'}</h1><p>{completion.snapshot.duplicate ? 'That progress was already saved. No second completion was added and your Plan was not changed.' : 'You recorded meaningful progress without changing your Plan.'}</p><TodayStepCard step={todayStep} completed /><div className="notice"><strong>{completion.snapshot.duplicate ? 'One completion record remains.' : 'Completion saved.'}</strong><p>Completion record: {completion.snapshot.completion.id}</p></div><button className="secondary" onClick={() => setView('plans')}>View all Plans</button></div>}
+        {approvedDay.snapshot.status === 'ready' && !todayBreakDay && plans.snapshot.status === 'ready' && todayStep && completion.snapshot.status === 'ready' && completion.snapshot.completion && <div className="today-content"><h1>{completion.snapshot.duplicate ? 'Progress already saved.' : 'Today’s step is complete.'}</h1><p>{completion.snapshot.duplicate ? 'That progress was already saved. No second completion was added and your Plan was not changed.' : 'You recorded meaningful progress without changing your Plan.'}</p><TodayStepCard step={todayStep} completed /><div className="notice"><strong>{completion.snapshot.duplicate ? 'One completion record remains.' : 'Completion saved.'}</strong><p>Completion record: {completion.snapshot.completion.id}</p></div><div className="actions"><button className="secondary" onClick={() => setView('clara-home')}>Ask Clara</button><button className="secondary" onClick={() => setView('plans')}>View all Plans</button></div></div>}
         {approvedDay.snapshot.status === 'ready' && !todayBreakDay && plans.snapshot.status === 'ready' && todayStep && !completion.snapshot.completion && completion.pending && (completion.syncStatus === 'pending' || completion.syncStatus === 'syncing' || completion.syncStatus === 'retry') && <PendingTodayCompletion step={todayStep} syncStatus={completion.syncStatus} offline={completion.offline} onRetry={() => void completion.retrySync()} />}
         {approvedDay.snapshot.status === 'ready' && !todayBreakDay && plans.snapshot.status === 'ready' && todayStep && !completion.snapshot.completion && completion.syncStatus === 'blocked' && <div className="today-content"><h1>This completion needs attention</h1><p>Longview could not safely match the saved progress to this workspace, so it was not added or replaced.</p><TodayStepCard step={todayStep} /><div className="notice" role="alert"><strong>Your Plan is unchanged.</strong><p>Check that you’re using the same account, then try again.</p></div>{completion.pending && <button onClick={() => void completion.retrySync()} disabled={completion.offline}>{completion.offline ? 'Reconnect to try again' : 'Try sync again'}</button>}</div>}
         {approvedDay.snapshot.status === 'ready' && !todayBreakDay && plans.snapshot.status === 'ready' && todayStep && completion.snapshot.status !== 'ready' && <div className="today-content"><h1>One useful step is enough.</h1><p>Start with the nearest active Plan. You can refine the step later.</p><TodayStepCard step={todayStep} />{completion.snapshot.status === 'error' ? <div className="notice" role="alert">Progress couldn’t be checked. Nothing was changed.<button onClick={completion.retry}>Try again</button></div> : <button disabled>Checking progress…</button>}</div>}
-        {approvedDay.snapshot.status === 'ready' && !todayBreakDay && plans.snapshot.status === 'ready' && todayStep && completion.snapshot.status === 'ready' && !completion.snapshot.completion && !completion.pending && completion.syncStatus !== 'blocked' && <div className="today-content"><h1>One useful step is enough.</h1><p>Start with the nearest active Plan. You can refine the step later.</p><TodayStepCard step={todayStep} />{approvalProposal ? <ClaraApprovalPanel proposal={approvalProposal} state={approvalState} onApprove={applyClaraChange} onReject={closeClaraApproval} onReturn={closeClaraApproval} /> : showClara ? <ClaraPanel clara={clara} onReview={reviewClaraChange} onClose={() => { clara.cancel(); setShowClara(false); }} /> : <button className="secondary" onClick={askClara}>Ask Clara about this step</button>}{completion.saveFailed && <div className="notice" role="alert">Completion wasn’t saved on this device. Your step is still open. Try again.</div>}{confirmComplete ? <div className="notice" role="alert"><p>{completion.offline ? 'Save this completion on your device? Longview will sync it after your connection returns.' : 'Mark this step complete for today? Your Plan and schedule will stay the same.'}</p><div className="actions"><button onClick={async () => { if (await completion.complete()) setConfirmComplete(false); }} disabled={completion.completing}>{completion.completing ? 'Saving completion…' : completion.offline ? 'Save on this device' : 'Confirm completion'}</button><button className="secondary" onClick={() => setConfirmComplete(false)} disabled={completion.completing}>Keep working</button></div></div> : <div className="actions"><button onClick={() => setConfirmComplete(true)}>Mark step complete</button><button className="secondary" onClick={() => setView('plans')}>View all Plans</button></div>}</div>}
+        {approvedDay.snapshot.status === 'ready' && !todayBreakDay && plans.snapshot.status === 'ready' && todayStep && completion.snapshot.status === 'ready' && !completion.snapshot.completion && !completion.pending && completion.syncStatus !== 'blocked' && <div className="today-content"><h1>One useful step is enough.</h1><p>Start with the nearest active Plan. You can refine the step later.</p><TodayStepCard step={todayStep} />{approvalProposal ? <ClaraApprovalPanel proposal={approvalProposal} state={approvalState} onApprove={applyClaraChange} onReject={closeClaraApproval} onReturn={closeClaraApproval} /> : showClara ? <ClaraPanel clara={clara} onReview={reviewClaraChange} onClose={() => { clara.cancel(); setShowClara(false); }} /> : <div className="actions"><button className="secondary" onClick={() => setView('clara-home')}>Ask Clara</button><button className="secondary" onClick={askClara}>Ask Clara about this step</button></div>}{completion.saveFailed && <div className="notice" role="alert">Completion wasn’t saved on this device. Your step is still open. Try again.</div>}{confirmComplete ? <div className="notice" role="alert"><p>{completion.offline ? 'Save this completion on your device? Longview will sync it after your connection returns.' : 'Mark this step complete for today? Your Plan and schedule will stay the same.'}</p><div className="actions"><button onClick={async () => { if (await completion.complete()) setConfirmComplete(false); }} disabled={completion.completing}>{completion.completing ? 'Saving completion…' : completion.offline ? 'Save on this device' : 'Confirm completion'}</button><button className="secondary" onClick={() => setConfirmComplete(false)} disabled={completion.completing}>Keep working</button></div></div> : <div className="actions"><button onClick={() => setConfirmComplete(true)}>Mark step complete</button><button className="secondary" onClick={() => setView('plans')}>View all Plans</button></div>}</div>}
       </section>}
+      {view === 'clara-home' && <ClaraHome planCount={portfolio.entries.length} taskCount={calendarSteps.length} onOpenActions={() => setView('clara-actions')} onAskAboutStep={askClaraFromHub} onReturn={() => setView('today')} />}
+      {view === 'clara-actions' && <ClaraQuickActions onOpenGroup={group => { setQuickActionGroup(group); setView('clara-action-detail'); }} onReturn={() => setView('clara-home')} />}
+      {view === 'clara-action-detail' && <ClaraQuickActionDetail groupId={quickActionGroup} onChoose={openQuickActionTarget} onReturn={() => setView('clara-actions')} />}
       {view === 'plans' && <section className="plans-view" aria-busy={plans.snapshot.status === 'loading'}><span className="status">Plans</span>
         {(plans.snapshot.status === 'idle' || plans.snapshot.status === 'loading') && <div className="empty"><h1>Loading your Plans…</h1><p>Bringing your priorities into view.</p></div>}
         {plans.snapshot.status === 'error' && <div className="empty"><h1>Your Plans couldn’t be loaded.</h1><p>Check your connection and try again. Nothing has been changed.</p><button onClick={plans.retry}>Try again</button></div>}

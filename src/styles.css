@@ -72,6 +72,18 @@ legend { margin-bottom:10px; color:#dce7e9; font-weight:800; }
 .clara-card dl > div { display:grid; grid-template-columns:100px 1fr; gap:12px; padding:6px 0; }
 .clara-card > button { margin-top:18px; }
 .clara-loading small { margin-top:10px; }
+.clara-view { padding:56px 0 110px; }
+.clara-view > p { max-width:620px; }
+.clara-view > button.secondary { margin-top:20px; }
+.clara-context { margin:24px 0; padding:20px; border:1px solid #387c70; border-radius:18px; background:#0a1b2aea; }
+.clara-context p { margin:8px 0 0; }
+.clara-doors,.quick-action-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:14px; margin:24px 0; }
+.clara-door,.quick-action-group,.quick-action-list button { height:auto; min-height:120px; padding:20px; color:#f7f4ec; border:1px solid #37576b; background:#102a3c; text-align:left; }
+.clara-door span,.quick-action-group strong,.quick-action-list strong { display:block; margin-bottom:8px; font-size:1.05rem; }
+.clara-door small,.quick-action-group span,.quick-action-list span { display:block; color:#b8c6ce; line-height:1.5; }
+.quick-action-group small { margin-top:14px; color:#79d7c5; }
+.quick-action-list { display:grid; gap:12px; margin:24px 0; }
+.quick-action-list button { min-height:96px; }
 .clara-progress { height:8px; margin-top:20px; overflow:hidden; border-radius:999px; background:#284458; }
 .clara-progress > span { display:block; width:100%; height:100%; border-radius:inherit; background:#79d7c5; opacity:.75; }
 .approval-diff { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin:20px 0; }
@@ -95,6 +107,7 @@ legend { margin-bottom:10px; color:#dce7e9; font-weight:800; }
 @media (max-width:520px) { .plans-heading { align-items:stretch; flex-direction:column; } .plans-heading button { width:100%; } }
 @media (max-width:520px) { .app-shell nav { gap:5px; padding:6px; } .app-shell nav button { min-width:0; padding:0 7px; font-size:.82rem; } }
 @media (max-width:620px) { .portfolio-summary,.detail-grid { grid-template-columns:1fr; } .context-grid { grid-template-columns:repeat(2,1fr); } }
+@media (max-width:520px) { .clara-doors,.quick-action-grid { grid-template-columns:1fr; } }
 @media (max-width:420px) { .day-choices { grid-template-columns:repeat(4,1fr); } }
 @media (max-width:520px) { .approval-diff { grid-template-columns:1fr; } }
 @media (prefers-reduced-motion:no-preference) { .card { animation:enter .35s ease-out; } .clara-progress > span { width:42%; opacity:1; animation:clara-sweep 1.15s ease-in-out infinite; } @keyframes enter { from { opacity:0; transform:translateY(8px); } } @keyframes clara-sweep { from { transform:translateX(-110%); } to { transform:translateX(345%); } } }

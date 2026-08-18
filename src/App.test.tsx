@@ -568,6 +568,8 @@ describe('authentication journey', () => {
     render(<App gateway={gateway({ uid: 'owner', isAnonymous: false, displayName: 'Owner' })} workspaceGateway={workspaceGateway} planGateway={{ ...planGateway, list }} todayGateway={{ get: vi.fn(async () => saved), complete: vi.fn(todayGateway.complete) }} />);
     expect(await screen.findByRole('heading', { name: 'Today’s step is complete.' })).toBeVisible();
     expect(screen.queryByRole('button', { name: 'Mark step complete' })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Ask Clara' }));
+    expect(screen.getByRole('heading', { name: 'Choose how Clara can help with Today.' })).toBeVisible();
   });
 
   it('shows a finished-for-today Calendar state when every scheduled step is complete', async () => {
@@ -780,6 +782,26 @@ describe('authentication journey', () => {
     expect(screen.getByText('Recommendation only · Nothing was changed.')).toBeVisible();
     expect(recommend.mock.calls[0][0].plan).toMatchObject({ id: 'plan-1', title: 'Launch Longview' });
     expect(complete).not.toHaveBeenCalled();
+  });
+
+  it('opens bounded Clara Quick Actions without starting a network run or write', async () => {
+    localStorage.setItem('longview:onboarding', 'complete');
+    const list = vi.fn(async () => [scheduledPlan()]);
+    const start = vi.fn();
+    const recommend = vi.fn();
+    render(<App gateway={gateway({ uid: 'owner', isAnonymous: false, displayName: 'Owner' })} workspaceGateway={workspaceGateway} planGateway={{ ...planGateway, list }} todayGateway={todayGateway} claraGateway={{ recommend }} scheduleRunGateway={{ start, get: vi.fn(), cancel: vi.fn() }} />);
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Ask Clara' }));
+    expect(screen.getByRole('heading', { name: 'Choose how Clara can help with Today.' })).toBeVisible();
+    fireEvent.click(screen.getByRole('button', { name: /Quick Actions/ }));
+    expect(screen.getByText('Safe by default')).toBeVisible();
+    fireEvent.click(screen.getByRole('button', { name: /Plan my day/ }));
+    expect(screen.getByRole('heading', { name: 'Plan my day' })).toBeVisible();
+    fireEvent.click(screen.getByRole('button', { name: /Build today’s schedule/ }));
+
+    expect(await screen.findByRole('button', { name: 'Prepare today' })).toBeVisible();
+    expect(start).not.toHaveBeenCalled();
+    expect(recommend).not.toHaveBeenCalled();
   });
 
   it('fails closed on invalid Clara output and retries safely', async () => {

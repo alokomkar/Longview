@@ -20,11 +20,11 @@ export const firebaseTodayGateway: TodayGateway = {
       if (existing.exists()) {
         const completion = parseTodayCompletion(existing.data(), existing.id, user.uid, step);
         if (!completion) throw new Error('Stored completion failed validation.');
-        return completion;
+        return { completion, duplicate: true };
       }
       const completion = completionFromStep(user, step);
       transaction.set(reference, { ...completion, completedAt: serverTimestamp() });
-      return completion;
+      return { completion, duplicate: false };
     });
   }
 };

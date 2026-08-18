@@ -194,7 +194,10 @@ merged locally. Production Cloud evidence remains separate from local acceptance
    and preserve confirmation and failed-save retry behavior. Offline pending sync stays
    in the next slice. See [the review contract](TODAY_DUPLICATE_COMPLETION.md).
 
-Implementation waits for product-owner review of the linked interactive state.
+The localhost implementation now uses a typed transaction result, returns original
+proof on duplicate submission, rejects invalid stored proof without overwrite, and
+shows the deterministic completion identifier. Concurrent localhost browser verification
+passed; product-owner review remains before merge.
 
 The remaining judged surfaces and the replacement status of every gallery asset are
 tracked in [Hackathon readiness](HACKATHON_READINESS.md).

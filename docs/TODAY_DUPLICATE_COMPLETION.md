@@ -1,8 +1,8 @@
 # Today Duplicate Completion Proof
 
-Status: Review artifact ready; implementation has not started
+Status: Localhost implementation and browser verification complete; product review pending
 
-Updated: 2026-08-17
+Updated: 2026-08-18
 
 Acceptance case: TODAY-06
 
@@ -49,8 +49,22 @@ One transaction must:
 6. The PWA distinguishes first success from duplicate proof in user-friendly language.
 7. Existing confirmation, cancellation, and failed-save retry behavior remains intact.
 
-## Review instructions
+## Implementation evidence
 
-Open the linked mockup at **Step completed**, choose **Edge**, then select
-**Completion already recorded**. Confirm that the original proof is visible and the
-screen explicitly says no second completion was added.
+- The Firestore gateway uses one transaction and returns a typed completion plus
+  `duplicate` flag.
+- Existing proof is validated against owner, Plan, date, duration, and deterministic
+  document identity before it is returned.
+- First and duplicate success render the saved completion identifier; duplicate success
+  explicitly confirms that only one record remains.
+- Unit and component coverage exercises create, duplicate, invalid stored proof,
+  confirmation, retry, and reload paths.
+- Two stale localhost tabs submitted concurrently and converged on one completion
+  identifier; one received first-save proof and the other received duplicate proof.
+
+## Local acceptance instructions
+
+Open the PWA at `http://127.0.0.1:5173/` with the local Firebase emulators running.
+Complete today's step in one tab, then submit the same deterministic completion from a
+second stale tab. Confirm the second tab says **Progress already saved**, shows the same
+completion identifier, and says no second completion was added.

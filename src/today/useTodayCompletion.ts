@@ -5,7 +5,7 @@ import type { TodayCompletion, TodayGateway } from './types';
 
 type CompletionSnapshot =
   | { status: 'idle' | 'loading'; completion: null; stepId: string | null }
-  | { status: 'ready'; completion: TodayCompletion | null; stepId: string }
+  | { status: 'ready'; completion: TodayCompletion | null; stepId: string; duplicate: boolean | null }
   | { status: 'error'; completion: null; stepId: string };
 
 export function useTodayCompletion(user: AuthUser, step: TodayStep | null, gateway: TodayGateway, enabled: boolean) {
@@ -21,7 +21,7 @@ export function useTodayCompletion(user: AuthUser, step: TodayStep | null, gatew
     setSnapshot({ status: 'loading', completion: null, stepId: step.completionId });
     setSaveFailed(false);
     gateway.get(user, step).then(
-      completion => { if (active) setSnapshot({ status: 'ready', completion, stepId: step.completionId }); },
+      completion => { if (active) setSnapshot({ status: 'ready', completion, stepId: step.completionId, duplicate: null }); },
       () => { if (active) setSnapshot({ status: 'error', completion: null, stepId: step.completionId }); }
     );
     return () => { active = false; };
@@ -32,8 +32,8 @@ export function useTodayCompletion(user: AuthUser, step: TodayStep | null, gatew
     setCompleting(true);
     setSaveFailed(false);
     try {
-      const saved = await gateway.complete(user, step);
-      setSnapshot({ status: 'ready', completion: saved, stepId: step.completionId });
+      const result = await gateway.complete(user, step);
+      setSnapshot({ status: 'ready', completion: result.completion, stepId: step.completionId, duplicate: result.duplicate });
       return true;
     } catch {
       setSaveFailed(true);

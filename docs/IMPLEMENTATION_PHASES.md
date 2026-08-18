@@ -194,10 +194,22 @@ merged locally. Production Cloud evidence remains separate from local acceptance
    and preserve confirmation and failed-save retry behavior. Offline pending sync stays
    in the next slice. See [the review contract](TODAY_DUPLICATE_COMPLETION.md).
 
-The localhost implementation now uses a typed transaction result, returns original
-proof on duplicate submission, rejects invalid stored proof without overwrite, and
-shows the deterministic completion identifier. Concurrent localhost browser verification
-passed; product-owner review remains before merge.
+The merged implementation uses a typed transaction result, returns original proof on
+duplicate submission, rejects invalid stored proof without overwrite, and shows the
+deterministic completion identifier. Concurrent localhost browser verification passed.
+
+9. **Today offline completion sync:** Store one owner-scoped deterministic completion in
+   a native IndexedDB outbox, show device-only pending proof, synchronize on foreground
+   or reconnect through the existing Firestore transaction, and clear the item only
+   after validated first-save or duplicate server proof. Retryable failure remains
+   visible; ownership, authentication, local-storage, and malformed-proof failures fail
+   closed. See [the review contract](TODAY_OFFLINE_SYNC.md).
+
+The product owner approved the linked journey for an already-open session. The local
+implementation includes a native owner-scoped IndexedDB outbox, explicit pending and
+syncing states, deterministic duplicate convergence, foreground and reconnect retry, and
+safe partial-cleanup recovery. Cold offline launch and reload are deferred; production
+Firebase evidence remains separate.
 
 The remaining judged surfaces and the replacement status of every gallery asset are
 tracked in [Hackathon readiness](HACKATHON_READINESS.md).

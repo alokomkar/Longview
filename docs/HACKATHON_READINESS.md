@@ -2,7 +2,7 @@
 
 Status: Active delivery checklist
 
-Updated: 2026-08-17
+Updated: 2026-08-18
 
 Sources: [PRD](PRODUCT_REQUIREMENTS.md) | [Implementation phases](IMPLEMENTATION_PHASES.md) | [Interactive mockup](design/longview-pwa-interactive-mockup.html) | [Acceptance demo](design/longview-hackathon-acceptance-demo.html) | [Gallery](demo/DEVPOST_GALLERY.md) | [Demo script](demo/PROTOTYPE_DEMO_SCRIPT.md)
 
@@ -41,6 +41,9 @@ Sources: [PRD](PRODUCT_REQUIREMENTS.md) | [Implementation phases](IMPLEMENTATION
 - Owner-scoped workspace provisioning and Firestore rules.
 - Reviewed, validated, idempotent Plan creation and owner-scoped Plans list.
 - Deterministic Today step and confirmed immutable completion.
+- Owner-scoped connection-loss Today completion outbox with device-only pending proof,
+  reconnect progress, idempotent duplicate convergence, and safe retry. Cold offline
+  launch and reload are deferred.
 - No-task Today guidance names the next eligible scheduled Plan day.
 - Typed read-only recommendation preview with cancellation, timeout, offline,
   unavailable, malformed-response, and retry handling.

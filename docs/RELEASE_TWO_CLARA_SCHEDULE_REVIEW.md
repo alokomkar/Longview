@@ -1,10 +1,14 @@
 # Release 2: Clara Schedule Review
 
-Status: Local implementation
+Status: Deployed on 18th August 2026
 
 Interactive acceptance: [schedule-change journey](design/longview-release-two-clara-approval.html)
 
 Verification: [automated, performance and QuickTime evidence](evidence/RELEASE_TWO_VERIFICATION.md)
+
+Production PWA: <https://longview-505611.web.app/>
+
+Production API: <https://longview-clara-api-112452643430.asia-south1.run.app>
 
 ## User outcome
 

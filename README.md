@@ -19,11 +19,11 @@ changes, and preserve the reasoning behind important decisions.
 
 ## Current status
 
-Phase 0 is the online early-access loop: authenticate, create and review a Plan, set
-its working days, receive one deterministic Today step, and explicitly record
-completion. Its production navigation is limited to Today, Plans, and Settings.
-Calendar, Clara, research, Plan Briefs, and offline cold-start recovery are not part of
-this release and do not block Today.
+Release 2 is live on Firebase Hosting. It preserves the Phase 0 loop—authenticate,
+create and review a Plan, set working days, receive one deterministic Today step, and
+record completion—then adds authenticated Clara guidance and one review-first Plan
+schedule change. Calendar, Quick Actions, research, Plan Briefs, and offline
+cold-start recovery remain outside the production surface.
 
 Release 1 adds authenticated, read-only Clara guidance for a selected Plan or today's
 step. Its Cloud Run API cannot expose or apply agent-driven writes.
@@ -53,11 +53,13 @@ are checked at runtime before use, and this step performs no automatic write.
 Today-step completion now requires explicit confirmation and records one immutable,
 owner-scoped event. Retrying reuses the same completion ID, reload restores the result,
 and neither the Plan nor schedule is changed.
-A typed, read-only Clara recommendation shows its source facts, rationale, and
-confidence. With `VITE_CLARA_API_URL`, the PWA sends a Firebase-authenticated bounded
-context to the local managed API; without it, the deterministic preview remains
-available for UI development. Neither path can change durable data. Cloud deployment
-and a real Vertex response have not yet been accepted or claimed.
+A typed Clara recommendation shows its source facts, rationale, and confidence. The
+production PWA sends a Firebase-authenticated bounded context to Cloud Run. Clara may
+propose adding or removing one Plan working day while preserving weekly time, but the
+user must review the exact before/after values and explicitly approve. The API then
+checks ownership, current values and version, performs one idempotent transaction, and
+creates one audit record. A live Vertex response and safe rejection were verified on
+18th August 2026.
 
 ## Local development
 
@@ -90,7 +92,9 @@ Run `.venv/bin/python -m pytest -q` for its deterministic contract tests. Add
 the managed path. Runtime configuration and the cloud-credential gate are documented
 in [the managed Clara API contract](docs/MANAGED_CLARA_API.md).
 
-Hosted authentication acceptance: `https://longview-505611.web.app/`.
+Production PWA: `https://longview-505611.web.app/`.
+
+Production Clara API: `https://longview-clara-api-112452643430.asia-south1.run.app`.
 
 ## Review the mockup
 

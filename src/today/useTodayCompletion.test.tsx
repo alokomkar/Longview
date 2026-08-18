@@ -36,4 +36,19 @@ describe('useTodayCompletion', () => {
     await act(async () => expect(await result.current.complete()).toBe(false));
     expect(gateway.complete).not.toHaveBeenCalled();
   });
+
+  it.each([false, true])('exposes the durable result when duplicate is %s', async duplicate => {
+    const value = step('plan-1');
+    const saved = completion(value);
+    const gateway: TodayGateway = {
+      get: vi.fn(async () => null),
+      complete: vi.fn(async () => ({ completion: saved, duplicate }))
+    };
+    const { result } = renderHook(() => useTodayCompletion(user, value, gateway, true));
+    await waitFor(() => expect(result.current.snapshot.status).toBe('ready'));
+    await act(async () => expect(await result.current.complete()).toBe(true));
+    expect(result.current.snapshot).toEqual({
+      status: 'ready', completion: saved, stepId: value.completionId, duplicate
+    });
+  });
 });

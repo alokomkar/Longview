@@ -13,9 +13,14 @@ export type TodayCompletion = {
   schemaVersion: 1;
 };
 
+export type TodayCompletionResult = {
+  completion: TodayCompletion;
+  duplicate: boolean;
+};
+
 export interface TodayGateway {
   get(user: AuthUser, step: TodayStep): Promise<TodayCompletion | null>;
-  complete(user: AuthUser, step: TodayStep): Promise<TodayCompletion>;
+  complete(user: AuthUser, step: TodayStep): Promise<TodayCompletionResult>;
 }
 
 export function completionFromStep(user: AuthUser, step: TodayStep): TodayCompletion {

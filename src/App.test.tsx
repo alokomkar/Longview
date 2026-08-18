@@ -38,9 +38,12 @@ const scheduledPlan = (weeklyHours = 4): Plan => ({
 const todayGateway: TodayGateway = {
   get: vi.fn(async () => null),
   complete: vi.fn(async (user, step) => ({
-    id: step.completionId, ownerUid: user.uid, workspaceId: 'default' as const, planId: step.planId,
-    stepKey: 'first-proof-v1' as const, completedDate: step.date, durationMinutes: step.durationMinutes,
-    status: 'completed' as const, schemaVersion: 1 as const
+    completion: {
+      id: step.completionId, ownerUid: user.uid, workspaceId: 'default' as const, planId: step.planId,
+      stepKey: 'first-proof-v1' as const, completedDate: step.date, durationMinutes: step.durationMinutes,
+      status: 'completed' as const, schemaVersion: 1 as const
+    },
+    duplicate: false
   }))
 };
 
@@ -75,7 +78,10 @@ const savedBreakDay: ApprovedDay = {
   ...savedApprovedDay, revision: 2, status: 'break', breakEventId: 'day-break-1', carryoverCount: 1
 };
 
-beforeEach(() => localStorage.clear());
+beforeEach(() => {
+  localStorage.clear();
+  vi.setSystemTime(new Date('2026-08-17T12:00:00'));
+});
 
 function gateway(initial: AuthUser | null, failure?: { code: string }) {
   let listener: (user: AuthUser | null) => void = () => undefined;
@@ -461,7 +467,22 @@ describe('authentication journey', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Mark step complete' }));
     fireEvent.click(screen.getByRole('button', { name: 'Confirm completion' }));
     expect(await screen.findByRole('heading', { name: 'Today’s step is complete.' })).toBeVisible();
+    expect(screen.getByText(/Completion record: 2026-08-17_plan-1_first-proof-v1/)).toBeVisible();
     expect(complete).toHaveBeenCalledOnce();
+  });
+
+  it('shows the original proof when completion was already recorded', async () => {
+    localStorage.setItem('longview:onboarding', 'complete');
+    const complete = vi.fn(async (...args: Parameters<TodayGateway['complete']>) => ({
+      ...(await todayGateway.complete(...args)), duplicate: true
+    }));
+    render(<App gateway={gateway({ uid: 'owner', isAnonymous: false, displayName: 'Owner' })} workspaceGateway={workspaceGateway} planGateway={{ ...planGateway, list: vi.fn(async () => [scheduledPlan()]) }} todayGateway={{ get: vi.fn(async () => null), complete }} />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Mark step complete' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Confirm completion' }));
+    expect(await screen.findByRole('heading', { name: 'Progress already saved.' })).toBeVisible();
+    expect(screen.getByText('That progress was already saved. No second completion was added and your Plan was not changed.')).toBeVisible();
+    expect(screen.getByText('One completion record remains.')).toBeVisible();
+    expect(screen.getByText(/Completion record: 2026-08-17_plan-1_first-proof-v1/)).toBeVisible();
   });
 
   it('keeps the same completion id when a failed save is retried', async () => {

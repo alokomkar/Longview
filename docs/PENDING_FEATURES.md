@@ -1,20 +1,22 @@
 # Longview Pending Features
 
-Status: Today duplicate proof verified locally; product review pending
+Status: Connection-loss sync implemented locally; cold offline launch deferred
 
 Updated: 2026-08-18
 
 Sources: [Acceptance demo](design/longview-hackathon-acceptance-demo.html) | [PRD](PRODUCT_REQUIREMENTS.md) | [Readiness ledger](HACKATHON_READINESS.md)
 
-The ledger currently records 26 implemented, 8 partial, and 23 missing cases. Partial
+The ledger currently records 27 implemented, 7 partial, and 23 missing cases. Partial
 means a safe client contract exists but the full judged behavior or cloud evidence does
 not. Review checkmarks in the demo are not implementation status.
 
 ## Deadline-critical P0
 
 1. **Today resilience** — TODAY-02 next-eligible-day guidance and
-   [TODAY-06 duplicate completion proof](TODAY_DUPLICATE_COMPLETION.md) are implemented
-   locally. TODAY-07 offline pending sync is next.
+   [TODAY-06 duplicate completion proof](TODAY_DUPLICATE_COMPLETION.md) are merged.
+   [TODAY-07 offline pending sync](TODAY_OFFLINE_SYNC.md) is implemented for an
+   already-open session with owner-scoped reconnect, duplicate, retry, and
+   partial-cleanup recovery. Cold offline launch and reload are deferred.
 2. **Managed Clara loop** — the selected-Plan recommendation and approved schedule
    change are implemented locally. Deployment evidence, quick actions, cross-Plan
    tradeoff, and judged failure captures remain.

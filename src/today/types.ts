@@ -23,6 +23,13 @@ export interface TodayGateway {
   complete(user: AuthUser, step: TodayStep): Promise<TodayCompletionResult>;
 }
 
+export class TodayCompletionValidationError extends Error {
+  constructor() {
+    super('Stored completion failed validation.');
+    this.name = 'TodayCompletionValidationError';
+  }
+}
+
 export function completionFromStep(user: AuthUser, step: TodayStep): TodayCompletion {
   return {
     id: step.completionId,

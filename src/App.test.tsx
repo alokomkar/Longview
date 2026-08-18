@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ComponentProps } from 'react';
 import { App as LongviewApp } from './App';
@@ -6,6 +6,7 @@ import type { AuthGateway, AuthUser } from './auth/types';
 import type { WorkspaceGateway } from './workspace/types';
 import { PlanScheduleConflictError, type Plan, type PlanGateway } from './plan/types';
 import type { TodayGateway } from './today/types';
+import { pendingCompletionFromStep, type TodayOutbox, type TodayPendingCompletion } from './today/outbox';
 import type { ClaraGateway } from './clara/types';
 import type { ClaraApprovalGateway } from './clara/approvalTypes';
 import type { ScheduleRunGateway } from './scheduleRun/types';
@@ -47,13 +48,40 @@ const todayGateway: TodayGateway = {
   }))
 };
 
+const todayOutbox: TodayOutbox = {
+  get: vi.fn(async () => null),
+  put: vi.fn(async (user, step) => pendingCompletionFromStep(user, step)),
+  recordFailure: vi.fn(async (user, step, failure) => ({ ...pendingCompletionFromStep(user, step), attemptCount: 1, lastFailure: failure } as TodayPendingCompletion)),
+  remove: vi.fn(async () => undefined),
+  clearOwner: vi.fn(async () => undefined)
+};
+
+function statefulTodayOutbox() {
+  let pending: TodayPendingCompletion | null = null;
+  const outbox: TodayOutbox = {
+    get: vi.fn(async (user, step) => pending && pending.ownerUid === user.uid && pending.completion.id === step.completionId ? pending : null),
+    put: vi.fn(async (user, step) => {
+      pending ??= pendingCompletionFromStep(user, step, 1);
+      return pending;
+    }),
+    recordFailure: vi.fn(async (_user, _step, failure) => {
+      if (!pending) throw new Error('missing');
+      pending = { ...pending, attemptCount: pending.attemptCount + 1, lastFailure: failure };
+      return pending;
+    }),
+    remove: vi.fn(async () => { pending = null; }),
+    clearOwner: vi.fn(async ownerUid => { if (pending?.ownerUid === ownerUid) pending = null; })
+  };
+  return outbox;
+}
+
 const approvedDayGateway: ApprovedDayGateway = {
   get: vi.fn(async () => null),
   approve: vi.fn(async () => { throw new Error('not configured'); })
 };
 
 function App(props: ComponentProps<typeof LongviewApp>) {
-  return <LongviewApp approvedDayGateway={approvedDayGateway} {...props} />;
+  return <LongviewApp approvedDayGateway={approvedDayGateway} todayOutbox={todayOutbox} {...props} />;
 }
 
 const succeededScheduleRun = {
@@ -81,6 +109,7 @@ const savedBreakDay: ApprovedDay = {
 beforeEach(() => {
   localStorage.clear();
   vi.setSystemTime(new Date('2026-08-17T12:00:00'));
+  Object.defineProperty(navigator, 'onLine', { configurable: true, value: true });
 });
 
 function gateway(initial: AuthUser | null, failure?: { code: string }) {
@@ -485,15 +514,45 @@ describe('authentication journey', () => {
     expect(screen.getByText(/Completion record: 2026-08-17_plan-1_first-proof-v1/)).toBeVisible();
   });
 
-  it('keeps the same completion id when a failed save is retried', async () => {
+  it('matches the approved offline, syncing, and duplicate completion journey', async () => {
+    localStorage.setItem('longview:onboarding', 'complete');
+    Object.defineProperty(navigator, 'onLine', { configurable: true, value: false });
+    let release!: () => void;
+    const complete = vi.fn((user: AuthUser, step: Parameters<TodayGateway['complete']>[1]) => new Promise<Awaited<ReturnType<TodayGateway['complete']>>>(resolve => {
+      release = () => resolve({
+        completion: { ...pendingCompletionFromStep(user, step).completion },
+        duplicate: true
+      });
+    }));
+    const outbox = statefulTodayOutbox();
+    render(<App gateway={gateway({ uid: 'owner', isAnonymous: false, displayName: 'Owner' })} workspaceGateway={workspaceGateway} planGateway={{ ...planGateway, list: vi.fn(async () => [scheduledPlan()]) }} todayGateway={{ get: vi.fn(), complete }} todayOutbox={outbox} />);
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Mark step complete' }));
+    expect(screen.getByRole('alert')).toHaveTextContent('sync it after your connection returns');
+    fireEvent.click(screen.getByRole('button', { name: 'Save on this device' }));
+    expect(await screen.findByRole('heading', { name: 'Saved on this device' })).toBeVisible();
+    expect(screen.getByRole('status')).toHaveTextContent('Waiting to sync');
+    expect(complete).not.toHaveBeenCalled();
+
+    Object.defineProperty(navigator, 'onLine', { configurable: true, value: true });
+    act(() => globalThis.dispatchEvent(new Event('online')));
+    expect(await screen.findByRole('heading', { name: 'Syncing your completion' })).toBeVisible();
+    expect(screen.getByRole('progressbar', { name: 'Syncing completion' })).toBeVisible();
+    expect(complete).toHaveBeenCalledOnce();
+    await act(async () => release());
+    expect(await screen.findByRole('heading', { name: 'Progress already saved.' })).toBeVisible();
+    await waitFor(() => expect(outbox.remove).toHaveBeenCalledOnce());
+  });
+
+  it('keeps the same completion id when a failed network save is queued and retried', async () => {
     localStorage.setItem('longview:onboarding', 'complete');
     const list = vi.fn(async () => [scheduledPlan()]);
     const complete = vi.fn().mockRejectedValueOnce(new Error('offline')).mockImplementation(todayGateway.complete);
     render(<App gateway={gateway({ uid: 'owner', isAnonymous: false, displayName: 'Owner' })} workspaceGateway={workspaceGateway} planGateway={{ ...planGateway, list }} todayGateway={{ get: vi.fn(async () => null), complete }} />);
     fireEvent.click(await screen.findByRole('button', { name: 'Mark step complete' }));
     fireEvent.click(screen.getByRole('button', { name: 'Confirm completion' }));
-    expect(await screen.findByText('Completion wasn’t saved. Your step is still open. Try again.')).toBeVisible();
-    fireEvent.click(screen.getByRole('button', { name: 'Confirm completion' }));
+    expect(await screen.findByRole('heading', { name: 'Still waiting to sync' })).toBeVisible();
+    fireEvent.click(screen.getByRole('button', { name: 'Try sync again' }));
     expect(await screen.findByRole('heading', { name: 'Today’s step is complete.' })).toBeVisible();
     expect(complete.mock.calls[0][1].completionId).toBe(complete.mock.calls[1][1].completionId);
   });

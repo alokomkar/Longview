@@ -1,10 +1,13 @@
 # Release 1: Ask Clara
 
-Status: Implementation in progress
+Status: Merged; superseded by the Release 2 production surface
 
 Target: 18th August 2026
 
 Interactive acceptance: [Ask Clara release journey](design/longview-release-one-ask-clara.html)
+
+Release 1 remains the historical read-only contract. Production now runs the stricter
+Release 2 surface, which adds only the separately approved schedule-change endpoint.
 
 ## User outcome
 
@@ -46,4 +49,3 @@ research, Plan Briefs, and every agent-driven write remain outside Release 1.
 3. The mobile PWA shows progress for the full network request and leaves saved data
    unchanged across success and every failure.
 4. Cloud Run health, authentication rejection, CORS, and hosted-PWA smoke checks pass.
-

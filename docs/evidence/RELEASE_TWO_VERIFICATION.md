@@ -1,6 +1,6 @@
 # Release 2 verification evidence
 
-Status: local release candidate; not merged or deployed.
+Status: merged and deployed on 18th August 2026.
 
 ## Automated verification
 
@@ -28,5 +28,9 @@ Status: local release candidate; not merged or deployed.
 
 ## Deployment boundary
 
-- Release 2 is not merged or deployed.
-- Production approval writes require an explicit deployment approval and a narrowly scoped Firestore role for the Cloud Run runtime identity.
+- PR #18 merged to `master` as `94378d3`.
+- Firebase Hosting serves the Release 2 bundle from <https://longview-505611.web.app/> with no localhost or emulator endpoint embedded.
+- Cloud Run revision `longview-clara-api-00003-x8f` serves 100% of traffic at <https://longview-clara-api-112452643430.asia-south1.run.app>.
+- Production OpenAPI exposes only `/health`, `/v1/clara/recommendations`, and `/v1/clara/approvals`; hidden schedule-run routes return `404`, unauthenticated valid approval requests return `401`, and the production origin passes CORS preflight.
+- The runtime identity has `roles/aiplatform.user`, `roles/firebaseauth.viewer`, and `roles/datastore.user`; it has no project-wide editor or owner role.
+- An authenticated production Plan request returned a Vertex recommendation and exact review preview. Rejection restored the unchanged Plan schedule; no approval write was submitted during deployment verification.

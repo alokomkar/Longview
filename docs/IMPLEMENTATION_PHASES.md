@@ -1,6 +1,6 @@
 # Longview Implementation Phases
 
-Status: Release 2 local implementation
+Status: Release 2 deployed
 Updated: 2026-08-18
 Links: [PRD](PRODUCT_REQUIREMENTS.md) | [Mockup](design/longview-pwa-interactive-mockup.html) | [Stack](TECH_STACK.md)
 

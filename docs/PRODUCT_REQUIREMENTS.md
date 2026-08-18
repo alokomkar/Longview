@@ -1,6 +1,6 @@
 # Longview PWA Product Requirements
 
-Status: Release 2 local implementation
+Status: Release 2 deployed
 
 Last updated: 2026-08-18
 

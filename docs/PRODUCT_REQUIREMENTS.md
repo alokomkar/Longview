@@ -1,8 +1,8 @@
 # Longview PWA Product Requirements
 
-Status: In review
+Status: Phase 0 release candidate
 
-Last updated: 2026-08-15
+Last updated: 2026-08-18
 
 Target: All Things Agentic hackathon PWA
 
@@ -46,6 +46,17 @@ voice, and broad third-party integrations are out of scope.
 
 Longview targets the **Collaborative Partner** category. The implementation stack and
 deployment proof are specified in [Hackathon Tech Stack](TECH_STACK.md).
+
+### Phase 0 production boundary
+
+The first public early-access release is the smallest complete outcome: authenticate,
+create and review one Plan, receive one deterministic step on a selected working day,
+and explicitly record completion. Its dedicated acceptance journey and failure states
+are defined in [Phase 0 Early Access Release](PHASE_ZERO_RELEASE.md).
+
+Calendar proposals, day breaks, Clara, research, Plan Briefs, and execution history
+remain outside the Phase 0 production surface. They must not block Today or appear as
+available actions until their managed services pass an independent release gate.
 
 ## 4. Canonical demo portfolio
 

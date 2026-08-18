@@ -1,7 +1,7 @@
 # Longview Implementation Phases
 
-Status: Calendar break merged; Today duplicate proof review artifacts ready
-Updated: 2026-08-17
+Status: Phase 0 release candidate
+Updated: 2026-08-18
 Links: [PRD](PRODUCT_REQUIREMENTS.md) | [Mockup](design/longview-pwa-interactive-mockup.html) | [Stack](TECH_STACK.md)
 
 ## Rules
@@ -13,6 +13,17 @@ Links: [PRD](PRODUCT_REQUIREMENTS.md) | [Mockup](design/longview-pwa-interactive
   concurrency, stale versions, idempotency, and partial recovery.
 
 ## Phases
+
+### Phase 0: one usable online loop
+
+Release authentication → Plan creation → Plan-level schedule → Today step → explicit
+completion on Firebase Hosting. Production navigation contains Today, Plans, and
+Settings only. Calendar, Clara, research, brief, and offline cold-start work remain
+behind the full development surface and cannot block the core journey. See the
+[release contract](PHASE_ZERO_RELEASE.md) and
+[interactive acceptance](design/longview-phase-zero-release.html).
+
+The numbered implementation roadmap below remains the post-release expansion order.
 
 1. **Cloud prerequisite:** Create one Google Cloud project and enable Firebase on it;
    claim credits, configure budgets, emulators, least-privilege identities, and secrets.

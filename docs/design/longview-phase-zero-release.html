@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en" data-palette="ocean" data-mode="dark" data-font="lora" data-size="default">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Longview Phase 0 interactive acceptance</title>
+  <link rel="stylesheet" href="longview-release-prototype.css">
+</head>
+<body data-platform="mweb">
+  <main id="prototype" aria-live="polite"></main>
+  <script>
+    (() => {
+      const labels = { welcome:'Welcome', empty:'Empty Today', create:'Create Plan', review:'Review Plan', saved:'Plan saved', today:'Today', confirm:'Confirm completion', done:'Completed', plans:'Plans', settings:'Settings' };
+      const scenarios = { normal:'Normal journey', auth:'Authentication failed', workspace:'Workspace unavailable', plan:'Plan save failed', list:'Plans failed to load', completion:'Completion failed' };
+      const state = { screen:'welcome', scenario:'normal', planSaved:false, completed:false, title:'Launch a useful early release' };
+      const root = document.getElementById('prototype');
+      const button = (label, go, cls='') => `<button class="btn ${cls}" data-go="${go}">${label}</button>`;
+      const top = (title, sub='') => `<div class="topline"><strong>Longview</strong><span class="badge green">Early access</span></div><h1 class="page-title">${title}</h1>${sub?`<p class="page-sub">${sub}</p>`:''}`;
+      const notice = (title, copy) => `<div class="notice" role="alert"><div><strong>${title}</strong><span>${copy}</span></div></div>`;
+      const nav = () => `<nav class="bottom-nav">${['today','plans','settings'].map(x => `<button class="bottom-item ${state.screen===x?'on':''}" data-go="${x}">${labels[x]}</button>`).join('')}</nav>`;
+      const screens = {
+        welcome: () => `<section class="screen">${top('Make progress without rebuilding the plan every day.','Phase 0 does one job well: turn a meaningful Plan into one useful step.')}${state.scenario==='auth'?notice('Sign-in could not be completed.','Nothing changed. Try again or continue anonymously.'):''}${state.scenario==='workspace'?notice('Your account is safe.','The workspace could not be prepared. Retry without creating a duplicate.'):''}${button('Begin Phase 0','empty','primary')}${button('Continue with Google','empty')}${button('Continue anonymously','empty','ghost')}</section>`,
+        empty: () => `<section class="screen">${top('Nothing is scheduled yet.','Create your first Plan and choose the days you want to work on it.')}${button('Create first Plan','create','primary')}</section>`,
+        create: () => `<section class="screen">${top('What do you want to make progress on?','Start with one meaningful outcome. You can refine it later.')}<div class="field"><label for="title">Plan title</label><input class="input" id="title" value="${state.title}"></div><div class="field"><label for="outcome">Desired outcome</label><textarea class="input" id="outcome">Release a tested PWA to real users.</textarea></div><div class="field"><label for="why">Why this matters</label><textarea class="input" id="why">Validate the smallest useful Longview loop.</textarea></div><div class="field"><span class="section-label">Working days</span><div class="days"><button class="day on" aria-pressed="true">M</button><button class="day" aria-pressed="false">T</button><button class="day on" aria-pressed="true">W</button><button class="day" aria-pressed="false">T</button><button class="day on" aria-pressed="true">F</button></div></div>${button('Review Plan','review','primary')}${button('Cancel','empty','ghost')}</section>`,
+        review: () => `<section class="screen">${top('Review your Plan','Nothing is saved until you confirm.')}<div class="card"><span class="section-label">Plan</span><h2 class="card-title">${state.title}</h2><p class="card-copy">Release a tested PWA to real users.</p><p class="meta">Monday, Wednesday, Friday · 5 hours/week</p></div>${state.scenario==='plan'?notice('Your Plan was not saved.','The draft is still here. Check your connection and retry.'):''}<button class="btn primary" data-action="save">${state.scenario==='plan'?'Try saving again':'Create Plan'}</button>${button('Edit','create','ghost')}</section>`,
+        saved: () => `<section class="screen">${top('Plan saved','Your Plan is ready and remains the source of truth.')}<div class="card"><h2 class="card-title">${state.title}</h2><p class="meta">Monday, Wednesday, Friday · 5 hours/week</p></div>${button('Return to Today','today','primary')}</section>`,
+        today: () => `<section class="screen">${top(state.completed?'Today’s step is complete.':'One useful step is enough.','Prepared deterministically from your nearest active Plan.')}<div class="card task-card"><span class="section-label">From ${state.title}</span><h2 class="card-title">Define the first proof of progress</h2><p class="card-copy">Write one observable result that would prove progress, then name the smallest action you can finish this week.</p><p class="meta">60 minutes · Plan remains unchanged</p></div>${state.completed?button('View all Plans','plans','primary'):button('Mark step complete','confirm','primary')}</section>`,
+        confirm: () => `<section class="screen">${top('Confirm completion','Your Plan and working days will stay the same.')}${state.scenario==='completion'?notice('Completion was not saved.','The step is still open. Retry the same completion safely.'):''}<button class="btn primary" data-action="complete">${state.scenario==='completion'?'Try again':'Confirm completion'}</button>${button('Keep working','today','ghost')}</section>`,
+        done: () => `<section class="screen">${top('Today’s step is complete.','One completion was recorded; the Plan is still active.')}<div class="notice"><span class="badge green">Saved once</span><div><strong>Progress recorded</strong><span>Reloading returns the same result without a duplicate.</span></div></div>${button('View all Plans','plans','primary')}</section>`,
+        plans: () => `<section class="screen">${top('Your Plans','Review the outcome, working days, and weekly commitment.')}${state.scenario==='list'?notice('Your Plans could not be loaded.','Nothing changed. Check your connection and retry.'):state.planSaved?`<div class="card"><span class="badge green">Active</span><h2 class="card-title">${state.title}</h2><p class="meta">Monday, Wednesday, Friday · 5 hours/week</p></div>`:`<div class="empty"><h2>No Plans yet.</h2></div>`}${state.scenario==='list'?button('Try again','plans','primary'):button('Create Plan','create','primary')}</section>`,
+        settings: () => `<section class="screen">${top('Account and privacy','Link Google before leaving an anonymous workspace.')}<div class="notice"><div><strong>Keep access across devices</strong><span>Linking protects this workspace without merging another one silently.</span></div></div>${button('Link Google account','settings','primary')}${button('Sign out','welcome','ghost')}</section>`
+      };
+      function render() {
+        const menu = `<header class="demo-bar"><div class="demo-identity"><span class="demo-brand">Longview</span><span class="demo-tag">Phase 0 acceptance</span></div><div class="demo-menus"><select id="screen">${Object.entries(labels).map(([k,v])=>`<option value="${k}" ${state.screen===k?'selected':''}>${v}</option>`).join('')}</select><select id="scenario">${Object.entries(scenarios).map(([k,v])=>`<option value="${k}" ${state.scenario===k?'selected':''}>${v}</option>`).join('')}</select></div><button class="demo-reset" data-action="reset">Reset journey</button></header>`;
+        root.innerHTML = `<div class="prototype-page">${menu}<div class="prototype-stage"><section class="device phone mweb"><div class="browser-chrome"><i class="browser-dot"></i><i class="browser-dot"></i><i class="browser-dot"></i><span class="address">longview-505611.web.app</span></div><main class="viewport">${screens[state.screen]()}</main>${['today','plans','settings'].includes(state.screen)?nav():''}</section></div></div>`;
+        root.querySelector('#screen').onchange = e => { state.screen=e.target.value; render(); };
+        root.querySelector('#scenario').onchange = e => { state.scenario=e.target.value; render(); };
+      }
+      root.addEventListener('click', event => {
+        const target = event.target.closest('[data-go],[data-action]'); if (!target) return;
+        if (target.dataset.go) state.screen=target.dataset.go;
+        if (target.dataset.action==='save' && state.scenario!=='plan') { state.planSaved=true; state.screen='saved'; }
+        if (target.dataset.action==='complete' && state.scenario!=='completion') { state.completed=true; state.screen='done'; }
+        if (target.dataset.action==='reset') Object.assign(state,{ screen:'welcome', scenario:'normal', planSaved:false, completed:false, title:'Launch a useful early release' });
+        const title=document.getElementById('title'); if(title) state.title=title.value;
+        render();
+      });
+      render();
+    })();
+  </script>
+</body>
+</html>

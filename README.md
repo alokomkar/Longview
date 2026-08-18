@@ -8,6 +8,7 @@ changes, and preserve the reasoning behind important decisions.
 
 - [Product requirements](docs/PRODUCT_REQUIREMENTS.md)
 - [Implementation phases](docs/IMPLEMENTATION_PHASES.md)
+- [Phase 0 release contract](docs/PHASE_ZERO_RELEASE.md)
 - [Pending feature ledger](docs/PENDING_FEATURES.md)
 - [Hackathon tech stack](docs/TECH_STACK.md)
 - [Hackathon readiness ledger](docs/HACKATHON_READINESS.md)
@@ -15,6 +16,12 @@ changes, and preserve the reasoning behind important decisions.
 - [Hackathon acceptance demo](docs/design/longview-hackathon-acceptance-demo.html)
 
 ## Current status
+
+Phase 0 is the online early-access loop: authenticate, create and review a Plan, set
+its working days, receive one deterministic Today step, and explicitly record
+completion. Its production navigation is limited to Today, Plans, and Settings.
+Calendar, Clara, research, Plan Briefs, and offline cold-start recovery are not part of
+this release and do not block Today.
 
 Authentication and Day 1 Plan creation are available on Firebase Hosting. They include
 the PWA shell, Firebase Auth boundary, local emulator configuration, production-safe

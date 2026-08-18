@@ -487,7 +487,7 @@ describe('authentication journey', () => {
     const list = vi.fn(async () => [scheduledPlan()]);
     const complete = vi.fn(todayGateway.complete);
     render(<App gateway={gateway({ uid: 'owner', isAnonymous: false, displayName: 'Owner' })} workspaceGateway={workspaceGateway} planGateway={{ ...planGateway, list }} todayGateway={{ get: vi.fn(async () => null), complete }} />);
-    fireEvent.click(await screen.findByRole('button', { name: 'Mark step complete' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Mark step complete' }));
     expect(screen.getByRole('alert')).toHaveTextContent('Plan and schedule will stay the same');
     expect(complete).not.toHaveBeenCalled();
     fireEvent.click(screen.getByRole('button', { name: 'Keep working' }));
@@ -900,5 +900,37 @@ describe('authentication journey', () => {
     expect(screen.getByRole('button', { name: 'Create another Plan' })).toBeVisible();
     fireEvent.click(screen.getByRole('button', { name: 'Review Plan schedules' }));
     expect(await screen.findByRole('heading', { name: 'Your Plans' })).toBeVisible();
+  });
+});
+
+describe('Phase 0 release surface', () => {
+  it('completes the core Today flow without calling unfinished scheduling or Clara services', async () => {
+    localStorage.setItem('longview:onboarding', 'complete');
+    const getApprovedDay = vi.fn(async () => { throw new Error('service unavailable'); });
+    const recommend = vi.fn();
+    const complete = vi.fn(todayGateway.complete);
+
+    render(<App
+      releaseSurface="phase-zero"
+      gateway={gateway({ uid: 'owner', isAnonymous: false, displayName: 'Owner' })}
+      workspaceGateway={workspaceGateway}
+      planGateway={{ ...planGateway, list: vi.fn(async () => [scheduledPlan()]) }}
+      todayGateway={{ get: vi.fn(async () => null), complete }}
+      claraGateway={{ recommend }}
+      approvedDayGateway={{ get: getApprovedDay, approve: vi.fn() }}
+    />);
+
+    await waitFor(() => expect(screen.getByText('Early access')).toBeVisible());
+    expect(screen.getByRole('heading', { name: 'One useful step is enough.' })).toBeVisible();
+    expect(screen.queryByRole('button', { name: 'Calendar' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Ask Clara/ })).not.toBeInTheDocument();
+    expect(getApprovedDay).not.toHaveBeenCalled();
+    expect(recommend).not.toHaveBeenCalled();
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Mark step complete' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Confirm completion' }));
+
+    expect(await screen.findByRole('heading', { name: 'Today’s step is complete.' })).toBeVisible();
+    expect(complete).toHaveBeenCalledOnce();
   });
 });

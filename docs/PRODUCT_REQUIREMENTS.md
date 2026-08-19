@@ -1,6 +1,6 @@
 # Longview PWA Product Requirements
 
-Status: Release 3 deployed; Release 4 design review
+Status: Release 3 deployed; Release 4 locally verified
 
 Last updated: 2026-08-19
 

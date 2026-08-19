@@ -1,6 +1,6 @@
 # Longview Implementation Phases
 
-Status: Release 3 deployed; Release 4 design review
+Status: Release 3 deployed; Release 4 locally verified
 Updated: 2026-08-19
 Links: [PRD](PRODUCT_REQUIREMENTS.md) | [Mockup](design/longview-pwa-interactive-mockup.html) | [Stack](TECH_STACK.md)
 
@@ -66,6 +66,12 @@ and unknown-result retries restore the original record. Research, briefs, reflec
 record editing, and deletion remain out of scope. See the
 [release contract](RELEASE_FOUR_PLAN_RECORD.md) and
 [interactive acceptance](design/longview-release-four-plan-record.html).
+
+The implementation aggregates completion and approved-change evidence, appends
+owner-scoped immutable decision and guidance records, restores them after reload, and
+exposes explicit review, cancellation, retry, and conflict states. Local unit, rules,
+FastAPI, regression E2E, and the emulator-backed mobile journey pass. Merge,
+hosting/rules deployment, and anonymous production acceptance remain pending.
 
 1. **Cloud prerequisite:** Create one Google Cloud project and enable Firebase on it;
    claim credits, configure budgets, emulators, least-privilege identities, and secrets.

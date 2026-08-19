@@ -70,16 +70,17 @@ creates one audit record. A live Vertex response and safe rejection were verifie
 2. Run `npm install`.
 3. Copy `.env.example` to `.env.local`; production Firebase values remain local. Set
    `VITE_USE_FIREBASE_EMULATORS=false` to test the real Google account chooser, or
-   `true` for deterministic emulator tests. Set `VITE_RELEASE_SURFACE=release-three`
-   to review only the Release 3 navigation and routes; `full` retains the development
-   workbench.
+   `true` for deterministic emulator tests. Set `VITE_RELEASE_SURFACE=release-four`
+   for the current production journey; `full` retains the development workbench.
 4. Run `npm run dev:local`; it starts the Auth and Firestore emulators before Vite.
 5. Open `http://127.0.0.1:5173`. Local sign-in and data stay in the emulators. To
    test the real Google chooser, set `VITE_USE_FIREBASE_EMULATORS=false` and run
    `npm run dev` instead.
 
 Verification: `npm test`, `npm run test:rules`, `npm run build`, and
-`npm run test:e2e`. The emulator requires Java 21+ compiled for the host CPU.
+`npm run test:e2e`. With Auth and Firestore emulators plus the Release 4 dev server
+running at port 5175, run `npm run test:e2e:release-four` for the durable-record
+journey. The emulator requires Java 21+ compiled for the host CPU.
 
 For the managed API, use Python 3.11+ and run the following from
 `services/clara-api`:
@@ -99,6 +100,10 @@ in [the managed Clara API contract](docs/MANAGED_CLARA_API.md).
 Production PWA: `https://longview-505611.web.app/`.
 
 Production Clara API: `https://longview-clara-api-112452643430.asia-south1.run.app`.
+
+Build the hosted release with `npm run build:production`. This command pins the
+Release 4 surface, the managed Clara API, and production Firebase connections so a
+developer’s local emulator settings cannot be embedded in the hosted bundle.
 
 ## Review the mockup
 

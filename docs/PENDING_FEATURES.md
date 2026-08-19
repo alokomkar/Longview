@@ -1,6 +1,6 @@
 # Longview Pending Features
 
-Status: Release 3 deployed; Release 4 design review
+Status: Release 3 deployed; Release 4 locally verified
 
 Updated: 2026-08-19
 
@@ -34,15 +34,11 @@ not. Review checkmarks in the demo are not implementation status.
 
 ## P1 after the judged path
 
-1. **Durable Plan record** — execution and approved-change proof, reviewed decisions,
-   and explicitly retained Clara guidance. The Release 4 contract and interactive
-   failure journey are ready for product-owner review; implementation has not started.
-
-2. **Reviewed research** — MEM-01 and MEM-02: attributed accept/reject/defer cards and
+1. **Reviewed research** — MEM-01 and MEM-02: attributed accept/reject/defer cards and
    non-destructive failure recovery.
-3. **Versioned brief** — MEM-03 and MEM-04: editable proposal, attribution, explicit save,
+2. **Versioned brief** — MEM-03 and MEM-04: editable proposal, attribution, explicit save,
    history, and stale-version conflict handling.
-4. **Achievement and consent** — MEM-05 and MEM-06: evidence, reflection, explicit
+3. **Achievement and consent** — MEM-05 and MEM-06: evidence, reflection, explicit
    reusable-memory permission, retry, and no memory write after failure.
 
 ## Post-hackathon MVP enhancement — pick up only if time permits
@@ -64,8 +60,9 @@ and offer Add schedule. Workspace availability and clock-time scheduling do not 
 The portfolio totals committed weekly hours, derives reviewable operating modes and
 allocation shares, and gives one non-writing cross-Plan recommendation. Plan Details
 performs an owner-scoped authoritative read, exposes the current step and context empty
-states, and fails safely when the Plan is missing or unavailable. Persisted history,
-decisions, research, and brief content remain in their later acceptance slices.
+states, and fails safely when the Plan is missing or unavailable. Release 4 now restores
+immutable completion and approved-change proof, reviewed decisions, and explicitly
+retained Clara guidance. Research and brief content remain in later acceptance slices.
 
 The local selected-Plan Clara loop now covers typed managed recommendations, exact
 schedule previews, explicit rejection, stale checks, idempotent approval, one immutable

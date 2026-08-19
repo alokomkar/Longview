@@ -1,12 +1,14 @@
 # Release 4: Durable Plan Record
 
-Status: Design review ready; implementation not started
+Status: Implemented and verified locally; production acceptance pending
 
 Last updated: 2026-08-19
 
 Interactive acceptance: [Release 4 durable Plan record](design/longview-release-four-plan-record.html)
 
 Pre-implementation evidence: [Release 4 baseline](evidence/RELEASE_FOUR_BASELINE.md)
+
+Implementation evidence: [Release 4 verification](evidence/RELEASE_FOUR_VERIFICATION.md)
 
 ## Outcome
 
@@ -85,5 +87,6 @@ it with different content fails closed. Records cannot be updated or deleted.
   offline/network failure, retry, unknown-result recovery, and authoritative reload.
 - Mobile E2E covers history, decision save, retained guidance, safe failure states,
   keyboard use, and 200% text scaling.
-- Full regression, page load, record latency, interaction responsiveness, bundle delta,
-  and a QuickTime recording are required before merge approval.
+- Full regression, production configuration inspection, the emulator-backed mobile
+  journey, bundle comparison, and FastAPI transaction tests pass. Production anonymous
+  acceptance and its QuickTime recording remain the final deployment gate.

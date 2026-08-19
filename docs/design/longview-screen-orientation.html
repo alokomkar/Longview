@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en" data-palette="ocean" data-mode="dark" data-font="lora" data-size="default">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Longview screen orientation review</title>
+  <link rel="stylesheet" href="longview-release-prototype.css">
+  <style>
+    .location-bar{position:sticky;top:0;z-index:4;margin:-2px -2px 24px;padding:10px 2px 14px;background:linear-gradient(180deg,var(--paper) 78%,transparent);border-bottom:1px solid var(--rule)}
+    .location-brand{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:9px}
+    .location-brand strong{color:var(--accent);font-size:10px;letter-spacing:.18em;text-transform:uppercase}
+    .section-pill{padding:5px 9px;border:1px solid var(--rule);border-radius:999px;background:var(--surface);color:var(--text);font:700 9px/1.2 system-ui,sans-serif}
+    .location-row{display:flex;align-items:center;gap:10px;min-width:0}
+    .back-link{flex:0 0 auto;padding:7px 9px;border:1px solid var(--rule);border-radius:8px;background:var(--surface);color:var(--text);font:700 9px/1 system-ui,sans-serif;cursor:pointer}
+    .location-copy{min-width:0}.location-copy small{display:block;color:var(--muted);font:600 8px/1.35 system-ui,sans-serif;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .location-copy b{display:block;margin-top:2px;color:var(--text);font:700 13px/1.25 system-ui,sans-serif}
+    .orientation-note{margin:0 0 13px;padding:10px 12px;border-left:3px solid var(--accent);background:var(--surface);color:var(--muted);font:500 9px/1.55 system-ui,sans-serif}
+    .compact-card{padding:13px;border:1px solid var(--rule);border-radius:12px;background:var(--surface);margin-bottom:12px}.compact-card h2{margin:5px 0 6px;font-size:18px}.compact-card p{margin:0;color:var(--muted);font-size:10px;line-height:1.55}
+    .failure-card{border-color:var(--amber)}
+    .side-item[aria-current="page"]{background:color-mix(in srgb,var(--accent) 14%,var(--surface));color:var(--accent);box-shadow:inset 3px 0 var(--accent)}
+    .side-context{margin:28px 10px 0;padding-top:18px;border-top:1px solid var(--rule);color:var(--faint);font:600 9px/1.55 system-ui,sans-serif}.side-context strong{display:block;margin-bottom:5px;color:var(--muted);font-size:10px}
+    .desktop-main .screen{max-width:920px}.desktop-main .compact-card{max-width:720px}.desktop-main .btn{width:auto;min-width:220px;margin-right:8px}.desktop-main .btn+.btn{margin-top:0}
+    .screen .page-title{font-size:30px}.screen .page-sub{font-size:10px}
+    @media(max-width:520px){.location-brand{align-items:flex-start}.section-pill{max-width:46%;white-space:normal;text-align:right}.location-row{align-items:flex-start}.back-link{white-space:nowrap}.location-copy small{white-space:normal}.screen .page-title{font-size:27px}}
+  </style>
+</head>
+<body data-platform="desktop"><main id="prototype" aria-live="polite"></main>
+<script>
+(() => {
+  const screens={
+    today:{label:'Today',section:'Today',title:'Today',trail:'Today'},
+    calendar:{label:'Calendar',section:'Calendar',title:'Calendar',trail:'Calendar'},
+    plans:{label:'Plans',section:'Plans',title:'Plans',trail:'Plans'},
+    settings:{label:'Settings',section:'Settings',title:'Settings',trail:'Settings'},
+    plan:{label:'Plan details',section:'Plans',title:'Plan details',trail:'Plans / Launch Longview',back:'Back to Plans',backTo:'plans'},
+    clara:{label:'Ask Clara',section:'Today',title:'Ask Clara',trail:'Today / Ask Clara',back:'Back to Today',backTo:'today'},
+    schedule:{label:'Review schedule change',section:'Calendar',title:'Review schedule change',trail:'Calendar / Review proposal',back:'Back to Calendar',backTo:'calendar'},
+    research:{label:'Research review',section:'Plans',title:'Research',trail:'Plans / Launch Longview / Research',back:'Back to Plan',backTo:'plan'},
+    achievement:{label:'Achievement',section:'Plans',title:'Achievement',trail:'Plans / Launch Longview / Achievement',back:'Back to Plan',backTo:'plan'},
+    failure:{label:'Plan unavailable',section:'Plans',title:'Plan unavailable',trail:'Plans / Plan details',back:'Back to Plans',backTo:'plans'}
+  };
+  const state={screen:'today'};
+  const root=document.getElementById('prototype');
+  const go=(label,target,cls='')=>`<button class="btn ${cls}" data-go="${target}">${label}</button>`;
+  const location=value=>`<header class="location-bar"><div class="location-brand"><strong>Longview</strong><span class="section-pill" aria-label="Current section: ${value.section}">${value.section}</span></div>${value.back?`<div class="location-row"><button class="back-link" data-go="${value.backTo}" aria-label="${value.back}">← ${value.back}</button><div class="location-copy"><small>${value.trail}</small><b>${value.title}</b></div></div>`:''}</header>`;
+  const page=(title,copy,body)=>`<h1 class="page-title">${title}</h1><p class="page-sub">${copy}</p>${body}`;
+  const views={
+    today:()=>page('One useful step is enough.','Your approved work for today stays in one place.',`<article class="compact-card"><span class="badge green">From Launch Longview</span><h2>Invite five early users</h2><p>60 minutes · prepared from your approved day.</p></article>${go('Ask Clara about this step','clara','primary')}`),
+    calendar:()=>page('Plan one day at a time.','Review a proposal before anything is saved.',`${go('Review current proposal','schedule','primary')}<div class="orientation-note">The Calendar tab remains selected through preparation, review, approval, and safe failure states.</div>`),
+    plans:()=>page('Your Plans','Open a Plan without losing its place in the portfolio.',`<article class="compact-card"><span class="badge green">Active Plan</span><h2>Launch Longview</h2><p>Release the complete planning flow to early users.</p></article>${go('Open Plan details','plan','primary')}`),
+    settings:()=>page('Settings','Manage account access and browser data.',`<article class="compact-card"><h2>Signed in anonymously</h2><p>Link Google before signing out if you want access from another device.</p></article>`),
+    plan:()=>page('Launch Longview','Everything about this Plan stays under Plans.',`<article class="compact-card"><span class="badge green">Plan details</span><h2>Release to early users</h2><p>Target 19th August 2026 · Monday, Wednesday, Friday.</p></article>${go('Review research','research','primary')}${go('View achievement','achievement')}`),
+    clara:()=>page('Ask Clara about this step','Clara is read-only until you review a specific change.',`<article class="compact-card"><span class="badge green">Context attached</span><h2>Invite five early users</h2><p>Today and the source Plan are visible before the request starts.</p></article>${go('Return to Today','today','primary')}`),
+    schedule:()=>page('Review today’s order','Nothing changes until this exact proposal is approved.',`<article class="compact-card"><span class="badge green">First</span><h2>Invite five early users</h2><p>Launch Longview · 60 minutes.</p></article>${go('Approve this order','calendar','primary')}${go('Return without changes','calendar')}`),
+    research:()=>page('Research for Launch Longview','Evidence stays a proposal until you accept it.',`<article class="compact-card"><span class="badge green">Pending review</span><h2>Early feedback reduces avoidable rework</h2><p>Source and retrieval time remain visible.</p></article>${go('Accept research','plan','primary')}${go('Show unavailable state','failure')}`),
+    achievement:()=>page('Plan achieved','Completion evidence and reuse permission remain attached to this Plan.',`<article class="compact-card"><span class="badge green">Evidence confirmed</span><h2>Release reached early users</h2><p>One achievement record · reusable reflection is explicitly limited.</p></article>${go('Back to Plan','plan','primary')}`),
+    failure:()=>page('This Plan could not be opened.','Your location is preserved while the record is checked.',`<article class="compact-card failure-card"><span class="badge amber">Nothing changed</span><h2>Plan unavailable</h2><p>Try again or return to the Plans list. No stale details are shown.</p></article>${go('Try again','plan','primary')}${go('Back to Plans','plans')}`)
+  };
+  const nav=section=>`<aside class="side"><div class="side-brand">Longview</div><nav aria-label="Primary">${['Today','Calendar','Plans','Settings'].map((label,index)=>`<button class="side-item" data-go="${label.toLowerCase()}" ${label===section?'aria-current="page"':''}><i class="nav-glyph">${['●','□','◇','⚙'][index]}</i>${label}</button>`).join('')}</nav><div class="side-context"><strong>Current section</strong>${section}<br>Every nested screen keeps this selection.</div></aside>`;
+  function render(){const value=screens[state.screen];const bar=`<header class="demo-bar"><div class="demo-identity"><span class="demo-brand">Longview</span><span class="demo-tag">Desktop orientation review</span></div><div class="demo-menus"><select id="screen" aria-label="Screen">${Object.entries(screens).map(([id,item])=>`<option value="${id}" ${state.screen===id?'selected':''}>${item.label}</option>`).join('')}</select></div><button class="demo-reset" data-go="today">Reset</button></header>`;root.innerHTML=`<div class="prototype-page">${bar}<div class="prototype-stage"><section class="device desktop web"><div class="browser-chrome"><i class="browser-dot"></i><i class="browser-dot"></i><i class="browser-dot"></i><span class="address">Local review · desktop · not deployed</span></div><div class="desktop-shell">${nav(value.section)}<main class="desktop-main"><section class="screen">${location(value)}${views[state.screen]()}</section></main></div></section></div></div>`;document.getElementById('screen').onchange=event=>{state.screen=event.target.value;render()}}
+  root.addEventListener('click',event=>{const target=event.target.closest('[data-go]');if(!target)return;state.screen=target.dataset.go;render()});
+  render();
+})();
+</script>
+</body>
+</html>

@@ -1,6 +1,6 @@
 # Longview Pending Features
 
-Status: Release 4 deployed; Release 5 proposed for review
+Status: Release 4 deployed; Release 5 implemented locally and pending merge/deployment approval
 
 Updated: 2026-08-19
 
@@ -34,11 +34,12 @@ not. Review checkmarks in the demo are not implementation status.
 
 ## P1 after the judged path
 
-1. **Reviewed research** — MEM-01 and MEM-02 are specified in the Release 5 contract
-   and interactive journey; implementation remains gated on product-owner review.
-2. **Versioned brief** — MEM-03 and MEM-04 are specified with editable proposal,
-   attribution, explicit save, history, and stale-version protection; implementation
-   remains gated on product-owner review.
+1. **Reviewed research** — MEM-01 and MEM-02 are implemented locally with attributed
+   cards, Accept/Reject/Not now history, strict parsing, cancellation, timeout, offline,
+   idempotency, and concurrent-review recovery. Production Cloud evidence remains.
+2. **Versioned brief** — MEM-03 and MEM-04 are implemented locally with an editable
+   proposal, one to three accepted sources, explicit final save, immutable history,
+   idempotency, and stale-version protection. Production Cloud evidence remains.
 3. **Achievement and consent** — MEM-05 and MEM-06: evidence, reflection, explicit
    reusable-memory permission, retry, and no memory write after failure.
 
@@ -63,7 +64,8 @@ allocation shares, and gives one non-writing cross-Plan recommendation. Plan Det
 performs an owner-scoped authoritative read, exposes the current step and context empty
 states, and fails safely when the Plan is missing or unavailable. Release 4 now restores
 immutable completion and approved-change proof, reviewed decisions, and explicitly
-retained Clara guidance. Research and brief content remain in later acceptance slices.
+retained Clara guidance. Release 5 now supplies reviewed research and versioned Plan
+Brief content locally; merge, Cloud deployment, and production evidence remain pending.
 
 The local selected-Plan Clara loop now covers typed managed recommendations, exact
 schedule previews, explicit rejection, stale checks, idempotent approval, one immutable

@@ -1,6 +1,6 @@
 # Release 5: Reviewed Research and Versioned Plan Brief
 
-Status: Proposed for product-owner review
+Status: Implemented and verified locally; merge and deployment pending
 
 Last updated: 2026-08-19
 
@@ -36,7 +36,7 @@ All documents are owner- and Plan-scoped below
 |---|---|
 | `research/{researchId}` | Immutable validated evidence and attribution snapshot |
 | `researchReviews/{reviewId}` | Append-only status decision, expected research revision, idempotency key, server time |
-| `briefVersions/{versionId}` | Immutable title, summary, approach, risks, success evidence, source research IDs, version number |
+| `briefVersions/{versionId}` | Immutable focus, approach, success evidence, one to three accepted research IDs, and version number |
 | Plan brief pointer | Current version and revision, changed only in the brief-save transaction |
 
 The server derives trusted ownership, Plan identity, current revisions, and timestamps.
@@ -83,6 +83,12 @@ different content fails closed.
   network failure, retries, unknown results, stale edits, and partial recovery.
 - Mobile E2E covers all three research decisions, proposal editing and deferral, exact
   review, version history, stale conflict, keyboard use, and 200% text scaling.
-- The full E2E sanity suite, bundle and loading comparison, network latency measurement,
-  responsive checks, and a QuickTime journey recording are required before merge.
+- Local verification passes 306 frontend tests, 56 API tests, 17 Firestore rule tests,
+  2 emulator-backed Release 5 E2E cases, and 32 regression E2E cases.
+- The Release 5 build is 1,012 KiB and has no local emulator endpoint. The existing
+  523.49 kB Firestore chunk remains the only size warning.
+- Google Search grounding stays read-only, derives URLs only from provider grounding
+  metadata, preserves up to three Search suggestions, and validates model JSON before use.
+- Measured evidence and recording provenance are in
+  [Release 5 verification](evidence/RELEASE_FIVE_VERIFICATION.md).
 - Merge and deployment require separate product-owner approval.

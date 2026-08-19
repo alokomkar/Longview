@@ -1,6 +1,6 @@
 # Longview Implementation Phases
 
-Status: Release 4 deployed and production-verified
+Status: Release 4 deployed; Release 5 local release candidate verified
 Updated: 2026-08-19
 Links: [PRD](PRODUCT_REQUIREMENTS.md) | [Mockup](design/longview-pwa-interactive-mockup.html) | [Stack](TECH_STACK.md)
 
@@ -83,6 +83,11 @@ result after duplicate or interrupted responses. Research and brief reads fail
 independently so one unavailable surface does not hide the other. See the
 [release contract](RELEASE_FIVE_RESEARCH_BRIEF.md) and
 [interactive acceptance](design/longview-release-five-research-brief.html).
+
+The local candidate passes typed frontend, API, Firestore-rule, emulator-backed mobile,
+and full regression gates. Grounded research maps attribution only from provider
+metadata, preserves Google Search suggestions, and fails closed on malformed output.
+Merge, Cloud Run/Hosting deployment, and production acceptance remain gated.
 
 1. **Cloud prerequisite:** Create one Google Cloud project and enable Firebase on it;
    claim credits, configure budgets, emulators, least-privilege identities, and secrets.

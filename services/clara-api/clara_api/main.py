@@ -43,8 +43,11 @@ from .models import (
     DayBreakResponse,
     RecommendationRequest,
     RecommendationResponse,
+    ResearchRequest,
+    ResearchResponse,
     ScheduleRun,
 )
+from .research import GroundedResearchEngine, ResearchEngine, ResearchEngineUnavailableError
 from .schedule_runs import (
     ScheduleRunCoordinator,
     ScheduleRunNotFoundError,
@@ -58,16 +61,22 @@ def default_engine(allow_proposed_changes: bool = True) -> RecommendationEngine:
     return AdkRecommendationEngine(allow_proposed_changes=allow_proposed_changes)
 
 
+@lru_cache(maxsize=1)
+def default_research_engine() -> ResearchEngine:
+    return GroundedResearchEngine()
+
+
 def create_app(
     verifier: TokenVerifier | None = None,
     engine: RecommendationEngine | None = None,
+    research_engine: ResearchEngine | None = None,
     approval_repository: ApprovalRepository | None = None,
     schedule_run_coordinator: ScheduleRunCoordinator | None = None,
     approved_day_repository: ApprovedDayRepository | None = None,
     day_break_repository: DayBreakRepository | None = None,
     timeout_seconds: float | None = None,
     allowed_origins: list[str] | None = None,
-    release_mode: Literal["read-only", "release-two", "release-three", "full"] = "full",
+    release_mode: Literal["read-only", "release-two", "release-three", "release-five", "full"] = "full",
 ) -> FastAPI:
     app = FastAPI(title="Longview Clara API", version="0.1.0")
     request_timeout = timeout_seconds if timeout_seconds is not None else float(
@@ -133,6 +142,33 @@ def create_app(
             or len(set(change.working_days_before).symmetric_difference(change.working_days_after)) != 1
         ):
             raise HTTPException(status_code=502, detail="Invalid recommendation change")
+        return response
+
+    @app.post("/v1/clara/research", response_model=ResearchResponse, response_model_by_alias=True)
+    async def research(
+        context: ResearchRequest,
+        authorization: str | None = Header(default=None),
+    ) -> ResearchResponse:
+        user_id = await authenticated_user(authorization)
+        try:
+            active_engine = research_engine or default_research_engine()
+            raw = await asyncio.wait_for(
+                active_engine.research(context, user_id), timeout=request_timeout
+            )
+        except TimeoutError as error:
+            raise HTTPException(status_code=504, detail="Research timed out") from error
+        except (ResearchEngineUnavailableError, ImportError) as error:
+            raise HTTPException(status_code=503, detail="Research unavailable") from error
+        try:
+            response = ResearchResponse.model_validate(raw)
+        except ValidationError as error:
+            raise HTTPException(status_code=502, detail="Invalid research response") from error
+        if response.request_id != context.request_id or response.source_plan_id != context.plan.id:
+            raise HTTPException(status_code=502, detail="Mismatched research response")
+        if len({card.research_id for card in response.cards}) != len(response.cards):
+            raise HTTPException(status_code=502, detail="Duplicate research response")
+        if any(card.research_id in context.existing_research_ids for card in response.cards):
+            raise HTTPException(status_code=502, detail="Existing research returned again")
         return response
 
     @app.post("/v1/clara/approvals", response_model=ApprovalResponse, response_model_by_alias=True)
@@ -291,9 +327,9 @@ def create_app(
             "/health", "/v1/clara/recommendations", "/openapi.json", "/docs",
             "/docs/oauth2-redirect", "/redoc",
         }
-        if release_mode in {"release-two", "release-three"}:
+        if release_mode in {"release-two", "release-three", "release-five"}:
             allowed_paths.add("/v1/clara/approvals")
-        if release_mode == "release-three":
+        if release_mode in {"release-three", "release-five"}:
             allowed_paths.update({
                 "/v1/clara/schedule-runs",
                 "/v1/clara/schedule-runs/{run_id}",
@@ -303,6 +339,8 @@ def create_app(
                 "/v1/clara/approved-days/{selected_date}/break-preview",
                 "/v1/clara/approved-days/{selected_date}/break",
             })
+        if release_mode == "release-five":
+            allowed_paths.add("/v1/clara/research")
         app.router.routes = [
             route for route in app.router.routes
             if getattr(route, "path", None) in allowed_paths

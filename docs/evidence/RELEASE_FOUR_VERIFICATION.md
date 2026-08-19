@@ -1,6 +1,6 @@
 # Release 4 Implementation Verification
 
-Status: Local release gate passed; production acceptance pending
+Status: Production release gate passed
 
 Verified: 2026-08-19 (Asia/Kolkata)
 
@@ -43,8 +43,22 @@ Contract: [Release 4 durable Plan record](../RELEASE_FOUR_PLAN_RECORD.md)
 The existing greater-than-500-kB Firestore chunk warning remains. The Release 4 main
 bundle increase is 2.17% gzip and does not add a network call during navigation.
 
-## Remaining production gate
+## Production acceptance
 
-Merge the reviewed branch, deploy Firestore rules and Firebase Hosting, then use a new
-anonymous browser context to create a Plan, save a decision and Clara guidance, reload,
-and confirm both records restore. Record that exact production journey with QuickTime.
+- PR #21 merged to `master` at `a3fc534`.
+- Firestore rules and Firebase Hosting deployed successfully to
+  `https://longview-505611.web.app`.
+- A fresh anonymous production context created a Plan, saved a reviewed decision,
+  received managed Clara guidance, explicitly retained it, reloaded, and restored both
+  immutable records. The mobile production E2E passed in 28.2 seconds.
+- The passing managed recommendation completed in 13.736 seconds. One preceding call
+  returned a safe invalid-response error; the UI kept all data unchanged and exposed
+  retry. Managed-model response consistency remains an observed reliability risk.
+
+## Production recording
+
+- QuickTime file: `~/Desktop/Longview Release 4 Production Anonymous 2026-08-19.mov`.
+- 237.172 seconds, 3456×2234, 39,805,451 bytes.
+- Full-screen coverage: anonymous onboarding, Plan creation, exact decision review,
+  immutable save, Clara progress, guidance review/save, reload, and record restoration.
+- Frames sampled at 30, 120, and 225 seconds confirm the full-resolution journey.

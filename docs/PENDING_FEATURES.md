@@ -1,6 +1,6 @@
 # Longview Pending Features
 
-Status: Release 3 deployed; Release 4 locally verified
+Status: Release 4 deployed and production-verified
 
 Updated: 2026-08-19
 

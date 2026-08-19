@@ -1,6 +1,6 @@
 # Release 4: Durable Plan Record
 
-Status: Implemented and verified locally; production acceptance pending
+Status: Deployed and accepted in production
 
 Last updated: 2026-08-19
 
@@ -88,5 +88,5 @@ it with different content fails closed. Records cannot be updated or deleted.
 - Mobile E2E covers history, decision save, retained guidance, safe failure states,
   keyboard use, and 200% text scaling.
 - Full regression, production configuration inspection, the emulator-backed mobile
-  journey, bundle comparison, and FastAPI transaction tests pass. Production anonymous
-  acceptance and its QuickTime recording remain the final deployment gate.
+  journey, bundle comparison, FastAPI transaction tests, and the anonymous production
+  journey pass. The production journey is retained in the linked verification evidence.

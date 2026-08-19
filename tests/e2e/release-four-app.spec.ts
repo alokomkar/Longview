@@ -26,12 +26,21 @@ test('anonymous user creates a Plan and restores its durable decision and Clara 
   await expect(page.getByText('Decision saved.')).toBeVisible();
 
   await page.getByRole('button', { name: 'Ask Clara about this Plan' }).click();
-  await expect(page.getByText(/Read-only recommendation/)).toBeVisible();
+  const readyRecommendation = page.getByText(/Read-only recommendation/);
+  try {
+    await readyRecommendation.waitFor({ state: 'visible', timeout: 20_000 });
+  } catch {
+    await expect(page.getByRole('heading', { name: 'Clara is unavailable.' })).toBeVisible();
+    await page.getByRole('button', { name: 'Try again' }).click();
+    await expect(readyRecommendation).toBeVisible();
+  }
+  const recommendation = (await page.locator('aside.clara-card > p').first().textContent())?.trim();
+  expect(recommendation).toBeTruthy();
   await page.getByRole('button', { name: 'Save to this Plan' }).click();
   await expect(page.getByRole('heading', { name: 'Keep this recommendation with the Plan?' })).toBeVisible();
   await page.getByRole('button', { name: 'Save to this Plan' }).click();
   await page.getByRole('tab', { name: 'Saved guidance' }).click();
-  await expect(page.getByText(/Define one observable proof/)).toBeVisible();
+  await expect(page.getByRole('heading', { name: recommendation!, exact: true })).toBeVisible();
 
   await page.reload();
   await page.getByRole('button', { name: 'Plans', exact: true }).click();
@@ -39,7 +48,7 @@ test('anonymous user creates a Plan and restores its durable decision and Clara 
   await page.getByRole('tab', { name: 'Decisions' }).click();
   await expect(page.getByText('Keep Release 4 append-only for the first production cohort.')).toBeVisible();
   await page.getByRole('tab', { name: 'Saved guidance' }).click();
-  await expect(page.getByText(/Define one observable proof/)).toBeVisible();
+  await expect(page.getByRole('heading', { name: recommendation!, exact: true })).toBeVisible();
 
   const layout = await page.evaluate(() => ({ width: document.documentElement.clientWidth, scroll: document.documentElement.scrollWidth }));
   expect(layout.scroll).toBeLessThanOrEqual(layout.width);

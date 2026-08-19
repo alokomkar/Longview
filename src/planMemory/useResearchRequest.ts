@@ -9,7 +9,7 @@ type Snapshot =
   | { status: 'ready'; response: ResearchResponse; failure: null }
   | { status: 'error'; response: null; failure: ResearchFailure };
 
-export function useResearchRequest(user: AuthUser, gateway: ResearchGateway, timeoutMs = 15_000) {
+export function useResearchRequest(user: AuthUser, gateway: ResearchGateway, timeoutMs = 25_000) {
   const [snapshot, setSnapshot] = useState<Snapshot>({ status: 'idle', response: null, failure: null });
   const controller = useRef<AbortController | null>(null);
   const lastRequest = useRef<ResearchRequest | null>(null);

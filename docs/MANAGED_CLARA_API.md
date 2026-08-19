@@ -72,6 +72,8 @@ and production endpoint evidence require a separate explicit deployment approval
   model budget so search reasoning cannot truncate the validated JSON payload. A
   single provider source index may be normalized from one-based to zero-based only
   when exactly one grounded source exists; ambiguous attribution still fails closed.
+- The browser allows 25 seconds for identity lookup, transport, and the server's
+  bounded model call. Cancellation still aborts the request immediately.
 - Schema-enforced output combined with built-in tools is documented for Gemini 3 only.
   The current Gemini 2.5 path therefore requests JSON and validates it with strict
   Pydantic models before any card reaches the PWA.

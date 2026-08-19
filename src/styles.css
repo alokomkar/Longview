@@ -9,6 +9,8 @@ h1 { margin:14px 0 12px; font:700 clamp(2rem,8vw,3.4rem)/1.02 Georgia,serif; let
 p { color:#b8c6ce; line-height:1.6; }
 .actions { display:grid; gap:12px; margin:26px 0 18px; }
 button { min-height:52px; border:0; border-radius:14px; padding:0 18px; color:#05201d; background:#79d7c5; font-weight:800; cursor:pointer; }
+h1,h2,h3,p,small,dd,button,a { overflow-wrap:anywhere; }
+.actions > *,.memory-tabs > *,.research-actions > * { min-width:0; }
 button.secondary { color:#edf5f5; background:#18364a; border:1px solid #37576b; }
 button.danger { color:#fff4f0; background:#5b2430; border:1px solid #a64b5d; }
 button:focus-visible { outline:3px solid #f4c96b; outline-offset:3px; }
@@ -112,6 +114,18 @@ legend { margin-bottom:10px; color:#dce7e9; font-weight:800; }
 .record-list .plan-card { padding:18px; }
 .record-list .plan-card p { margin-bottom:12px; }
 .record-list small { overflow-wrap:anywhere; }
+.memory-section { margin-top:28px; }
+.memory-tabs { grid-template-columns:repeat(3,minmax(0,1fr)); }
+.memory-tabs button { min-height:48px; }
+.memory-list { display:grid; gap:14px; }
+.memory-list > button { justify-self:start; }
+.research-card h3,.brief-card h3,.memory-progress h3 { margin:10px 0; font:700 1.3rem/1.2 Georgia,serif; }
+.research-attribution { display:grid; gap:5px; margin:16px 0; padding:14px; border-radius:12px; background:#071522; border:1px solid #284458; }
+.research-attribution a { color:#79d7c5; overflow-wrap:anywhere; }
+.research-actions { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:10px; margin-top:18px; }
+.research-actions button { min-width:0; }
+.memory-progress { margin:18px 0; border-color:#3a796f; }
+.memory-progress > button { margin-top:16px; }
 .app-shell nav { position:fixed; left:50%; bottom:18px; transform:translateX(-50%); display:flex; gap:8px; width:min(calc(100% - 32px),520px); padding:8px; border:1px solid #284458; border-radius:18px; background:#0a1b2af2; backdrop-filter:blur(12px); }
 .app-shell nav button { flex:1; min-height:44px; }
 .system-banner { position:fixed; z-index:10; top:12px; left:50%; transform:translateX(-50%); width:min(calc(100% - 24px),620px); padding:10px 14px; border-radius:12px; background:#392b13; color:#ffe8af; border:1px solid #f4c96b; text-align:center; }
@@ -121,6 +135,8 @@ legend { margin-bottom:10px; color:#dce7e9; font-weight:800; }
 @media (max-width:520px) { .app-shell nav { gap:5px; padding:6px; } .app-shell nav button { min-width:0; padding:0 7px; font-size:.82rem; } }
 @media (max-width:620px) { .portfolio-summary,.detail-grid { grid-template-columns:1fr; } .context-grid { grid-template-columns:repeat(2,1fr); } }
 @media (max-width:620px) { .record-heading { align-items:stretch; flex-direction:column; } .record-section .context-grid { grid-template-columns:1fr; } }
+@media (max-width:620px) { .memory-tabs { grid-template-columns:1fr; } }
+@media (max-width:480px) { .research-actions { grid-template-columns:1fr; } }
 @media (max-width:520px) { .clara-doors,.quick-action-grid { grid-template-columns:1fr; } }
 @media (max-width:420px) { .day-choices { grid-template-columns:repeat(4,1fr); } }
 @media (max-width:520px) { .approval-diff { grid-template-columns:1fr; } }

@@ -20,6 +20,44 @@ service cloud.firestore {
         && (facts.size() < 4 || (facts[3] is string && facts[3].size() >= 3 && facts[3].size() <= 120));
     }
 
+    function validResearchSource(source, planId) {
+      return source is map
+        && source.keys().hasOnly(['kind', 'title', 'locator', 'domain', 'publishedAt', 'retrievedAt', 'searchQueries'])
+        && source.kind in ['web', 'workspace']
+        && source.title is string && source.title.size() >= 3 && source.title.size() <= 200
+        && source.locator is string && source.locator.size() >= 3 && source.locator.size() <= 1000
+        && ((source.kind == 'web' && source.locator.matches('^https://.+'))
+          || (source.kind == 'workspace' && source.locator == 'workspace/plans/' + planId))
+        && (source.domain == null || (source.domain is string && source.domain.size() >= 3 && source.domain.size() <= 200))
+        && (source.publishedAt == null || (source.publishedAt is string && source.publishedAt.size() >= 20 && source.publishedAt.size() <= 40))
+        && source.retrievedAt is string && source.retrievedAt.size() >= 20 && source.retrievedAt.size() <= 40
+        && (!source.keys().hasAny(['searchQueries']) || (
+          source.searchQueries is list && source.searchQueries.size() <= 3
+          && (source.searchQueries.size() < 1 || (source.searchQueries[0] is string && source.searchQueries[0].size() >= 1 && source.searchQueries[0].size() <= 200))
+          && (source.searchQueries.size() < 2 || (source.searchQueries[1] is string && source.searchQueries[1].size() >= 1 && source.searchQueries[1].size() <= 200))
+          && (source.searchQueries.size() < 3 || (source.searchQueries[2] is string && source.searchQueries[2].size() >= 1 && source.searchQueries[2].size() <= 200))
+        ));
+    }
+
+    function validResearchIds(ids) {
+      return ids is list && ids.size() >= 1 && ids.size() <= 3
+        && ids.toSet().size() == ids.size()
+        && ids[0] is string && ids[0].size() >= 8 && ids[0].size() <= 128
+        && (ids.size() < 2 || (ids[1] is string && ids[1].size() >= 8 && ids[1].size() <= 128))
+        && (ids.size() < 3 || (ids[2] is string && ids[2].size() >= 8 && ids[2].size() <= 128));
+    }
+
+    function acceptedResearch(uid, workspaceId, planId, researchId) {
+      return exists(/databases/$(database)/documents/users/$(uid)/workspaces/$(workspaceId)/plans/$(planId)/researchState/$(researchId))
+        && get(/databases/$(database)/documents/users/$(uid)/workspaces/$(workspaceId)/plans/$(planId)/researchState/$(researchId)).data.currentDecision == 'accepted';
+    }
+
+    function allResearchAccepted(uid, workspaceId, planId, ids) {
+      return acceptedResearch(uid, workspaceId, planId, ids[0])
+        && (ids.size() < 2 || acceptedResearch(uid, workspaceId, planId, ids[1]))
+        && (ids.size() < 3 || acceptedResearch(uid, workspaceId, planId, ids[2]));
+    }
+
     match /users/{uid} {
       allow read: if owns(uid);
       allow create: if owns(uid) && request.resource.data.uid == uid;
@@ -149,6 +187,179 @@ service cloud.firestore {
                   && request.resource.data.sourceRecommendationId.size() <= 128)
               );
             allow update, delete: if false;
+          }
+
+          match /research/{researchId} {
+            allow read: if owns(uid);
+            allow create: if owns(uid)
+              && workspaceId == 'default'
+              && exists(/databases/$(database)/documents/users/$(uid)/workspaces/$(workspaceId)/plans/$(planId))
+              && existsAfter(/databases/$(database)/documents/users/$(uid)/workspaces/$(workspaceId)/plans/$(planId)/researchState/$(researchId))
+              && request.resource.data.keys().hasOnly([
+                'schemaVersion', 'researchId', 'requestId', 'sourcePlanId', 'headline',
+                'finding', 'source', 'planId', 'ownerUid', 'workspaceId',
+                'cardFingerprint', 'createdAt'
+              ])
+              && request.resource.data.schemaVersion == 1
+              && request.resource.data.researchId == researchId
+              && request.resource.data.requestId is string
+              && request.resource.data.requestId.size() >= 8
+              && request.resource.data.requestId.size() <= 128
+              && request.resource.data.sourcePlanId == planId
+              && request.resource.data.planId == planId
+              && request.resource.data.ownerUid == uid
+              && request.resource.data.workspaceId == workspaceId
+              && request.resource.data.headline is string
+              && request.resource.data.headline.size() >= 3
+              && request.resource.data.headline.size() <= 160
+              && request.resource.data.finding is string
+              && request.resource.data.finding.size() >= 10
+              && request.resource.data.finding.size() <= 800
+              && validResearchSource(request.resource.data.source, planId)
+              && request.resource.data.cardFingerprint is string
+              && request.resource.data.cardFingerprint.size() >= 1
+              && request.resource.data.cardFingerprint.size() <= 5000
+              && request.resource.data.createdAt == request.time;
+            allow update, delete: if false;
+          }
+
+          match /researchReviews/{reviewId} {
+            allow read: if owns(uid);
+            allow create: if owns(uid)
+              && workspaceId == 'default'
+              && request.resource.data.keys().hasOnly([
+                'schemaVersion', 'reviewId', 'researchId', 'planId', 'ownerUid',
+                'workspaceId', 'decision', 'revision', 'requestFingerprint', 'reviewedAt'
+              ])
+              && request.resource.data.schemaVersion == 1
+              && request.resource.data.reviewId == reviewId
+              && request.resource.data.researchId is string
+              && request.resource.data.researchId.size() >= 8
+              && request.resource.data.researchId.size() <= 128
+              && request.resource.data.planId == planId
+              && request.resource.data.ownerUid == uid
+              && request.resource.data.workspaceId == workspaceId
+              && request.resource.data.decision in ['accepted', 'rejected', 'deferred']
+              && request.resource.data.revision is int
+              && request.resource.data.revision >= 1
+              && request.resource.data.requestFingerprint is string
+              && request.resource.data.requestFingerprint.size() >= 1
+              && request.resource.data.requestFingerprint.size() <= 5000
+              && request.resource.data.reviewedAt == request.time
+              && existsAfter(/databases/$(database)/documents/users/$(uid)/workspaces/$(workspaceId)/plans/$(planId)/research/$(request.resource.data.researchId))
+              && getAfter(/databases/$(database)/documents/users/$(uid)/workspaces/$(workspaceId)/plans/$(planId)/researchState/$(request.resource.data.researchId)).data.latestReviewId == reviewId
+              && getAfter(/databases/$(database)/documents/users/$(uid)/workspaces/$(workspaceId)/plans/$(planId)/researchState/$(request.resource.data.researchId)).data.revision == request.resource.data.revision;
+            allow update, delete: if false;
+          }
+
+          match /researchState/{researchId} {
+            allow read: if owns(uid);
+            allow create: if owns(uid)
+              && workspaceId == 'default'
+              && request.resource.data.keys().hasOnly([
+                'schemaVersion', 'researchId', 'planId', 'ownerUid', 'workspaceId',
+                'currentDecision', 'revision', 'latestReviewId', 'reviewedAt'
+              ])
+              && request.resource.data.schemaVersion == 1
+              && request.resource.data.researchId == researchId
+              && request.resource.data.planId == planId
+              && request.resource.data.ownerUid == uid
+              && request.resource.data.workspaceId == workspaceId
+              && request.resource.data.currentDecision in ['accepted', 'rejected', 'deferred']
+              && request.resource.data.revision == 1
+              && request.resource.data.latestReviewId is string
+              && request.resource.data.latestReviewId.size() >= 8
+              && request.resource.data.latestReviewId.size() <= 128
+              && request.resource.data.reviewedAt == request.time
+              && getAfter(/databases/$(database)/documents/users/$(uid)/workspaces/$(workspaceId)/plans/$(planId)/researchReviews/$(request.resource.data.latestReviewId)).data.researchId == researchId;
+            allow update: if owns(uid)
+              && request.resource.data.keys() == resource.data.keys()
+              && request.resource.data.schemaVersion == resource.data.schemaVersion
+              && request.resource.data.researchId == resource.data.researchId
+              && request.resource.data.planId == resource.data.planId
+              && request.resource.data.ownerUid == resource.data.ownerUid
+              && request.resource.data.ownerUid == uid
+              && request.resource.data.workspaceId == resource.data.workspaceId
+              && request.resource.data.currentDecision in ['accepted', 'rejected', 'deferred']
+              && request.resource.data.revision == resource.data.revision + 1
+              && request.resource.data.latestReviewId is string
+              && request.resource.data.latestReviewId.size() >= 8
+              && request.resource.data.latestReviewId.size() <= 128
+              && request.resource.data.reviewedAt == request.time
+              && getAfter(/databases/$(database)/documents/users/$(uid)/workspaces/$(workspaceId)/plans/$(planId)/researchReviews/$(request.resource.data.latestReviewId)).data.revision == request.resource.data.revision;
+            allow delete: if false;
+          }
+
+          match /briefVersions/{versionId} {
+            allow read: if owns(uid);
+            allow create: if owns(uid)
+              && workspaceId == 'default'
+              && request.resource.data.keys().hasOnly([
+                'schemaVersion', 'versionId', 'version', 'planId', 'ownerUid',
+                'workspaceId', 'focus', 'approach', 'successEvidence',
+                'sourceResearchIds', 'requestFingerprint', 'recordedAt'
+              ])
+              && request.resource.data.schemaVersion == 1
+              && request.resource.data.versionId == versionId
+              && request.resource.data.version is int
+              && request.resource.data.version >= 1
+              && request.resource.data.planId == planId
+              && request.resource.data.ownerUid == uid
+              && request.resource.data.workspaceId == workspaceId
+              && request.resource.data.focus is string
+              && request.resource.data.focus.size() >= 3
+              && request.resource.data.focus.size() <= 160
+              && request.resource.data.approach is string
+              && request.resource.data.approach.size() >= 10
+              && request.resource.data.approach.size() <= 1000
+              && request.resource.data.successEvidence is string
+              && request.resource.data.successEvidence.size() >= 10
+              && request.resource.data.successEvidence.size() <= 600
+              && validResearchIds(request.resource.data.sourceResearchIds)
+              && allResearchAccepted(uid, workspaceId, planId, request.resource.data.sourceResearchIds)
+              && request.resource.data.requestFingerprint is string
+              && request.resource.data.requestFingerprint.size() >= 1
+              && request.resource.data.requestFingerprint.size() <= 5000
+              && request.resource.data.recordedAt == request.time
+              && getAfter(/databases/$(database)/documents/users/$(uid)/workspaces/$(workspaceId)/plans/$(planId)/briefState/current).data.currentVersionId == versionId
+              && getAfter(/databases/$(database)/documents/users/$(uid)/workspaces/$(workspaceId)/plans/$(planId)/briefState/current).data.currentVersion == request.resource.data.version;
+            allow update, delete: if false;
+          }
+
+          match /briefState/{stateId} {
+            allow read: if owns(uid);
+            allow create: if owns(uid)
+              && stateId == 'current'
+              && workspaceId == 'default'
+              && request.resource.data.keys().hasOnly([
+                'schemaVersion', 'planId', 'ownerUid', 'workspaceId',
+                'currentVersion', 'currentVersionId', 'updatedAt'
+              ])
+              && request.resource.data.schemaVersion == 1
+              && request.resource.data.planId == planId
+              && request.resource.data.ownerUid == uid
+              && request.resource.data.workspaceId == workspaceId
+              && request.resource.data.currentVersion == 1
+              && request.resource.data.currentVersionId is string
+              && request.resource.data.currentVersionId.size() >= 8
+              && request.resource.data.currentVersionId.size() <= 128
+              && request.resource.data.updatedAt == request.time
+              && getAfter(/databases/$(database)/documents/users/$(uid)/workspaces/$(workspaceId)/plans/$(planId)/briefVersions/$(request.resource.data.currentVersionId)).data.version == 1;
+            allow update: if owns(uid)
+              && stateId == 'current'
+              && request.resource.data.keys() == resource.data.keys()
+              && request.resource.data.schemaVersion == resource.data.schemaVersion
+              && request.resource.data.planId == resource.data.planId
+              && request.resource.data.ownerUid == resource.data.ownerUid
+              && request.resource.data.ownerUid == uid
+              && request.resource.data.workspaceId == resource.data.workspaceId
+              && request.resource.data.currentVersion == resource.data.currentVersion + 1
+              && request.resource.data.currentVersionId is string
+              && request.resource.data.currentVersionId.size() >= 8
+              && request.resource.data.currentVersionId.size() <= 128
+              && request.resource.data.updatedAt == request.time
+              && getAfter(/databases/$(database)/documents/users/$(uid)/workspaces/$(workspaceId)/plans/$(planId)/briefVersions/$(request.resource.data.currentVersionId)).data.version == request.resource.data.currentVersion;
+            allow delete: if false;
           }
         }
 

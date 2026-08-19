@@ -49,14 +49,18 @@ import { useDayBreak } from './dayBreak/useDayBreak';
 import { lazyFirebasePlanRecordGateway } from './planRecord/lazyGateway';
 import type { PlanRecordGateway } from './planRecord/types';
 import { PlanRecordSection } from './planRecord/PlanRecordSection';
+import { lazyFirebasePlanMemoryGateway } from './planMemory/lazyGateway';
+import { lazyResearchGateway } from './planMemory/lazyResearchGateway';
+import type { PlanMemoryGateway, ResearchGateway } from './planMemory/types';
+import { PlanMemorySection } from './planMemory/PlanMemorySection';
 import { useEffect, useMemo, useState } from 'react';
 import './styles.css';
 
-export type ReleaseSurface = 'phase-zero' | 'release-one' | 'release-two' | 'release-three' | 'release-four' | 'full';
+export type ReleaseSurface = 'phase-zero' | 'release-one' | 'release-two' | 'release-three' | 'release-four' | 'release-five' | 'full';
 
 const configuredReleaseSurface = import.meta.env.VITE_RELEASE_SURFACE;
 const validReleaseSurface = (value: unknown): value is ReleaseSurface =>
-  value === 'phase-zero' || value === 'release-one' || value === 'release-two' || value === 'release-three' || value === 'release-four' || value === 'full';
+  value === 'phase-zero' || value === 'release-one' || value === 'release-two' || value === 'release-three' || value === 'release-four' || value === 'release-five' || value === 'full';
 const defaultReleaseSurface: ReleaseSurface = validReleaseSurface(configuredReleaseSurface)
   ? configuredReleaseSurface
   : import.meta.env.PROD ? 'release-four' : 'full';
@@ -246,11 +250,13 @@ function ScheduleRunPanel({ scheduleRun, approvedDay, dayBreak, capacityMinutes,
   return <section className="calendar-view" role="alert"><span className="status">Nothing changed</span><h1>{timedOut ? 'The run took too long.' : malformed ? 'This proposal could not be used.' : 'Today could not be prepared.'}</h1><p>{snapshot.status === 'error' && snapshot.failure === 'offline' ? 'Reconnect and try again.' : timedOut ? 'The deadline ended this request safely.' : malformed ? 'The response did not pass Longview’s safety checks.' : run?.failure ?? 'The Clara service could not complete this request.'} Your Plans are unchanged.</p><div className="actions"><button onClick={() => onStart(run?.runId)}>Start a new run</button><button className="secondary" onClick={onReturn}>Return to Today</button></div></section>;
 }
 
-function WorkspaceReady({ auth, gateway, planGateway, planRecordGateway, todayGateway, todayOutbox, claraGateway, claraApprovalGateway, scheduleRunGateway, approvedDayGateway, dayBreakGateway, releaseSurface }: {
+function WorkspaceReady({ auth, gateway, planGateway, planRecordGateway, planMemoryGateway, researchGateway, todayGateway, todayOutbox, claraGateway, claraApprovalGateway, scheduleRunGateway, approvedDayGateway, dayBreakGateway, releaseSurface }: {
   auth: ReturnType<typeof useAuth>;
   gateway: WorkspaceGateway;
   planGateway: PlanGateway;
   planRecordGateway: PlanRecordGateway;
+  planMemoryGateway: PlanMemoryGateway;
+  researchGateway: ResearchGateway;
   todayGateway: TodayGateway;
   todayOutbox: TodayOutbox;
   claraGateway: ClaraGateway;
@@ -265,7 +271,8 @@ function WorkspaceReady({ auth, gateway, planGateway, planRecordGateway, todayGa
   const phaseZero = releaseSurface === 'phase-zero';
   const claraEnabled = releaseSurface !== 'phase-zero';
   const extendedAgentFeatures = releaseSurface === 'full';
-  const planRecordEnabled = releaseSurface === 'release-four' || extendedAgentFeatures;
+  const planMemoryEnabled = releaseSurface === 'release-five' || extendedAgentFeatures;
+  const planRecordEnabled = releaseSurface === 'release-four' || planMemoryEnabled;
   const dailyScheduleEnabled = releaseSurface === 'release-three' || planRecordEnabled;
   const approvedClaraChanges = releaseSurface === 'release-two' || releaseSurface === 'release-three' || planRecordEnabled;
   const workspace = useWorkspace(snapshot.user, gateway);
@@ -532,7 +539,7 @@ function WorkspaceReady({ auth, gateway, planGateway, planRecordGateway, todayGa
     }
     const plan = detailSnapshot.plan;
     const mode = portfolio.entries.find(entry => entry.plan.id === plan.id)?.mode ?? 'Focus';
-    return <main className="app-shell plan-details-shell"><header><p className="eyebrow">Longview</p><button className="secondary compact" onClick={() => { clara.cancel(); setShowPlanClara(false); setApprovalProposal(null); setGuidanceReview(null); setStage('today'); setView('plans'); }}>Back to Plans</button></header><section className="plan-details-view"><span className="status">Plan details · {mode}</span><h1>{plan.title}</h1><p className="lead">{plan.outcome}</p><div className="detail-grid"><article className="plan-card"><h2>Plan overview</h2><dl><dt>Why it matters</dt><dd>{plan.why}</dd><dt>Target date</dt><dd>{formatLongDate(plan.targetDate)}</dd><dt>Weekly time</dt><dd>{plan.weeklyHours} hours</dd><dt>Working days</dt><dd>{plan.workingDays ? orderWorkingDays(plan.workingDays).map(day => dayLabels[day]).join(', ') : 'Schedule not set'}</dd></dl><button onClick={() => openPlanSchedule(plan)}>{plan.workingDays ? 'Edit schedule' : 'Add schedule'}</button></article><article className="plan-card"><span className="status">Current step</span>{selectedDetailsStep ? <><h2>{selectedDetailsStep.title}</h2><p>{selectedDetailsStep.description}</p><small>{selectedDetailsStep.durationMinutes} minutes · scheduled today</small><button onClick={() => { clara.cancel(); setShowPlanClara(false); setApprovalProposal(null); setStage('today'); setView('today'); }}>Open Today</button></> : <><h2>Nothing scheduled today.</h2><p>{plan.workingDays ? selectedDetailsNextDate ? `This Plan returns ${formatLongDate(selectedDetailsNextDate)}.` : 'No upcoming working day is available.' : 'Add working days in Plan overview before this Plan can appear in Today.'}</p></>}</article></div>{claraEnabled && (approvedClaraChanges && approvalProposal ? <ClaraApprovalPanel proposal={approvalProposal} state={approvalState} onApprove={applyClaraChange} onReject={closeClaraApproval} onReturn={closeClaraApproval} returnLabel="View updated Plan" /> : showPlanClara ? <ClaraPanel clara={clara} subject="Plan" onReview={approvedClaraChanges ? reviewClaraChange : undefined} onSave={planRecordEnabled ? reviewGuidance : undefined} onClose={() => { clara.cancel(); setShowPlanClara(false); }} /> : <button onClick={() => askClaraAboutPlan(plan)}>Ask Clara about this Plan</button>)}{planRecordEnabled && <PlanRecordSection user={snapshot.user} planId={plan.id} gateway={planRecordGateway} guidance={guidanceReview} onCancelGuidance={() => { setGuidanceReview(null); setShowPlanClara(true); }} onGuidanceSaved={() => { setGuidanceReview(null); clara.cancel(); }} />}</section></main>;
+    return <main className="app-shell plan-details-shell"><header><p className="eyebrow">Longview</p><button className="secondary compact" onClick={() => { clara.cancel(); setShowPlanClara(false); setApprovalProposal(null); setGuidanceReview(null); setStage('today'); setView('plans'); }}>Back to Plans</button></header><section className="plan-details-view"><span className="status">Plan details · {mode}</span><h1>{plan.title}</h1><p className="lead">{plan.outcome}</p><div className="detail-grid"><article className="plan-card"><h2>Plan overview</h2><dl><dt>Why it matters</dt><dd>{plan.why}</dd><dt>Target date</dt><dd>{formatLongDate(plan.targetDate)}</dd><dt>Weekly time</dt><dd>{plan.weeklyHours} hours</dd><dt>Working days</dt><dd>{plan.workingDays ? orderWorkingDays(plan.workingDays).map(day => dayLabels[day]).join(', ') : 'Schedule not set'}</dd></dl><button onClick={() => openPlanSchedule(plan)}>{plan.workingDays ? 'Edit schedule' : 'Add schedule'}</button></article><article className="plan-card"><span className="status">Current step</span>{selectedDetailsStep ? <><h2>{selectedDetailsStep.title}</h2><p>{selectedDetailsStep.description}</p><small>{selectedDetailsStep.durationMinutes} minutes · scheduled today</small><button onClick={() => { clara.cancel(); setShowPlanClara(false); setApprovalProposal(null); setStage('today'); setView('today'); }}>Open Today</button></> : <><h2>Nothing scheduled today.</h2><p>{plan.workingDays ? selectedDetailsNextDate ? `This Plan returns ${formatLongDate(selectedDetailsNextDate)}.` : 'No upcoming working day is available.' : 'Add working days in Plan overview before this Plan can appear in Today.'}</p></>}</article></div>{claraEnabled && (approvedClaraChanges && approvalProposal ? <ClaraApprovalPanel proposal={approvalProposal} state={approvalState} onApprove={applyClaraChange} onReject={closeClaraApproval} onReturn={closeClaraApproval} returnLabel="View updated Plan" /> : showPlanClara ? <ClaraPanel clara={clara} subject="Plan" onReview={approvedClaraChanges ? reviewClaraChange : undefined} onSave={planRecordEnabled ? reviewGuidance : undefined} onClose={() => { clara.cancel(); setShowPlanClara(false); }} /> : <button onClick={() => askClaraAboutPlan(plan)}>Ask Clara about this Plan</button>)}{planRecordEnabled && <PlanRecordSection user={snapshot.user} planId={plan.id} gateway={planRecordGateway} guidance={guidanceReview} onCancelGuidance={() => { setGuidanceReview(null); setShowPlanClara(true); }} onGuidanceSaved={() => { setGuidanceReview(null); clara.cancel(); }} />}{planMemoryEnabled && <PlanMemorySection user={snapshot.user} plan={plan} memoryGateway={planMemoryGateway} researchGateway={researchGateway} />}</section></main>;
   }
 
   if (stage === 'plan-schedule') {
@@ -561,7 +568,7 @@ function WorkspaceReady({ auth, gateway, planGateway, planRecordGateway, todayGa
   }
 
   if (stage === 'today') {
-    return <main className="app-shell"><header><p className="eyebrow">Longview</p><span className="status">{phaseZero ? 'Early access' : releaseSurface === 'release-one' ? 'Ask Clara · read only' : releaseSurface === 'release-two' ? 'Clara changes · review first' : releaseSurface === 'release-three' ? 'Daily schedule · review first' : 'Plan-based schedules'}</span></header>
+    return <main className="app-shell"><header><p className="eyebrow">Longview</p><span className="status">{phaseZero ? 'Early access' : releaseSurface === 'release-one' ? 'Ask Clara · read only' : releaseSurface === 'release-two' ? 'Clara changes · review first' : releaseSurface === 'release-three' ? 'Daily schedule · review first' : releaseSurface === 'release-five' ? 'Research + Plan Brief' : 'Plan-based schedules'}</span></header>
       {view === 'today' && <section className="today-view" aria-busy={plans.snapshot.status === 'idle' || plans.snapshot.status === 'loading' || (dailyScheduleEnabled && (approvedDay.snapshot.status === 'idle' || approvedDay.snapshot.status === 'loading'))}><span className="status">Today</span>
         {dailyScheduleEnabled && (approvedDay.snapshot.status === 'idle' || approvedDay.snapshot.status === 'loading') && <div className="empty"><h1>Checking today’s schedule…</h1><p>Making sure you see the latest saved day.</p></div>}
         {dailyScheduleEnabled && approvedDay.snapshot.status === 'error' && <div className="empty" role="alert"><h1>Today’s schedule couldn’t be checked.</h1><p>No task is shown until Longview can confirm whether today is a work day or a break.</p><button onClick={() => void approvedDay.reload()}>Try again</button></div>}
@@ -609,7 +616,7 @@ function WorkspaceReady({ auth, gateway, planGateway, planRecordGateway, todayGa
   );
 }
 
-export function App({ gateway = firebaseAuthGateway, workspaceGateway = lazyFirebaseWorkspaceGateway, planGateway = lazyFirebasePlanGateway, planRecordGateway = lazyFirebasePlanRecordGateway, todayGateway = lazyFirebaseTodayGateway, todayOutbox = lazyIndexedDbTodayOutbox, claraGateway = lazyClaraGateway, claraApprovalGateway = lazyClaraApprovalGateway, scheduleRunGateway = lazyScheduleRunGateway, approvedDayGateway = lazyApprovedDayGateway, dayBreakGateway = lazyDayBreakGateway, releaseSurface = defaultReleaseSurface }: { gateway?: AuthGateway; workspaceGateway?: WorkspaceGateway; planGateway?: PlanGateway; planRecordGateway?: PlanRecordGateway; todayGateway?: TodayGateway; todayOutbox?: TodayOutbox; claraGateway?: ClaraGateway; claraApprovalGateway?: ClaraApprovalGateway; scheduleRunGateway?: ScheduleRunGateway; approvedDayGateway?: ApprovedDayGateway; dayBreakGateway?: DayBreakGateway; releaseSurface?: ReleaseSurface }) {
+export function App({ gateway = firebaseAuthGateway, workspaceGateway = lazyFirebaseWorkspaceGateway, planGateway = lazyFirebasePlanGateway, planRecordGateway = lazyFirebasePlanRecordGateway, planMemoryGateway = lazyFirebasePlanMemoryGateway, researchGateway = lazyResearchGateway, todayGateway = lazyFirebaseTodayGateway, todayOutbox = lazyIndexedDbTodayOutbox, claraGateway = lazyClaraGateway, claraApprovalGateway = lazyClaraApprovalGateway, scheduleRunGateway = lazyScheduleRunGateway, approvedDayGateway = lazyApprovedDayGateway, dayBreakGateway = lazyDayBreakGateway, releaseSurface = defaultReleaseSurface }: { gateway?: AuthGateway; workspaceGateway?: WorkspaceGateway; planGateway?: PlanGateway; planRecordGateway?: PlanRecordGateway; planMemoryGateway?: PlanMemoryGateway; researchGateway?: ResearchGateway; todayGateway?: TodayGateway; todayOutbox?: TodayOutbox; claraGateway?: ClaraGateway; claraApprovalGateway?: ClaraApprovalGateway; scheduleRunGateway?: ScheduleRunGateway; approvedDayGateway?: ApprovedDayGateway; dayBreakGateway?: DayBreakGateway; releaseSurface?: ReleaseSurface }) {
   const auth = useAuth(gateway);
   const { snapshot } = auth;
 
@@ -618,7 +625,7 @@ export function App({ gateway = firebaseAuthGateway, workspaceGateway = lazyFire
   }
 
   if (snapshot.status === 'authenticated') {
-    return <WorkspaceReady auth={auth} gateway={workspaceGateway} planGateway={planGateway} planRecordGateway={planRecordGateway} todayGateway={todayGateway} todayOutbox={todayOutbox} claraGateway={claraGateway} claraApprovalGateway={claraApprovalGateway} scheduleRunGateway={scheduleRunGateway} approvedDayGateway={approvedDayGateway} dayBreakGateway={dayBreakGateway} releaseSurface={releaseSurface} />;
+    return <WorkspaceReady auth={auth} gateway={workspaceGateway} planGateway={planGateway} planRecordGateway={planRecordGateway} planMemoryGateway={planMemoryGateway} researchGateway={researchGateway} todayGateway={todayGateway} todayOutbox={todayOutbox} claraGateway={claraGateway} claraApprovalGateway={claraApprovalGateway} scheduleRunGateway={scheduleRunGateway} approvedDayGateway={approvedDayGateway} dayBreakGateway={dayBreakGateway} releaseSurface={releaseSurface} />;
   }
 
   return (

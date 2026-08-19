@@ -6,6 +6,8 @@ Last updated: 2026-08-19
 
 Interactive acceptance: [Release 4 durable Plan record](design/longview-release-four-plan-record.html)
 
+Pre-implementation evidence: [Release 4 baseline](evidence/RELEASE_FOUR_BASELINE.md)
+
 ## Outcome
 
 Plan Details becomes the authoritative place to understand what happened, why a choice

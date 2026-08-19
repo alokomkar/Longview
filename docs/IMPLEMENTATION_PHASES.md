@@ -1,6 +1,6 @@
 # Longview Implementation Phases
 
-Status: Release 2 deployed
+Status: Release 2 deployed; Release 3 local implementation
 Updated: 2026-08-18
 Links: [PRD](PRODUCT_REQUIREMENTS.md) | [Mockup](design/longview-pwa-interactive-mockup.html) | [Stack](TECH_STACK.md)
 
@@ -43,6 +43,17 @@ expected-version conflict detection, an idempotency key, one Firestore transacti
 and one audit event. The release hides Calendar and every unrelated agent write. See
 the [release contract](RELEASE_TWO_CLARA_SCHEDULE_REVIEW.md) and
 [interactive acceptance](design/longview-release-two-clara-approval.html).
+
+### Release 3: daily schedule
+
+Expose the existing bounded Calendar path as its own release surface: prepare one
+selected day across eligible unfinished Plans, review and approve an exact order,
+replace only the current day with revision checks, or confirm a break with pending
+carryovers to each Plan's next eligible day. Every network operation shows progress;
+cancel, timeout, malformed, offline, stale, duplicate, and destination-conflict paths
+fail without corrupting approved work. See the
+[release contract](RELEASE_THREE_DAILY_SCHEDULE.md) and
+[interactive acceptance](design/longview-release-three-daily-schedule.html).
 
 1. **Cloud prerequisite:** Create one Google Cloud project and enable Firebase on it;
    claim credits, configure budgets, emulators, least-privilege identities, and secrets.

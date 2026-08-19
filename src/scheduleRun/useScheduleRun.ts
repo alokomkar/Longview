@@ -1,16 +1,21 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { ScheduleRun, ScheduleRunContext, ScheduleRunGateway } from './types';
+import { ScheduleRunMalformedError, type ScheduleRun, type ScheduleRunContext, type ScheduleRunGateway } from './types';
+import { requestTimedOut, withRequestDeadline } from '../network/requestDeadline';
 
 export type ScheduleRunSnapshot =
   | { status: 'idle'; run: null; failure: null }
   | { status: 'starting'; run: null; failure: null }
   | { status: 'active'; run: ScheduleRun; failure: null }
   | { status: 'succeeded' | 'cancelled' | 'failed' | 'timed-out'; run: ScheduleRun; failure: null }
-  | { status: 'error'; run: ScheduleRun | null; failure: 'offline' | 'unavailable' | 'malformed' };
+  | { status: 'error'; run: ScheduleRun | null; failure: 'offline' | 'unavailable' | 'malformed' | 'timeout' };
 
 const terminal = new Set(['succeeded', 'cancelled', 'failed', 'timed-out']);
+const failureFor = (error: unknown): 'offline' | 'unavailable' | 'malformed' | 'timeout' =>
+  requestTimedOut(error) ? 'timeout'
+    : error instanceof ScheduleRunMalformedError ? 'malformed'
+      : navigator.onLine ? 'unavailable' : 'offline';
 
-export function useScheduleRun(gateway: ScheduleRunGateway, pollMs = 450) {
+export function useScheduleRun(gateway: ScheduleRunGateway, pollMs = 450, requestTimeoutMs = 12000) {
   const [snapshot, setSnapshot] = useState<ScheduleRunSnapshot>({ status: 'idle', run: null, failure: null });
   const controller = useRef<AbortController | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -37,41 +42,45 @@ export function useScheduleRun(gateway: ScheduleRunGateway, pollMs = 450) {
     const tick = async () => {
       controller.current = new AbortController();
       try {
-        const run = await gateway.get(runId, controller.current.signal);
+        const active = controller.current;
+        const run = await withRequestDeadline(active, requestTimeoutMs, signal => gateway.get(runId, signal));
         accept(run);
         if (!terminal.has(run.status)) timer.current = setTimeout(tick, pollMs);
       } catch (error) {
         if (error instanceof DOMException && error.name === 'AbortError') return;
-        if (mounted.current) setSnapshot(current => ({ status: 'error', run: current.run, failure: navigator.onLine ? 'unavailable' : 'offline' }));
+        if (mounted.current) setSnapshot(current => ({ status: 'error', run: current.run, failure: failureFor(error) }));
       }
     };
     timer.current = setTimeout(tick, pollMs);
-  }, [accept, gateway, pollMs]);
+  }, [accept, gateway, pollMs, requestTimeoutMs]);
 
   const start = useCallback(async (context: ScheduleRunContext) => {
     stop();
     setSnapshot({ status: 'starting', run: null, failure: null });
     controller.current = new AbortController();
     try {
-      const run = await gateway.start(context, controller.current.signal);
+      const active = controller.current;
+      const run = await withRequestDeadline(active, requestTimeoutMs, signal => gateway.start(context, signal));
       accept(run);
       if (!terminal.has(run.status)) poll(run.runId);
     } catch (error) {
       if (error instanceof DOMException && error.name === 'AbortError') return;
-      if (mounted.current) setSnapshot({ status: 'error', run: null, failure: navigator.onLine ? 'unavailable' : 'offline' });
+      if (mounted.current) setSnapshot({ status: 'error', run: null, failure: failureFor(error) });
     }
-  }, [accept, gateway, poll, stop]);
+  }, [accept, gateway, poll, requestTimeoutMs, stop]);
 
   const cancel = useCallback(async () => {
     const run = snapshot.run;
     if (!run || terminal.has(run.status)) return;
     stop();
+    controller.current = new AbortController();
     try {
-      accept(await gateway.cancel(run.runId));
-    } catch {
-      if (mounted.current) setSnapshot({ status: 'error', run, failure: navigator.onLine ? 'unavailable' : 'offline' });
+      const active = controller.current;
+      accept(await withRequestDeadline(active, requestTimeoutMs, signal => gateway.cancel(run.runId, signal)));
+    } catch (error) {
+      if (mounted.current) setSnapshot({ status: 'error', run, failure: failureFor(error) });
     }
-  }, [accept, gateway, snapshot.run, stop]);
+  }, [accept, gateway, requestTimeoutMs, snapshot.run, stop]);
 
   const reset = useCallback(() => {
     stop();

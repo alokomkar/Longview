@@ -1,5 +1,5 @@
 import { auth } from '../firebase/config';
-import { parseScheduleRun, type ScheduleRunGateway } from './types';
+import { parseScheduleRun, ScheduleRunMalformedError, type ScheduleRunGateway } from './types';
 
 type Identity = { getToken(): Promise<string> };
 
@@ -19,13 +19,13 @@ export function createManagedScheduleRunGateway(
     });
     if (!response.ok) throw new Error(`Schedule run failed with status ${response.status}`);
     const run = parseScheduleRun(await response.json());
-    if (!run) throw new Error('Schedule run returned an invalid response');
+    if (!run) throw new ScheduleRunMalformedError();
     return run;
   };
   return {
     start: (context, signal) => call(endpoint, 'POST', signal, context),
     get: (runId, signal) => call(`${endpoint}/${encodeURIComponent(runId)}`, 'GET', signal),
-    cancel: runId => call(`${endpoint}/${encodeURIComponent(runId)}/cancel`, 'POST')
+    cancel: (runId, signal) => call(`${endpoint}/${encodeURIComponent(runId)}/cancel`, 'POST', signal)
   };
 }
 

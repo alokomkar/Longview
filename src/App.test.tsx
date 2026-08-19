@@ -959,7 +959,7 @@ describe('Release 1 Ask Clara surface', () => {
     expect(await screen.findByText('Ask Clara · read only')).toBeVisible();
     expect(screen.queryByRole('button', { name: 'Calendar' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Ask Clara' })).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Ask Clara about this step' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Ask Clara about this step' }));
     expect(await screen.findByRole('heading', { name: 'Protect the smallest proof' })).toBeVisible();
     expect(recommend.mock.calls[0][0]).toMatchObject({ scope: 'today-step' });
     expect(getApprovedDay).not.toHaveBeenCalled();
@@ -1023,7 +1023,7 @@ describe('Release 2 Clara schedule review surface', () => {
     />);
     expect(await screen.findByText('Clara changes · review first')).toBeVisible();
     expect(screen.queryByRole('button', { name: 'Calendar' })).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Ask Clara about this step' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Ask Clara about this step' }));
     fireEvent.click(await screen.findByRole('button', { name: 'Review schedule change' }));
     expect(screen.getByText('Mon, Wed')).toBeVisible();
     expect(screen.getByText('4 hours/week · version 1')).toBeVisible();
@@ -1079,5 +1079,34 @@ describe('Release 2 Clara schedule review surface', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Approve schedule change' }));
     expect(await screen.findByRole('heading', { name: 'This preview is out of date.' })).toBeVisible();
     expect(screen.queryByRole('heading', { name: 'Schedule change approved' })).not.toBeInTheDocument();
+  });
+});
+
+describe('Release 3 daily schedule surface', () => {
+  it('exposes the bounded Calendar journey without exposing unrelated agent navigation', async () => {
+    localStorage.setItem('longview:onboarding', 'complete');
+    const approve = vi.fn(async (_runId: string, request: DayApprovalRequest) => ({
+      schemaVersion: 1 as const, idempotencyKey: request.idempotencyKey, duplicate: false, approvedDay: savedApprovedDay
+    }));
+    const scheduleRunGateway: ScheduleRunGateway = {
+      start: vi.fn(async () => succeededScheduleRun), get: vi.fn(), cancel: vi.fn()
+    };
+    render(<App
+      releaseSurface="release-three"
+      gateway={gateway({ uid: 'owner', isAnonymous: false, displayName: 'Owner' })}
+      workspaceGateway={workspaceGateway}
+      planGateway={{ ...planGateway, list: vi.fn(async () => [scheduledPlan()]) }}
+      todayGateway={{ get: vi.fn(async () => null), complete: vi.fn(todayGateway.complete) }}
+      scheduleRunGateway={scheduleRunGateway}
+      approvedDayGateway={{ get: vi.fn(async () => null), approve }}
+    />);
+    expect(await screen.findByText('Daily schedule · review first')).toBeVisible();
+    expect(screen.queryByRole('button', { name: 'Ask Clara' })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Calendar' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Prepare today' }));
+    expect(await screen.findByRole('heading', { name: 'A workable order for today.' })).toBeVisible();
+    fireEvent.click(screen.getByRole('button', { name: 'Approve this order' }));
+    expect(await screen.findByRole('heading', { name: '17th August 2026 is ready.' })).toBeVisible();
+    expect(approve).toHaveBeenCalledOnce();
   });
 });

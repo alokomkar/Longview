@@ -11,6 +11,7 @@ changes, and preserve the reasoning behind important decisions.
 - [Phase 0 release contract](docs/PHASE_ZERO_RELEASE.md)
 - [Release 1 Ask Clara contract](docs/RELEASE_ONE_ASK_CLARA.md)
 - [Release 2 Clara schedule review](docs/RELEASE_TWO_CLARA_SCHEDULE_REVIEW.md)
+- [Release 3 daily schedule](docs/RELEASE_THREE_DAILY_SCHEDULE.md)
 - [Pending feature ledger](docs/PENDING_FEATURES.md)
 - [Hackathon tech stack](docs/TECH_STACK.md)
 - [Hackathon readiness ledger](docs/HACKATHON_READINESS.md)
@@ -19,7 +20,8 @@ changes, and preserve the reasoning behind important decisions.
 
 ## Current status
 
-Release 2 is live on Firebase Hosting. It preserves the Phase 0 loop—authenticate,
+Release 2 is live on Firebase Hosting. Release 3 daily scheduling is documented and
+under local implementation; it is not merged or deployed. Release 2 preserves the Phase 0 loop—authenticate,
 create and review a Plan, set working days, receive one deterministic Today step, and
 record completion—then adds authenticated Clara guidance and one review-first Plan
 schedule change. Calendar, Quick Actions, research, Plan Briefs, and offline
@@ -68,7 +70,9 @@ creates one audit record. A live Vertex response and safe rejection were verifie
 2. Run `npm install`.
 3. Copy `.env.example` to `.env.local`; production Firebase values remain local. Set
    `VITE_USE_FIREBASE_EMULATORS=false` to test the real Google account chooser, or
-   `true` for deterministic emulator tests.
+   `true` for deterministic emulator tests. Set `VITE_RELEASE_SURFACE=release-three`
+   to review only the Release 3 navigation and routes; `full` retains the development
+   workbench.
 4. Run `npm run dev:local`; it starts the Auth and Firestore emulators before Vite.
 5. Open `http://127.0.0.1:5173`. Local sign-in and data stay in the emulators. To
    test the real Google chooser, set `VITE_USE_FIREBASE_EMULATORS=false` and run

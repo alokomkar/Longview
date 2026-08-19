@@ -7,17 +7,18 @@ import {
   type DayBreakPreview,
   type DayBreakResult
 } from './types';
+import { requestTimedOut, withRequestDeadline } from '../network/requestDeadline';
 
 export type DayBreakSnapshot =
   | { status: 'idle' | 'loading'; preview: null; result: null; failure: null }
   | { status: 'review'; preview: DayBreakPreview; result: null; failure: null }
   | { status: 'applying'; preview: DayBreakPreview; result: null; failure: null }
   | { status: 'success'; preview: DayBreakPreview; result: DayBreakResult; failure: null }
-  | { status: 'error'; preview: DayBreakPreview | null; result: null; failure: DayBreakFailure };
+  | { status: 'error'; preview: DayBreakPreview | null; result: null; failure: DayBreakFailure | 'timeout' };
 
 const createKey = () => globalThis.crypto?.randomUUID?.() ?? `day-break-${Date.now()}`;
 
-export function useDayBreak(gateway: DayBreakGateway) {
+export function useDayBreak(gateway: DayBreakGateway, requestTimeoutMs = 12000) {
   const [snapshot, setSnapshot] = useState<DayBreakSnapshot>({ status: 'idle', preview: null, result: null, failure: null });
   const controller = useRef<AbortController | null>(null);
   const key = useRef('');
@@ -29,7 +30,8 @@ export function useDayBreak(gateway: DayBreakGateway) {
     key.current = '';
     setSnapshot({ status: 'loading', preview: null, result: null, failure: null });
     try {
-      const value = await gateway.preview(day.selectedDate, controller.current.signal);
+      const active = controller.current;
+      const value = await withRequestDeadline(active, requestTimeoutMs, signal => gateway.preview(day.selectedDate, signal));
       if (value.expectedDayRevision !== day.revision || value.sourceApprovalEventId !== day.approvalEventId) {
         throw new DayBreakConflictError('source-changed');
       }
@@ -38,10 +40,10 @@ export function useDayBreak(gateway: DayBreakGateway) {
       if (error instanceof DOMException && error.name === 'AbortError') return;
       setSnapshot({
         status: 'error', preview: null, result: null,
-        failure: error instanceof DayBreakConflictError ? error.reason : 'unavailable'
+        failure: error instanceof DayBreakConflictError ? error.reason : requestTimedOut(error) ? 'timeout' : 'unavailable'
       });
     }
-  }, [gateway]);
+  }, [gateway, requestTimeoutMs]);
 
   const confirm = useCallback(async () => {
     const current = snapshot.preview;
@@ -51,20 +53,21 @@ export function useDayBreak(gateway: DayBreakGateway) {
     if (!key.current) key.current = createKey();
     setSnapshot({ status: 'applying', preview: current, result: null, failure: null });
     try {
-      const result = await gateway.confirm(current.selectedDate, {
+      const active = controller.current;
+      const result = await withRequestDeadline(active, requestTimeoutMs, signal => gateway.confirm(current.selectedDate, {
         schemaVersion: 1,
         idempotencyKey: key.current,
         expectedDayRevision: current.expectedDayRevision,
         carryovers: current.carryovers
-      }, controller.current.signal);
+      }, signal));
       setSnapshot({ status: 'success', preview: current, result, failure: null });
     } catch (error) {
       if (error instanceof DOMException && error.name === 'AbortError') return;
-      const failure = error instanceof DayBreakConflictError ? error.reason : 'unavailable';
-      if (failure !== 'unavailable') key.current = '';
+      const failure = error instanceof DayBreakConflictError ? error.reason : requestTimedOut(error) ? 'timeout' : 'unavailable';
+      if (failure !== 'unavailable' && failure !== 'timeout') key.current = '';
       setSnapshot({ status: 'error', preview: current, result: null, failure });
     }
-  }, [gateway, snapshot]);
+  }, [gateway, requestTimeoutMs, snapshot]);
 
   const reset = useCallback(() => {
     controller.current?.abort();

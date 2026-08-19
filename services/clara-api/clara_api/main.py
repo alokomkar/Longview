@@ -67,7 +67,7 @@ def create_app(
     day_break_repository: DayBreakRepository | None = None,
     timeout_seconds: float | None = None,
     allowed_origins: list[str] | None = None,
-    release_mode: Literal["read-only", "release-two", "full"] = "full",
+    release_mode: Literal["read-only", "release-two", "release-three", "full"] = "full",
 ) -> FastAPI:
     app = FastAPI(title="Longview Clara API", version="0.1.0")
     request_timeout = timeout_seconds if timeout_seconds is not None else float(
@@ -291,8 +291,18 @@ def create_app(
             "/health", "/v1/clara/recommendations", "/openapi.json", "/docs",
             "/docs/oauth2-redirect", "/redoc",
         }
-        if release_mode == "release-two":
+        if release_mode in {"release-two", "release-three"}:
             allowed_paths.add("/v1/clara/approvals")
+        if release_mode == "release-three":
+            allowed_paths.update({
+                "/v1/clara/schedule-runs",
+                "/v1/clara/schedule-runs/{run_id}",
+                "/v1/clara/schedule-runs/{run_id}/cancel",
+                "/v1/clara/schedule-runs/{run_id}/approve",
+                "/v1/clara/approved-days/{selected_date}",
+                "/v1/clara/approved-days/{selected_date}/break-preview",
+                "/v1/clara/approved-days/{selected_date}/break",
+            })
         app.router.routes = [
             route for route in app.router.routes
             if getattr(route, "path", None) in allowed_paths

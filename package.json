@@ -9,6 +9,7 @@
     "build": "tsc -b && vite build",
     "build:production": "VITE_USE_FIREBASE_EMULATORS=false VITE_USE_FIRESTORE_EMULATOR=false VITE_CLARA_API_URL=https://longview-clara-api-112452643430.asia-south1.run.app VITE_RELEASE_SURFACE=release-four npm run build",
     "build:release-five": "VITE_USE_FIREBASE_EMULATORS=false VITE_USE_FIRESTORE_EMULATOR=false VITE_CLARA_API_URL=https://longview-clara-api-112452643430.asia-south1.run.app VITE_RELEASE_SURFACE=release-five npm run build",
+    "build:release-six": "VITE_USE_FIREBASE_EMULATORS=false VITE_USE_FIRESTORE_EMULATOR=false VITE_CLARA_API_URL=https://longview-clara-api-112452643430.asia-south1.run.app VITE_RELEASE_SURFACE=release-six npm run build",
     "preview": "vite preview --host 127.0.0.1",
     "test": "vitest run src",
     "test:rules": "vitest run tests/firestore.rules.test.ts",
@@ -16,6 +17,7 @@
     "test:e2e": "playwright test",
     "test:e2e:release-four": "playwright test --config=playwright.release-four.config.ts",
     "test:e2e:release-five": "playwright test --config=playwright.release-five.config.ts",
+    "test:e2e:release-six": "playwright test --config=playwright.release-six.config.ts",
     "emulators": "firebase emulators:start --project longview-505611"
   },
   "dependencies": {

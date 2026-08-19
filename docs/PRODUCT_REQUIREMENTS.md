@@ -98,6 +98,18 @@ recoverable after an interrupted response. Research, Plan Briefs, reflection mem
 editing, and deletion remain later releases. The complete contract is in
 [Release 4: Durable Plan Record](RELEASE_FOUR_PLAN_RECORD.md).
 
+### Release 5 reviewed research and Plan Brief boundary
+
+Release 5 adds Plan-scoped attributed research cards with explicit Accept, Reject, and
+Not now decisions. Accepted evidence may prepare an editable Plan Brief proposal, but
+neither research nor model output updates the current brief automatically. A final
+review binds the exact edited content and evidence to the expected current version;
+one transaction appends an immutable brief version and advances its pointer. Rejected
+evidence remains auditable, deferred evidence remains recoverable, and stale edits fail
+without overwriting newer work. Reflection memory, cross-Plan memory, and autonomous
+research remain later releases. The complete contract is in
+[Release 5: Reviewed Research and Versioned Plan Brief](RELEASE_FIVE_RESEARCH_BRIEF.md).
+
 ## 4. Canonical demo portfolio
 
 The mockup and acceptance tests use one consistent account:

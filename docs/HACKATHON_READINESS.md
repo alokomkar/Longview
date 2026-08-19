@@ -2,7 +2,7 @@
 
 Status: Active delivery checklist
 
-Updated: 2026-08-18
+Updated: 2026-08-19
 
 Sources: [PRD](PRODUCT_REQUIREMENTS.md) | [Implementation phases](IMPLEMENTATION_PHASES.md) | [Interactive mockup](design/longview-pwa-interactive-mockup.html) | [Acceptance demo](design/longview-hackathon-acceptance-demo.html) | [Gallery](demo/DEVPOST_GALLERY.md) | [Demo script](demo/PROTOTYPE_DEMO_SCRIPT.md)
 
@@ -23,14 +23,14 @@ Sources: [PRD](PRODUCT_REQUIREMENTS.md) | [Implementation phases](IMPLEMENTATION
 | 1 | Today | Capacity-aware work and conflict | Partial | Portfolio capacity is visible; time-based conflict detection remains post-hackathon unless time permits. |
 | 2 | Portfolio | Three Plans sharing finite capacity | Implemented | Committed hours, operating modes, allocation shares, milestones, and deterministic guidance are visible. |
 | 3 | Plan creation | Reviewed structured Plan | Partial | Working-day selection is implemented; advisor-assisted suggestions remain. |
-| 4 | Plan details | One Plan with execution and context | Partial | Authoritative details, current step, schedule, and context entry points exist; persisted history, decisions, research, and brief content remain. |
+| 4 | Plan details | One Plan with execution and context | Implemented locally | Details, execution proof, reviewed decisions, research, current brief, and version history are present; Release 5 production evidence remains. |
 | 5 | Plan achievement | Outcome and consented reflection | Missing | Add completion evidence, reflection, and explicit reusable-memory consent. |
 | 6 | Clara context | Visible bounded context | Partial | Local managed boundary uses one Plan and Today step; add deployed-model evidence and multi-Plan context where required. |
 | 7 | Agentic actions | Bounded action catalogue | Implemented locally | Ask Clara exposes grouped, typed Quick Actions that make no menu-time network call or write and hand off to existing Calendar and Plans review flows. |
 | 8 | Tradeoff recommendation | Cross-Plan managed recommendation | Missing | The local single-Plan managed boundary is ready; add deployed cross-Plan reasoning and evidence. |
 | 9 | Human approval | Before/after preview and approved write | Implemented locally | Capture production Cloud evidence for the exact preview, rejection, stale check, audit, and idempotent write. |
-| 10 | Research review | Accept/reject/defer evidence | Missing | Add attributed cards and non-destructive review states. |
-| 11 | Versioned memory | User-approved brief version | Missing | Add editable proposal, attribution, version history, and explicit save. |
+| 10 | Research review | Accept/reject/defer evidence | Implemented locally | Capture live grounded-provider and production persistence evidence. |
+| 11 | Versioned memory | User-approved brief version | Implemented locally | Capture production save, reload, history, and stale-edit evidence. |
 | 12 | Calendar success | One approved capacity-bounded day | Partial | Local proposal, adjustment, approval, replacement, retry, persistence, reload, recovery, and next-eligible-day break carryover are implemented. Production Cloud evidence remains. |
 | 13 | Failure recovery | Failed agent run preserves state | Partial | Local managed timeout, malformed output, cancellation, stale write, and atomic transaction behavior are covered; add production recovery evidence. |
 
@@ -62,13 +62,18 @@ Sources: [PRD](PRODUCT_REQUIREMENTS.md) | [Implementation phases](IMPLEMENTATION
 - Local Calendar break transaction with authoritative destination preview, explicit
   confirmation, atomic pending carryovers, reload, destination proposal enrichment,
   idempotent audit, and preservation on stale or future-day conflicts.
+- Local attributed research with strict provider-response validation, visible source
+  links and Search suggestions, explicit Accept/Reject/Not now reviews, and recovery.
+- Local editable Plan Brief proposals with accepted-source enforcement, final review,
+  immutable versions, current pointer, reload, idempotency, and stale-tab protection.
 
 ## Deadline delivery order
 
 1. Deploy and capture production evidence for the managed API and approved write.
 2. Add one checkpointed asynchronous run plus Cloud logs and recovery evidence.
 3. Add the calendar success/failure path required by the demo.
-4. Add research review, versioned brief, achievement, and consented reflection.
+4. Deploy and capture production evidence for research review and the versioned brief;
+   then add achievement and consented reflection.
 5. Re-capture all 13 screenshots from verified PWA states and record the final PWA demo.
 
 No prototype screenshot or narration claim is implementation proof. Final submission

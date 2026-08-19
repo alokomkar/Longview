@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, datetime
 from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
@@ -115,6 +115,72 @@ class RecommendationResponse(ModelRecommendationPayload):
     request_id: str = Field(alias="requestId", min_length=1, max_length=128)
     source_plan_id: str = Field(alias="sourcePlanId", min_length=1, max_length=128)
     proposed_change: PlanScheduleChangePreview | None = Field(alias="proposedChange")
+
+
+class ResearchPlanContext(StrictModel):
+    id: str = Field(min_length=1, max_length=128)
+    title: str = Field(min_length=3, max_length=80)
+    outcome: str = Field(min_length=10, max_length=300)
+    why: str = Field(min_length=10, max_length=300)
+    target_date: date = Field(alias="targetDate")
+
+
+class ResearchRequest(StrictModel):
+    schema_version: Literal[1] = Field(alias="schemaVersion")
+    request_id: str = Field(alias="requestId", min_length=8, max_length=128)
+    plan: ResearchPlanContext
+    existing_research_ids: list[str] = Field(alias="existingResearchIds", max_length=50)
+
+    @model_validator(mode="after")
+    def validate_existing_ids(self):
+        if len(set(self.existing_research_ids)) != len(self.existing_research_ids):
+            raise ValueError("existing research identifiers must be unique")
+        if any(len(value) < 8 or len(value) > 128 for value in self.existing_research_ids):
+            raise ValueError("invalid existing research identifier")
+        return self
+
+
+class ModelResearchCard(StrictModel):
+    headline: str = Field(min_length=3, max_length=160)
+    finding: str = Field(min_length=10, max_length=800)
+    source_index: int = Field(alias="sourceIndex", ge=0, le=20)
+
+
+class ModelResearchPayload(StrictModel):
+    cards: list[ModelResearchCard] = Field(min_length=1, max_length=3)
+
+
+class ResearchSource(StrictModel):
+    kind: Literal["web"]
+    title: str = Field(min_length=3, max_length=200)
+    locator: str = Field(pattern=r"^https://", max_length=1000)
+    domain: str | None = Field(default=None, min_length=3, max_length=200)
+    published_at: datetime | None = Field(default=None, alias="publishedAt")
+    retrieved_at: datetime = Field(alias="retrievedAt")
+    search_queries: list[str] = Field(default_factory=list, alias="searchQueries", max_length=3)
+
+    @model_validator(mode="after")
+    def validate_search_queries(self):
+        if any(len(query.strip()) < 1 or len(query.strip()) > 200 for query in self.search_queries):
+            raise ValueError("search queries must contain 1 to 200 characters")
+        return self
+
+
+class ResearchCard(StrictModel):
+    schema_version: Literal[1] = Field(alias="schemaVersion")
+    research_id: str = Field(alias="researchId", min_length=8, max_length=128)
+    request_id: str = Field(alias="requestId", min_length=8, max_length=128)
+    source_plan_id: str = Field(alias="sourcePlanId", min_length=1, max_length=128)
+    headline: str = Field(min_length=3, max_length=160)
+    finding: str = Field(min_length=10, max_length=800)
+    source: ResearchSource
+
+
+class ResearchResponse(StrictModel):
+    schema_version: Literal[1] = Field(alias="schemaVersion")
+    request_id: str = Field(alias="requestId", min_length=8, max_length=128)
+    source_plan_id: str = Field(alias="sourcePlanId", min_length=1, max_length=128)
+    cards: list[ResearchCard] = Field(min_length=1, max_length=3)
 
 
 class ApprovalRequest(StrictModel):

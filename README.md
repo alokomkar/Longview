@@ -12,6 +12,8 @@ changes, and preserve the reasoning behind important decisions.
 - [Release 1 Ask Clara contract](docs/RELEASE_ONE_ASK_CLARA.md)
 - [Release 2 Clara schedule review](docs/RELEASE_TWO_CLARA_SCHEDULE_REVIEW.md)
 - [Release 3 daily schedule](docs/RELEASE_THREE_DAILY_SCHEDULE.md)
+- [Release 4 durable Plan record](docs/RELEASE_FOUR_PLAN_RECORD.md)
+- [Release 5 research and Plan Brief](docs/RELEASE_FIVE_RESEARCH_BRIEF.md)
 - [Pending feature ledger](docs/PENDING_FEATURES.md)
 - [Hackathon tech stack](docs/TECH_STACK.md)
 - [Hackathon readiness ledger](docs/HACKATHON_READINESS.md)
@@ -20,12 +22,11 @@ changes, and preserve the reasoning behind important decisions.
 
 ## Current status
 
-Release 2 is live on Firebase Hosting. Release 3 daily scheduling is documented and
-under local implementation; it is not merged or deployed. Release 2 preserves the Phase 0 loop—authenticate,
-create and review a Plan, set working days, receive one deterministic Today step, and
-record completion—then adds authenticated Clara guidance and one review-first Plan
-schedule change. Calendar, Quick Actions, research, Plan Briefs, and offline
-cold-start recovery remain outside the production surface.
+Release 4 is live on Firebase Hosting. Release 5 is implemented on its feature branch
+and remains local until product-owner merge and deployment approval. It adds reviewed,
+Plan-scoped research and immutable, attributed Plan Brief versions while preserving
+the existing authentication, Today, Calendar, Clara approval, and Plan-record journeys.
+Offline cold-start recovery remains outside the production surface.
 
 Release 1 adds authenticated, read-only Clara guidance for a selected Plan or today's
 step. Its Cloud Run API cannot expose or apply agent-driven writes.
@@ -71,7 +72,8 @@ creates one audit record. A live Vertex response and safe rejection were verifie
 3. Copy `.env.example` to `.env.local`; production Firebase values remain local. Set
    `VITE_USE_FIREBASE_EMULATORS=false` to test the real Google account chooser, or
    `true` for deterministic emulator tests. Set `VITE_RELEASE_SURFACE=release-four`
-   for the current production journey; `full` retains the development workbench.
+   for the live journey, `release-five` for this release candidate, or `full` for the
+   development workbench.
 4. Run `npm run dev:local`; it starts the Auth and Firestore emulators before Vite.
 5. Open `http://127.0.0.1:5173`. Local sign-in and data stay in the emulators. To
    test the real Google chooser, set `VITE_USE_FIREBASE_EMULATORS=false` and run
@@ -80,7 +82,8 @@ creates one audit record. A live Vertex response and safe rejection were verifie
 Verification: `npm test`, `npm run test:rules`, `npm run build`, and
 `npm run test:e2e`. With Auth and Firestore emulators plus the Release 4 dev server
 running at port 5175, run `npm run test:e2e:release-four` for the durable-record
-journey. The emulator requires Java 21+ compiled for the host CPU.
+journey. Run `npm run test:e2e:release-five` for the isolated emulator-backed research
+and Plan Brief journey. The emulator requires Java 21+ compiled for the host CPU.
 
 For the managed API, use Python 3.11+ and run the following from
 `services/clara-api`:
@@ -104,6 +107,8 @@ Production Clara API: `https://longview-clara-api-112452643430.asia-south1.run.a
 Build the hosted release with `npm run build:production`. This command pins the
 Release 4 surface, the managed Clara API, and production Firebase connections so a
 developer’s local emulator settings cannot be embedded in the hosted bundle.
+`npm run build:release-five` prepares the equivalent managed Release 5 candidate but
+does not deploy it.
 
 ## Review the mockup
 

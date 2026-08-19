@@ -7,7 +7,7 @@ import {
   initializeTestEnvironment,
   type RulesTestEnvironment
 } from '@firebase/rules-unit-testing';
-import { collection, deleteDoc, doc, getDoc, getDocs, serverTimestamp, setDoc, updateDoc } from 'firebase/firestore';
+import { collection, deleteDoc, doc, getDoc, getDocs, serverTimestamp, setDoc, updateDoc, writeBatch } from 'firebase/firestore';
 
 let environment: RulesTestEnvironment;
 
@@ -286,5 +286,123 @@ describe('Firestore ownership rules', () => {
     await assertFails(setDoc(doc(environment.authenticatedContext('owner').firestore(), `${path}-forged`), {
       ownerUid: 'owner'
     }));
+  });
+
+  it('atomically creates immutable attributed research with one reviewed state', async () => {
+    const owner = environment.authenticatedContext('owner').firestore();
+    const planPath = 'users/owner/workspaces/default/plans/plan-memory';
+    await environment.withSecurityRulesDisabled(async context => setDoc(doc(context.firestore(), planPath), {
+      id: 'plan-memory', clientRequestId: 'plan-memory', ownerUid: 'owner', workspaceId: 'default',
+      title: 'Review attributed research', outcome: 'Use reviewed evidence in a versioned Plan Brief.',
+      why: 'Evidence should never silently replace user-approved context.', targetDate: '2026-09-30',
+      weeklyHours: 5, workingDays: ['mon'], status: 'active', schemaVersion: 2, scheduleVersion: 1,
+      createdAt: new Date(), updatedAt: new Date()
+    }));
+    const cardPath = `${planPath}/research/research-123`;
+    const reviewPath = `${planPath}/researchReviews/review-1234`;
+    const statePath = `${planPath}/researchState/research-123`;
+    const batch = writeBatch(owner);
+    batch.set(doc(owner, cardPath), {
+      schemaVersion: 1, researchId: 'research-123', requestId: 'request-123', sourcePlanId: 'plan-memory',
+      headline: 'Visible first value improves activation',
+      finding: 'Users continue setup after seeing one meaningful outcome.',
+      source: { kind: 'web', title: 'Activation research', locator: 'https://example.com/research', domain: 'example.com', publishedAt: null, retrievedAt: '2026-08-19T08:00:00.000Z' },
+      planId: 'plan-memory', ownerUid: 'owner', workspaceId: 'default', cardFingerprint: 'card-fingerprint', createdAt: serverTimestamp()
+    });
+    batch.set(doc(owner, reviewPath), {
+      schemaVersion: 1, reviewId: 'review-1234', researchId: 'research-123', planId: 'plan-memory',
+      ownerUid: 'owner', workspaceId: 'default', decision: 'accepted', revision: 1,
+      requestFingerprint: 'review-fingerprint', reviewedAt: serverTimestamp()
+    });
+    batch.set(doc(owner, statePath), {
+      schemaVersion: 1, researchId: 'research-123', planId: 'plan-memory', ownerUid: 'owner',
+      workspaceId: 'default', currentDecision: 'accepted', revision: 1,
+      latestReviewId: 'review-1234', reviewedAt: serverTimestamp()
+    });
+    await assertSucceeds(batch.commit());
+    await assertSucceeds(getDoc(doc(owner, cardPath)));
+    await assertFails(updateDoc(doc(owner, cardPath), { headline: 'Changed' }));
+    await assertFails(deleteDoc(doc(owner, reviewPath)));
+    await assertFails(getDoc(doc(environment.authenticatedContext('other').firestore(), cardPath)));
+  });
+
+  it('rejects partial, forged, and stale research review writes', async () => {
+    const owner = environment.authenticatedContext('owner').firestore();
+    const base = 'users/owner/workspaces/default/plans/plan-memory';
+    await environment.withSecurityRulesDisabled(async context => {
+      const db = context.firestore();
+      await setDoc(doc(db, base), { id: 'plan-memory', ownerUid: 'owner' });
+      await setDoc(doc(db, `${base}/research/research-123`), {
+        schemaVersion: 1, researchId: 'research-123', requestId: 'request-123', sourcePlanId: 'plan-memory',
+        headline: 'Visible first value improves activation', finding: 'Users continue after seeing one meaningful outcome.',
+        source: { kind: 'web', title: 'Activation research', locator: 'https://example.com/research', domain: 'example.com', publishedAt: null, retrievedAt: '2026-08-19T08:00:00.000Z' },
+        planId: 'plan-memory', ownerUid: 'owner', workspaceId: 'default', cardFingerprint: 'card-fingerprint', createdAt: new Date()
+      });
+      await setDoc(doc(db, `${base}/researchReviews/review-1234`), {
+        schemaVersion: 1, reviewId: 'review-1234', researchId: 'research-123', planId: 'plan-memory', ownerUid: 'owner', workspaceId: 'default', decision: 'accepted', revision: 1, requestFingerprint: 'fingerprint', reviewedAt: new Date()
+      });
+      await setDoc(doc(db, `${base}/researchState/research-123`), {
+        schemaVersion: 1, researchId: 'research-123', planId: 'plan-memory', ownerUid: 'owner', workspaceId: 'default', currentDecision: 'accepted', revision: 1, latestReviewId: 'review-1234', reviewedAt: new Date()
+      });
+    });
+    await assertFails(setDoc(doc(owner, `${base}/research/research-orphan`), {
+      schemaVersion: 1, researchId: 'research-orphan', requestId: 'request-123', sourcePlanId: 'plan-memory',
+      headline: 'Orphan evidence is invalid', finding: 'This write has no matching review state.',
+      source: { kind: 'web', title: 'Example source', locator: 'https://example.com', domain: 'example.com', publishedAt: null, retrievedAt: '2026-08-19T08:00:00.000Z' },
+      planId: 'plan-memory', ownerUid: 'owner', workspaceId: 'default', cardFingerprint: 'fingerprint', createdAt: serverTimestamp()
+    }));
+    await assertFails(updateDoc(doc(owner, `${base}/researchState/research-123`), {
+      currentDecision: 'rejected', revision: 1, latestReviewId: 'review-5678', reviewedAt: serverTimestamp()
+    }));
+    await assertFails(setDoc(doc(environment.authenticatedContext('other').firestore(), `${base}/researchReviews/review-5678`), {
+      schemaVersion: 1, reviewId: 'review-5678', researchId: 'research-123', planId: 'plan-memory', ownerUid: 'owner', workspaceId: 'default', decision: 'rejected', revision: 2, requestFingerprint: 'fingerprint-2', reviewedAt: serverTimestamp()
+    }));
+  });
+
+  it('atomically appends Plan Brief versions and rejects stale pointer updates', async () => {
+    const owner = environment.authenticatedContext('owner').firestore();
+    const base = 'users/owner/workspaces/default/plans/plan-memory';
+    await environment.withSecurityRulesDisabled(async context => {
+      await setDoc(doc(context.firestore(), base), { id: 'plan-memory', ownerUid: 'owner' });
+      await setDoc(doc(context.firestore(), `${base}/researchState/research-123`), {
+        schemaVersion: 1, researchId: 'research-123', planId: 'plan-memory', ownerUid: 'owner',
+        workspaceId: 'default', currentDecision: 'accepted', revision: 1,
+        latestReviewId: 'review-1234', reviewedAt: new Date()
+      });
+      await setDoc(doc(context.firestore(), `${base}/researchState/research-rejected`), {
+        schemaVersion: 1, researchId: 'research-rejected', planId: 'plan-memory', ownerUid: 'owner',
+        workspaceId: 'default', currentDecision: 'rejected', revision: 1,
+        latestReviewId: 'review-5678', reviewedAt: new Date()
+      });
+    });
+    const version = {
+      schemaVersion: 1, versionId: 'version-123', version: 1, planId: 'plan-memory', ownerUid: 'owner', workspaceId: 'default',
+      focus: 'Prove first value', approach: 'Use one reviewed finding in a bounded user test.',
+      successEvidence: 'Three users reach the visible checkpoint.', sourceResearchIds: ['research-123'],
+      requestFingerprint: 'brief-fingerprint', recordedAt: serverTimestamp()
+    };
+    const batch = writeBatch(owner);
+    batch.set(doc(owner, `${base}/briefVersions/version-123`), version);
+    batch.set(doc(owner, `${base}/briefState/current`), {
+      schemaVersion: 1, planId: 'plan-memory', ownerUid: 'owner', workspaceId: 'default',
+      currentVersion: 1, currentVersionId: 'version-123', updatedAt: serverTimestamp()
+    });
+    await assertSucceeds(batch.commit());
+    const rejectedBatch = writeBatch(owner);
+    rejectedBatch.set(doc(owner, `${base}/briefVersions/version-bad`), {
+      ...version, versionId: 'version-bad', version: 2,
+      sourceResearchIds: ['research-rejected'], recordedAt: serverTimestamp()
+    });
+    rejectedBatch.set(doc(owner, `${base}/briefState/current`), {
+      schemaVersion: 1, planId: 'plan-memory', ownerUid: 'owner', workspaceId: 'default',
+      currentVersion: 2, currentVersionId: 'version-bad', updatedAt: serverTimestamp()
+    });
+    await assertFails(rejectedBatch.commit());
+    await assertFails(updateDoc(doc(owner, `${base}/briefVersions/version-123`), { focus: 'Changed' }));
+    await assertFails(updateDoc(doc(owner, `${base}/briefState/current`), {
+      currentVersion: 1, currentVersionId: 'version-999', updatedAt: serverTimestamp()
+    }));
+    await assertFails(deleteDoc(doc(owner, `${base}/briefState/current`)));
+    await assertFails(getDoc(doc(environment.authenticatedContext('other').firestore(), `${base}/briefVersions/version-123`)));
   });
 });

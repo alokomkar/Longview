@@ -2,7 +2,7 @@
 
 Status: Implementation contract
 
-Updated: 2026-08-17
+Updated: 2026-08-19
 
 ## Slice boundary
 
@@ -59,3 +59,17 @@ background run, or claim a deployed Cloud Run revision.
 
 Deployment, IAM grants, API enablement, Firebase Hosting rewrites, Cloud Logging proof,
 and production endpoint evidence require a separate explicit deployment approval.
+
+## Release 5 grounded research
+
+- `POST /v1/clara/research` is authenticated, Plan-scoped, read-only, and exposed only
+  by the Release 5 service entry point.
+- Gemini uses Google Search grounding. The service accepts one to three strictly
+  validated cards, derives HTTPS attribution only from grounding metadata, and
+  preserves up to three provider Search suggestions for display.
+- Schema-enforced output combined with built-in tools is documented for Gemini 3 only.
+  The current Gemini 2.5 path therefore requests JSON and validates it with strict
+  Pydantic models before any card reaches the PWA.
+- `CLARA_RESEARCH_MODEL` overrides the research model; it defaults to `CLARA_MODEL`,
+  then `gemini-2.5-flash`. Timeout, unavailable, malformed, and missing-attribution
+  responses fail closed and create no durable research.

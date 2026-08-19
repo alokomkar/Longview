@@ -13,6 +13,7 @@ import type { ScheduleRunGateway } from './scheduleRun/types';
 import { ApprovedDayConflictError, type ApprovedDay, type ApprovedDayGateway, type DayApprovalRequest, type DayApprovalResult } from './approvedDay/types';
 import { DayBreakConflictError, type DayBreakGateway, type DayBreakPreview, type DayBreakRequest, type DayBreakResult } from './dayBreak/types';
 import type { PlanRecordGateway } from './planRecord/types';
+import type { PlanMemoryGateway, ResearchGateway } from './planMemory/types';
 
 const workspaceGateway: WorkspaceGateway = {
   ensure: vi.fn(async (user: AuthUser) => ({ id: 'default' as const, ownerUid: user.uid, schemaVersion: 1 as const }))
@@ -1114,5 +1115,35 @@ describe('Release 3 daily schedule surface', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Approve this order' }));
     expect(await screen.findByRole('heading', { name: '17th August 2026 is ready.' })).toBeVisible();
     expect(approve).toHaveBeenCalledOnce();
+  });
+});
+
+describe('Release 5 research and Plan Brief surface', () => {
+  it('loads Plan-scoped memory only after the owner opens Plan details', async () => {
+    localStorage.setItem('longview:onboarding', 'complete');
+    const memoryGateway: PlanMemoryGateway = {
+      loadResearch: vi.fn(async () => []),
+      loadBrief: vi.fn(async () => ({ briefVersions: [], currentBrief: null, briefVersion: 0 })),
+      reviewResearch: vi.fn(async () => { throw new Error('not configured'); }),
+      saveBrief: vi.fn(async () => { throw new Error('not configured'); })
+    };
+    const researchGateway: ResearchGateway = { request: vi.fn(async () => { throw new Error('not configured'); }) };
+    render(<App
+      releaseSurface="release-five"
+      gateway={gateway({ uid: 'owner', isAnonymous: false, displayName: 'Owner' })}
+      workspaceGateway={workspaceGateway}
+      planGateway={{ ...planGateway, list: vi.fn(async () => [scheduledPlan()]) }}
+      todayGateway={todayGateway}
+      planMemoryGateway={memoryGateway}
+      researchGateway={researchGateway}
+    />);
+    expect(await screen.findByText('Research + Plan Brief')).toBeVisible();
+    expect(memoryGateway.loadResearch).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: 'Plans' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'View Plan details' }));
+    expect(await screen.findByRole('heading', { name: 'Turn reviewed evidence into a Plan Brief.' })).toBeVisible();
+    await waitFor(() => expect(memoryGateway.loadResearch).toHaveBeenCalledWith(expect.objectContaining({ uid: 'owner' }), 'plan-1'));
+    expect(memoryGateway.loadBrief).toHaveBeenCalledWith(expect.objectContaining({ uid: 'owner' }), 'plan-1');
+    expect(researchGateway.request).not.toHaveBeenCalled();
   });
 });

@@ -7,7 +7,7 @@ import {
   initializeTestEnvironment,
   type RulesTestEnvironment
 } from '@firebase/rules-unit-testing';
-import { collection, deleteDoc, doc, getDoc, getDocs, setDoc, updateDoc } from 'firebase/firestore';
+import { collection, deleteDoc, doc, getDoc, getDocs, serverTimestamp, setDoc, updateDoc } from 'firebase/firestore';
 
 let environment: RulesTestEnvironment;
 
@@ -207,5 +207,84 @@ describe('Firestore ownership rules', () => {
     await assertFails(setDoc(doc(owner, path), { ...base, durationMinutes: 61 }));
     await assertFails(setDoc(doc(owner, path), { ...base, completedDate: 'not-a-date' }));
     await assertFails(setDoc(doc(owner, path), base));
+  });
+
+  it('allows immutable owner-scoped decision and guidance records', async () => {
+    const owner = environment.authenticatedContext('owner').firestore();
+    const path = 'users/owner/workspaces/default/plans/plan-record';
+    await environment.withSecurityRulesDisabled(async context => setDoc(doc(context.firestore(), path), {
+      id: 'plan-record', clientRequestId: 'plan-record', ownerUid: 'owner', workspaceId: 'default',
+      title: 'Keep a durable Plan record', outcome: 'Preserve confirmed progress and choices.',
+      why: 'Future work needs trustworthy context.', targetDate: '2026-09-30', weeklyHours: 5,
+      workingDays: ['mon'], status: 'active', schemaVersion: 2, scheduleVersion: 1,
+      createdAt: new Date(), updatedAt: new Date()
+    }));
+    const decision = doc(owner, `${path}/records/decision-123`);
+    const base = {
+      recordId: 'decision-123', kind: 'decision', planId: 'plan-record', ownerUid: 'owner',
+      workspaceId: 'default', summary: 'Keep the first release focused.',
+      rationale: 'A narrower release reaches users sooner.', confidence: null, sourceFacts: [],
+      sourceRecommendationId: null, requestFingerprint: 'fingerprint-1', schemaVersion: 1,
+      recordedAt: serverTimestamp()
+    };
+    await assertSucceeds(setDoc(decision, base));
+    await assertSucceeds(getDoc(decision));
+    await assertFails(updateDoc(decision, { summary: 'Changed later' }));
+    await assertFails(deleteDoc(decision));
+
+    await assertSucceeds(setDoc(doc(owner, `${path}/records/guidance-123`), {
+      ...base, recordId: 'guidance-123', kind: 'clara-guidance',
+      summary: 'Run a five-user acceptance session.', confidence: 'medium',
+      sourceFacts: ['The Plan targets a user-ready release.'], sourceRecommendationId: 'request-123',
+      requestFingerprint: 'fingerprint-2', recordedAt: serverTimestamp()
+    }));
+  });
+
+  it('rejects malformed, forged, missing-Plan, and cross-owner Plan records', async () => {
+    const owner = environment.authenticatedContext('owner').firestore();
+    const other = environment.authenticatedContext('other').firestore();
+    const planPath = 'users/owner/workspaces/default/plans/plan-record';
+    await environment.withSecurityRulesDisabled(async context => setDoc(doc(context.firestore(), planPath), {
+      id: 'plan-record', clientRequestId: 'plan-record', ownerUid: 'owner', workspaceId: 'default',
+      title: 'Keep a durable Plan record', outcome: 'Preserve confirmed progress and choices.',
+      why: 'Future work needs trustworthy context.', targetDate: '2026-09-30', weeklyHours: 5,
+      workingDays: ['mon'], status: 'active', schemaVersion: 2, scheduleVersion: 1,
+      createdAt: new Date(), updatedAt: new Date()
+    }));
+    const path = `${planPath}/records/decision-123`;
+    const base = {
+      recordId: 'decision-123', kind: 'decision', planId: 'plan-record', ownerUid: 'owner',
+      workspaceId: 'default', summary: 'Keep the first release focused.',
+      rationale: 'A narrower release reaches users sooner.', confidence: null, sourceFacts: [],
+      sourceRecommendationId: null, requestFingerprint: 'fingerprint-1', schemaVersion: 1,
+      recordedAt: serverTimestamp()
+    };
+    await assertFails(setDoc(doc(other, path), base));
+    await assertFails(getDoc(doc(other, path)));
+    await assertFails(setDoc(doc(owner, path), { ...base, ownerUid: 'other' }));
+    await assertFails(setDoc(doc(owner, path), { ...base, summary: 'No' }));
+    await assertFails(setDoc(doc(owner, path), { ...base, confidence: 'high' }));
+    await assertFails(setDoc(doc(owner, path), { ...base, unexpected: true }));
+    await assertFails(setDoc(doc(owner, `${planPath}/records/guidance-123`), {
+      ...base, recordId: 'guidance-123', kind: 'clara-guidance', summary: 'Keep this guidance.',
+      confidence: 'high', sourceFacts: ['x'], sourceRecommendationId: 'request-123',
+      recordedAt: serverTimestamp()
+    }));
+    await assertFails(setDoc(doc(owner, 'users/owner/workspaces/default/plans/missing/records/decision-123'), {
+      ...base, planId: 'missing'
+    }));
+  });
+
+  it('allows owner-only audit reads and denies client audit writes', async () => {
+    const path = 'users/owner/workspaces/default/auditEvents/approval-123';
+    await environment.withSecurityRulesDisabled(async context => setDoc(doc(context.firestore(), path), {
+      id: 'approval-123', ownerUid: 'owner', workspaceId: 'default', planId: 'plan-record',
+      kind: 'plan-working-days', createdAt: new Date()
+    }));
+    await assertSucceeds(getDoc(doc(environment.authenticatedContext('owner').firestore(), path)));
+    await assertFails(getDoc(doc(environment.authenticatedContext('other').firestore(), path)));
+    await assertFails(setDoc(doc(environment.authenticatedContext('owner').firestore(), `${path}-forged`), {
+      ownerUid: 'owner'
+    }));
   });
 });

@@ -1,8 +1,8 @@
 # Longview Pending Features
 
-Status: Connection-loss sync implemented locally; cold offline launch deferred
+Status: Release 3 deployed; Release 4 locally verified
 
-Updated: 2026-08-18
+Updated: 2026-08-19
 
 Sources: [Acceptance demo](design/longview-hackathon-acceptance-demo.html) | [PRD](PRODUCT_REQUIREMENTS.md) | [Readiness ledger](HACKATHON_READINESS.md)
 
@@ -60,8 +60,9 @@ and offer Add schedule. Workspace availability and clock-time scheduling do not 
 The portfolio totals committed weekly hours, derives reviewable operating modes and
 allocation shares, and gives one non-writing cross-Plan recommendation. Plan Details
 performs an owner-scoped authoritative read, exposes the current step and context empty
-states, and fails safely when the Plan is missing or unavailable. Persisted history,
-decisions, research, and brief content remain in their later acceptance slices.
+states, and fails safely when the Plan is missing or unavailable. Release 4 now restores
+immutable completion and approved-change proof, reviewed decisions, and explicitly
+retained Clara guidance. Research and brief content remain in later acceptance slices.
 
 The local selected-Plan Clara loop now covers typed managed recommendations, exact
 schedule previews, explicit rejection, stale checks, idempotent approval, one immutable

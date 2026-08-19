@@ -12,6 +12,7 @@ import { ClaraApprovalConflictError, type ClaraApprovalGateway } from './clara/a
 import type { ScheduleRunGateway } from './scheduleRun/types';
 import { ApprovedDayConflictError, type ApprovedDay, type ApprovedDayGateway, type DayApprovalRequest, type DayApprovalResult } from './approvedDay/types';
 import { DayBreakConflictError, type DayBreakGateway, type DayBreakPreview, type DayBreakRequest, type DayBreakResult } from './dayBreak/types';
+import type { PlanRecordGateway } from './planRecord/types';
 
 const workspaceGateway: WorkspaceGateway = {
   ensure: vi.fn(async (user: AuthUser) => ({ id: 'default' as const, ownerUid: user.uid, schemaVersion: 1 as const }))
@@ -80,8 +81,13 @@ const approvedDayGateway: ApprovedDayGateway = {
   approve: vi.fn(async () => { throw new Error('not configured'); })
 };
 
+const planRecordGateway: PlanRecordGateway = {
+  load: vi.fn(async () => ({ records: [], history: [] })),
+  create: vi.fn(async () => { throw new Error('not configured'); })
+};
+
 function App(props: ComponentProps<typeof LongviewApp>) {
-  return <LongviewApp approvedDayGateway={approvedDayGateway} todayOutbox={todayOutbox} {...props} />;
+  return <LongviewApp approvedDayGateway={approvedDayGateway} planRecordGateway={planRecordGateway} todayOutbox={todayOutbox} {...props} />;
 }
 
 const succeededScheduleRun = {
@@ -378,8 +384,8 @@ describe('authentication journey', () => {
     expect(get).toHaveBeenCalledWith(expect.objectContaining({ uid: 'owner' }), 'plan-1');
     expect(screen.getByText('20th August 2026')).toBeVisible();
     expect(screen.getByRole('heading', { name: 'Define the first proof of progress' })).toBeVisible();
-    fireEvent.click(screen.getByRole('button', { name: 'Decisions' }));
-    expect(screen.getByText('No decisions have been recorded for this Plan yet.')).toBeVisible();
+    fireEvent.click(await screen.findByRole('tab', { name: 'Decisions' }));
+    expect(await screen.findByText('No decisions have been recorded for this Plan yet.')).toBeVisible();
   });
 
   it('shows no stale details when the selected Plan is missing', async () => {

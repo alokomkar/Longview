@@ -99,6 +99,19 @@ legend { margin-bottom:10px; color:#dce7e9; font-weight:800; }
 .detail-section { margin-top:28px; padding:24px; border:1px solid #284458; border-radius:20px; background:rgba(10,27,42,.72); }
 .detail-section h2 { margin:8px 0; font:700 1.7rem/1.15 Georgia,serif; }
 .context-grid { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:10px; margin-top:20px; }
+.record-section { display:grid; gap:18px; }
+.record-heading { display:flex; align-items:end; justify-content:space-between; gap:20px; }
+.record-heading p { margin:0; }
+.record-section .context-grid { grid-template-columns:repeat(3,minmax(0,1fr)); margin-top:0; }
+.record-review { border-color:#387c70; }
+.record-review h3,.record-list h3 { margin:10px 0; font:700 1.3rem/1.2 Georgia,serif; }
+.record-review label { margin-top:16px; }
+.record-state { padding:18px; border:1px dashed #37576b; border-radius:16px; }
+.record-state p { margin:0; }
+.record-list { display:grid; gap:12px; margin:0; padding:0; list-style:none; }
+.record-list .plan-card { padding:18px; }
+.record-list .plan-card p { margin-bottom:12px; }
+.record-list small { overflow-wrap:anywhere; }
 .app-shell nav { position:fixed; left:50%; bottom:18px; transform:translateX(-50%); display:flex; gap:8px; width:min(calc(100% - 32px),520px); padding:8px; border:1px solid #284458; border-radius:18px; background:#0a1b2af2; backdrop-filter:blur(12px); }
 .app-shell nav button { flex:1; min-height:44px; }
 .system-banner { position:fixed; z-index:10; top:12px; left:50%; transform:translateX(-50%); width:min(calc(100% - 24px),620px); padding:10px 14px; border-radius:12px; background:#392b13; color:#ffe8af; border:1px solid #f4c96b; text-align:center; }
@@ -107,6 +120,7 @@ legend { margin-bottom:10px; color:#dce7e9; font-weight:800; }
 @media (max-width:520px) { .plans-heading { align-items:stretch; flex-direction:column; } .plans-heading button { width:100%; } }
 @media (max-width:520px) { .app-shell nav { gap:5px; padding:6px; } .app-shell nav button { min-width:0; padding:0 7px; font-size:.82rem; } }
 @media (max-width:620px) { .portfolio-summary,.detail-grid { grid-template-columns:1fr; } .context-grid { grid-template-columns:repeat(2,1fr); } }
+@media (max-width:620px) { .record-heading { align-items:stretch; flex-direction:column; } .record-section .context-grid { grid-template-columns:1fr; } }
 @media (max-width:520px) { .clara-doors,.quick-action-grid { grid-template-columns:1fr; } }
 @media (max-width:420px) { .day-choices { grid-template-columns:repeat(4,1fr); } }
 @media (max-width:520px) { .approval-diff { grid-template-columns:1fr; } }

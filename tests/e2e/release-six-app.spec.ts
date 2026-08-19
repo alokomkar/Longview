@@ -16,7 +16,11 @@ async function createCompletedStep(page: Page) {
   await page.getByRole('button', { name: 'Continue anonymously' }).click();
   await page.getByRole('button', { name: 'Continue setup' }).click();
   await page.getByRole('button', { name: 'Plans', exact: true }).click();
+  await expect(page.getByLabel('Current section: Plans')).toBeVisible();
+  await expect(page.getByRole('navigation', { name: 'Primary navigation' }).getByRole('button', { name: 'Plans', exact: true })).toHaveAttribute('aria-current', 'page');
   await page.getByRole('button', { name: 'Create first Plan' }).click();
+  await expect(page.getByText('Plans / Create Plan')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Back to Plans' })).toBeVisible();
   await page.getByLabel('Plan title').fill(planTitle);
   await page.getByLabel('Desired outcome').fill('Release one complete planning journey that a real user can finish.');
   await page.getByLabel('Why this matters').fill('A completed outcome is stronger evidence than another prototype.');

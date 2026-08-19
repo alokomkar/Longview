@@ -20,9 +20,12 @@ export type Plan = Omit<PlanDraft, 'workingDays'> & {
   id: string;
   ownerUid: string;
   workspaceId: 'default';
-  status: 'active';
-  schemaVersion: 1 | 2;
+  status: 'active' | 'completed';
+  schemaVersion: 1 | 2 | 3;
   scheduleVersion?: number;
+  achievementId?: string | null;
+  completedAt?: string | null;
+  completionVersion?: number;
 };
 
 export type PlanScheduleDraft = Pick<PlanDraft, 'workingDays' | 'weeklyHours'>;
@@ -48,25 +51,49 @@ const isCalendarDate = (value: string) => {
   return !Number.isNaN(date.valueOf()) && date.toISOString().slice(0, 10) === value;
 };
 
+const toIso = (value: unknown): string | null => {
+  if (typeof value === 'string' && !Number.isNaN(Date.parse(value))) return new Date(value).toISOString();
+  if (value instanceof Date && !Number.isNaN(value.valueOf())) return value.toISOString();
+  if (isRecord(value) && typeof value.toDate === 'function') {
+    const date = (value.toDate as () => Date)();
+    return !Number.isNaN(date.valueOf()) ? date.toISOString() : null;
+  }
+  return null;
+};
+
 export function parseStoredPlan(value: unknown, documentId: string, ownerUid: string): Plan | null {
   if (!isRecord(value)) return null;
   const plan = value as Partial<Plan>;
   if (
     plan.id !== documentId || plan.clientRequestId !== documentId || plan.ownerUid !== ownerUid ||
-    plan.workspaceId !== 'default' || plan.status !== 'active' || ![1, 2].includes(plan.schemaVersion ?? 0) ||
+    plan.workspaceId !== 'default' || !['active', 'completed'].includes(String(plan.status)) || ![1, 2, 3].includes(plan.schemaVersion ?? 0) ||
     typeof plan.title !== 'string' || plan.title.length < 3 || plan.title.length > 80 ||
     typeof plan.outcome !== 'string' || plan.outcome.length < 10 || plan.outcome.length > 300 ||
     typeof plan.why !== 'string' || plan.why.length < 10 || plan.why.length > 300 ||
     typeof plan.targetDate !== 'string' || !isCalendarDate(plan.targetDate) ||
     !Number.isInteger(plan.weeklyHours) || (plan.weeklyHours ?? 0) < 1 || (plan.weeklyHours ?? 0) > 40
   ) return null;
+  if (plan.status === 'active' && ![1, 2].includes(plan.schemaVersion ?? 0)) return null;
+  const completedAt = plan.status === 'completed' ? toIso(plan.completedAt) : null;
+  if (plan.status === 'completed' && (
+    plan.schemaVersion !== 3 || typeof plan.achievementId !== 'string' ||
+    plan.achievementId.length < 8 || plan.achievementId.length > 128 || plan.achievementId.includes('/') ||
+    !completedAt || plan.completionVersion !== 1
+  )) return null;
   const scheduleVersion = plan.schemaVersion === 1 ? 0 : plan.scheduleVersion;
   const storedDays = plan.schemaVersion === 1 ? null : plan.workingDays;
-  if (plan.schemaVersion === 2 && (
+  if (plan.schemaVersion !== 1 && (
     !Number.isInteger(scheduleVersion) || (scheduleVersion ?? 0) < 1 ||
     !Array.isArray(storedDays) || Object.keys(validatePlanSchedule({ workingDays: storedDays as WorkingDay[], weeklyHours: plan.weeklyHours as number })).length > 0
   )) return null;
-  return { ...plan, workingDays: storedDays as WorkingDay[] | null, scheduleVersion: scheduleVersion as number } as Plan;
+  return {
+    ...plan,
+    workingDays: storedDays as WorkingDay[] | null,
+    scheduleVersion: scheduleVersion as number,
+    achievementId: plan.status === 'completed' ? plan.achievementId : null,
+    completedAt,
+    completionVersion: plan.status === 'completed' ? 1 : undefined
+  } as Plan;
 }
 
 export function validatePlanSchedule(draft: PlanScheduleDraft): PlanScheduleErrors {

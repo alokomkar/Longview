@@ -927,7 +927,7 @@ describe('Phase 0 release surface', () => {
       approvedDayGateway={{ get: getApprovedDay, approve: vi.fn() }}
     />);
 
-    await waitFor(() => expect(screen.getByText('Early access')).toBeVisible());
+    await waitFor(() => expect(screen.getByLabelText('Current section: Today')).toBeVisible());
     expect(screen.getByRole('heading', { name: 'One useful step is enough.' })).toBeVisible();
     expect(screen.queryByRole('button', { name: 'Calendar' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /Ask Clara/ })).not.toBeInTheDocument();
@@ -963,7 +963,7 @@ describe('Release 1 Ask Clara surface', () => {
       claraApprovalGateway={{ apply }}
       approvedDayGateway={{ get: getApprovedDay, approve: vi.fn() }}
     />);
-    expect(await screen.findByText('Ask Clara · read only')).toBeVisible();
+    expect(await screen.findByLabelText('Current section: Today')).toBeVisible();
     expect(screen.queryByRole('button', { name: 'Calendar' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Ask Clara' })).not.toBeInTheDocument();
     fireEvent.click(await screen.findByRole('button', { name: 'Ask Clara about this step' }));
@@ -1028,7 +1028,7 @@ describe('Release 2 Clara schedule review surface', () => {
       claraGateway={{ recommend: vi.fn(async context => proposalResponse(context)) }}
       claraApprovalGateway={{ apply }}
     />);
-    expect(await screen.findByText('Clara changes · review first')).toBeVisible();
+    expect(await screen.findByLabelText('Current section: Today')).toBeVisible();
     expect(screen.queryByRole('button', { name: 'Calendar' })).not.toBeInTheDocument();
     fireEvent.click(await screen.findByRole('button', { name: 'Ask Clara about this step' }));
     fireEvent.click(await screen.findByRole('button', { name: 'Review schedule change' }));
@@ -1107,7 +1107,7 @@ describe('Release 3 daily schedule surface', () => {
       scheduleRunGateway={scheduleRunGateway}
       approvedDayGateway={{ get: vi.fn(async () => null), approve }}
     />);
-    expect(await screen.findByText('Daily schedule · review first')).toBeVisible();
+    expect(await screen.findByLabelText('Current section: Today')).toBeVisible();
     expect(screen.queryByRole('button', { name: 'Ask Clara' })).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Calendar' }));
     fireEvent.click(await screen.findByRole('button', { name: 'Prepare today' }));
@@ -1137,7 +1137,7 @@ describe('Release 5 research and Plan Brief surface', () => {
       planMemoryGateway={memoryGateway}
       researchGateway={researchGateway}
     />);
-    expect(await screen.findByText('Research + Plan Brief')).toBeVisible();
+    expect(await screen.findByLabelText('Current section: Today')).toBeVisible();
     expect(memoryGateway.loadResearch).not.toHaveBeenCalled();
     fireEvent.click(screen.getByRole('button', { name: 'Plans' }));
     fireEvent.click(await screen.findByRole('button', { name: 'View Plan details' }));

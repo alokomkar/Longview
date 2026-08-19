@@ -34,12 +34,34 @@ legend { margin-bottom:10px; color:#dce7e9; font-weight:800; }
 .day-choices { display:grid; grid-template-columns:repeat(7,minmax(0,1fr)); gap:7px; }
 .day-choices button { min-width:0; min-height:46px; padding:0 4px; }
 .app-shell { width:min(100%,760px); min-height:100vh; margin:auto; padding:28px 20px 96px; }
+.app-shell-with-navigation { width:min(100%,1320px); padding:0; display:grid; grid-template-columns:220px minmax(0,1fr); }
+.app-main { min-width:0; padding:28px 36px 96px; }
+.desktop-navigation { position:sticky; top:0; height:100vh; padding:32px 18px; border-right:1px solid #284458; background:#0a1b2ad9; backdrop-filter:blur(14px); }
+.desktop-navigation-brand { display:block; margin:0 12px 28px; font:700 1.55rem/1 Georgia,serif; }
+.primary-navigation { display:grid; gap:6px; }
+.primary-navigation-item { min-height:48px; display:flex; align-items:center; gap:12px; padding:0 14px; color:#b8c6ce; background:transparent; border:1px solid transparent; text-align:left; }
+.primary-navigation-item > span { width:18px; color:#79d7c5; text-align:center; }
+.primary-navigation-item[aria-current="page"] { color:#79d7c5; background:#102f3d; border-color:#37576b; box-shadow:inset 3px 0 #79d7c5; }
+.desktop-navigation-context { margin:28px 12px 0; padding-top:20px; display:grid; gap:5px; border-top:1px solid #284458; }
+.desktop-navigation-context strong { color:#b8c6ce; font-size:.8rem; }
+.desktop-navigation-context span { color:#79d7c5; font-weight:800; }
+.desktop-navigation-context small { max-width:18ch; }
+.screen-location { position:sticky; z-index:8; top:0; display:block!important; margin:-4px 0 10px; padding:10px 0 16px; border-bottom:1px solid #284458; background:linear-gradient(180deg,#07111f 82%,transparent); }
+.screen-location-brand { display:flex; align-items:center; justify-content:space-between; gap:16px; }
+.screen-location-brand .eyebrow { margin:0; }
+.screen-location-section { padding:7px 11px; border:1px solid #37576b; border-radius:999px; color:#dce7e9; background:#102a3c; font-size:.78rem; font-weight:800; }
+.screen-location-route { display:flex; align-items:center; gap:12px; margin-top:12px; }
+.screen-location-route > div { min-width:0; }
+.screen-location-route small { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.screen-location-route strong { display:block; margin-top:3px; color:#f7f4ec; }
+.embedded-shell { width:100%; min-height:0; margin:0; padding:38px 0 0; justify-content:flex-start; }
+.embedded-shell > .card { width:min(100%,720px); }
 .app-shell header { display:flex; justify-content:space-between; align-items:center; gap:12px; }
 .app-shell header > * { min-width:0; }
 .app-shell header .status { max-width:50%; overflow-wrap:anywhere; text-align:right; }
 .empty { min-height:65vh; display:flex; flex-direction:column; align-items:flex-start; justify-content:center; }
 .empty h1 { max-width:620px; }
-.plans-view,.today-view,.calendar-view { padding-top:56px; }
+.plans-view,.today-view,.calendar-view { padding-top:30px; }
 .calendar-view { padding-bottom:100px; }
 .calendar-view > p { max-width:620px; }
 .calendar-view > label { max-width:300px; margin:24px 0 10px; }
@@ -148,13 +170,12 @@ legend { margin-bottom:10px; color:#dce7e9; font-weight:800; }
 .approved-memory { margin:12px 0; padding:14px; border-left:3px solid #79d7c5; background:#071522; }
 .completed-plans { margin-top:32px; }
 .completed-plans > .status { display:block; margin-bottom:12px; }
-.app-shell nav { position:fixed; left:50%; bottom:18px; transform:translateX(-50%); display:flex; gap:8px; width:min(calc(100% - 32px),520px); padding:8px; border:1px solid #284458; border-radius:18px; background:#0a1b2af2; backdrop-filter:blur(12px); }
-.app-shell nav button { flex:1; min-height:44px; }
 .system-banner { position:fixed; z-index:10; top:12px; left:50%; transform:translateX(-50%); width:min(calc(100% - 24px),620px); padding:10px 14px; border-radius:12px; background:#392b13; color:#ffe8af; border:1px solid #f4c96b; text-align:center; }
 .system-banner button { min-height:32px; margin-left:8px; padding:0 12px; }
 @media (min-width:700px) { .shell { width:min(100%,720px); } .actions { grid-template-columns:1fr 1fr; } }
 @media (max-width:520px) { .plans-heading { align-items:stretch; flex-direction:column; } .plans-heading button { width:100%; } }
-@media (max-width:520px) { .app-shell nav { gap:5px; padding:6px; } .app-shell nav button { min-width:0; padding:0 7px; font-size:.82rem; } }
+@media (max-width:799px) { .app-shell-with-navigation { grid-template-columns:1fr; } .desktop-navigation { position:static; height:auto; padding:0; border:0; background:transparent; backdrop-filter:none; } .desktop-navigation-brand,.desktop-navigation-context { display:none; } .primary-navigation { position:fixed; z-index:20; left:50%; bottom:18px; transform:translateX(-50%); width:min(calc(100% - 32px),520px); padding:8px; display:flex; gap:8px; border:1px solid #284458; border-radius:18px; background:#0a1b2af2; backdrop-filter:blur(12px); } .primary-navigation-item { flex:1; min-width:0; display:grid; place-items:center; gap:2px; padding:5px 7px; color:#edf5f5; background:#18364a; border-color:#37576b; font-size:.82rem; } .primary-navigation-item > span { width:auto; color:#79d7c5; font-size:.7rem; } .primary-navigation-item[aria-current="page"] { color:#05201d; background:#79d7c5; border-color:#79d7c5; box-shadow:none; } .primary-navigation-item[aria-current="page"] > span { color:#05201d; } .app-main { padding:24px 20px 96px; } .screen-location { margin-top:-4px; } }
+@media (max-width:520px) { .primary-navigation { gap:5px; padding:6px; } .primary-navigation-item { padding:4px; font-size:.78rem; } .screen-location-route { align-items:flex-start; } .screen-location-route small { white-space:normal; } }
 @media (max-width:620px) { .portfolio-summary,.detail-grid { grid-template-columns:1fr; } .context-grid { grid-template-columns:repeat(2,1fr); } }
 @media (max-width:620px) { .record-heading { align-items:stretch; flex-direction:column; } .record-section .context-grid { grid-template-columns:1fr; } }
 @media (max-width:620px) { .memory-tabs { grid-template-columns:1fr; } }

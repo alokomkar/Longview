@@ -1,6 +1,6 @@
 # Longview Pending Features
 
-Status: Release 4 deployed and production-verified
+Status: Release 4 deployed; Release 5 proposed for review
 
 Updated: 2026-08-19
 
@@ -34,10 +34,11 @@ not. Review checkmarks in the demo are not implementation status.
 
 ## P1 after the judged path
 
-1. **Reviewed research** — MEM-01 and MEM-02: attributed accept/reject/defer cards and
-   non-destructive failure recovery.
-2. **Versioned brief** — MEM-03 and MEM-04: editable proposal, attribution, explicit save,
-   history, and stale-version conflict handling.
+1. **Reviewed research** — MEM-01 and MEM-02 are specified in the Release 5 contract
+   and interactive journey; implementation remains gated on product-owner review.
+2. **Versioned brief** — MEM-03 and MEM-04 are specified with editable proposal,
+   attribution, explicit save, history, and stale-version protection; implementation
+   remains gated on product-owner review.
 3. **Achievement and consent** — MEM-05 and MEM-06: evidence, reflection, explicit
    reusable-memory permission, retry, and no memory write after failure.
 

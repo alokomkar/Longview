@@ -73,6 +73,17 @@ exposes explicit review, cancellation, retry, and conflict states. Local unit, r
 FastAPI, regression E2E, and the emulator-backed mobile journey pass. The fresh
 anonymous production journey also passed after Hosting and Firestore rules deployment.
 
+### Release 5: reviewed research and versioned Plan Brief
+
+Add attributed Plan-scoped research cards with append-only Accept, Reject, and Not now
+decisions. Accepted cards can prepare an editable proposal, but only an explicit final
+review may append a new immutable Plan Brief version. Expected-version checks prevent a
+stale tab from replacing newer work; idempotency and recovery preserve exactly one
+result after duplicate or interrupted responses. Research and brief reads fail
+independently so one unavailable surface does not hide the other. See the
+[release contract](RELEASE_FIVE_RESEARCH_BRIEF.md) and
+[interactive acceptance](design/longview-release-five-research-brief.html).
+
 1. **Cloud prerequisite:** Create one Google Cloud project and enable Firebase on it;
    claim credits, configure budgets, emulators, least-privilege identities, and secrets.
    Choose Firestore/Cloud Run regions only after confirming Vertex AI availability.

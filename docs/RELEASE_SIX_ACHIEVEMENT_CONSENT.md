@@ -1,6 +1,6 @@
 # Release 6: Plan Achievement, Reflection, and Reuse Consent
 
-Status: Product contract proposed; implementation waits for product-owner review
+Status: Implemented and verified locally; merge and deployment require product-owner approval
 
 Last updated: 2026-08-19
 
@@ -88,3 +88,15 @@ matching retry restores the original result; a reused key with changed content f
   and release bundle deltas. Record the verified journey and important safe failures
   with QuickTime after implementation.
 - Merge and deployment require separate product-owner approval.
+
+## Verification result
+
+- The typed client, transactional Firestore gateway, immutable records, exact consent
+  revisions, completed-Plan portfolio state, and safe failure UI are implemented.
+- 320 frontend unit/integration tests, 19 Firestore-rule tests, 2 emulator-backed
+  Release 6 mobile E2E cases, 32 regression E2E cases, and 2 Release 5 regression
+  cases pass.
+- The Release 6 production build passes. Local mobile E2E verifies blocked finish,
+  selective consent, cancellation, offline failure, reload, revocation, and 200% text.
+- Evidence is recorded in
+  [Release 6 verification](evidence/RELEASE_SIX_VERIFICATION.md).

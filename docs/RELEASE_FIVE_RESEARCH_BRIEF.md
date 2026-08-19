@@ -1,6 +1,6 @@
 # Release 5: Reviewed Research and Versioned Plan Brief
 
-Status: Implemented and verified locally; merge and deployment pending
+Status: Merged to master; Cloud deployment and production evidence pending
 
 Last updated: 2026-08-19
 

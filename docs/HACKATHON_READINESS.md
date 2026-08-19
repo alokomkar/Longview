@@ -24,7 +24,7 @@ Sources: [PRD](PRODUCT_REQUIREMENTS.md) | [Implementation phases](IMPLEMENTATION
 | 2 | Portfolio | Three Plans sharing finite capacity | Implemented | Committed hours, operating modes, allocation shares, milestones, and deterministic guidance are visible. |
 | 3 | Plan creation | Reviewed structured Plan | Partial | Working-day selection is implemented; advisor-assisted suggestions remain. |
 | 4 | Plan details | One Plan with execution and context | Implemented locally | Details, execution proof, reviewed decisions, research, current brief, and version history are present; Release 5 production evidence remains. |
-| 5 | Plan achievement | Outcome and consented reflection | Designed | Release 6 now specifies required evidence, optional private reflection, exact statement-level reuse consent, recovery, and revocation; implementation awaits journey approval. |
+| 5 | Plan achievement | Outcome and consented reflection | Implemented locally | Release 6 verifies required evidence, optional private reflection, exact statement-level reuse consent, atomic recovery, reload, and revocation; production evidence remains. |
 | 6 | Clara context | Visible bounded context | Partial | Local managed boundary uses one Plan and Today step; add deployed-model evidence and multi-Plan context where required. |
 | 7 | Agentic actions | Bounded action catalogue | Implemented locally | Ask Clara exposes grouped, typed Quick Actions that make no menu-time network call or write and hand off to existing Calendar and Plans review flows. |
 | 8 | Tradeoff recommendation | Cross-Plan managed recommendation | Missing | The local single-Plan managed boundary is ready; add deployed cross-Plan reasoning and evidence. |
@@ -66,14 +66,17 @@ Sources: [PRD](PRODUCT_REQUIREMENTS.md) | [Implementation phases](IMPLEMENTATION
   links and Search suggestions, explicit Accept/Reject/Not now reviews, and recovery.
 - Local editable Plan Brief proposals with accepted-source enforcement, final review,
   immutable versions, current pointer, reload, idempotency, and stale-tab protection.
+- Local Plan achievement with required completion proof, optional private reflection,
+  default-deny exact reuse consent, atomic completion, reload, append-only revocation,
+  idempotency, stale protection, and completed-Plan portfolio history.
 
 ## Deadline delivery order
 
 1. Deploy and capture production evidence for the managed API and approved write.
 2. Add one checkpointed asynchronous run plus Cloud logs and recovery evidence.
 3. Add the calendar success/failure path required by the demo.
-4. Deploy and capture production evidence for research review and the versioned brief;
-   then add achievement and consented reflection.
+4. Deploy and capture production evidence for research review, the versioned brief,
+   achievement, and consented reflection.
 5. Re-capture all 13 screenshots from verified PWA states and record the final PWA demo.
 
 No prototype screenshot or narration claim is implementation proof. Final submission

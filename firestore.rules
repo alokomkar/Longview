@@ -10,6 +10,16 @@ service cloud.firestore {
       return signedIn() && request.auth.uid == uid;
     }
 
+    function validSourceFacts(facts) {
+      return facts is list
+        && facts.size() >= 1
+        && facts.size() <= 4
+        && facts[0] is string && facts[0].size() >= 3 && facts[0].size() <= 120
+        && (facts.size() < 2 || (facts[1] is string && facts[1].size() >= 3 && facts[1].size() <= 120))
+        && (facts.size() < 3 || (facts[2] is string && facts[2].size() >= 3 && facts[2].size() <= 120))
+        && (facts.size() < 4 || (facts[3] is string && facts[3].size() >= 3 && facts[3].size() <= 120));
+    }
+
     match /users/{uid} {
       allow read: if owns(uid);
       allow create: if owns(uid) && request.resource.data.uid == uid;
@@ -97,6 +107,54 @@ service cloud.firestore {
             && request.resource.data.workingDays
               .hasOnly(['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun']);
           allow delete: if false;
+
+          match /records/{recordId} {
+            allow read: if owns(uid);
+            allow create: if owns(uid)
+              && workspaceId == 'default'
+              && exists(/databases/$(database)/documents/users/$(uid)/workspaces/$(workspaceId)/plans/$(planId))
+              && request.resource.data.keys().hasOnly([
+                'recordId', 'kind', 'planId', 'ownerUid', 'workspaceId',
+                'summary', 'rationale', 'confidence', 'sourceFacts',
+                'sourceRecommendationId', 'requestFingerprint', 'schemaVersion',
+                'recordedAt'
+              ])
+              && request.resource.data.recordId == recordId
+              && request.resource.data.planId == planId
+              && request.resource.data.ownerUid == uid
+              && request.resource.data.workspaceId == workspaceId
+              && request.resource.data.kind in ['decision', 'clara-guidance']
+              && request.resource.data.summary is string
+              && request.resource.data.summary.size() >= 3
+              && request.resource.data.summary.size() <= 500
+              && request.resource.data.rationale is string
+              && request.resource.data.rationale.size() >= 10
+              && request.resource.data.rationale.size() <= 500
+              && request.resource.data.requestFingerprint is string
+              && request.resource.data.requestFingerprint.size() >= 1
+              && request.resource.data.requestFingerprint.size() <= 2000
+              && request.resource.data.schemaVersion == 1
+              && request.resource.data.recordedAt == request.time
+              && (
+                (request.resource.data.kind == 'decision'
+                  && request.resource.data.confidence == null
+                  && request.resource.data.sourceFacts == []
+                  && request.resource.data.sourceRecommendationId == null)
+                ||
+                (request.resource.data.kind == 'clara-guidance'
+                  && request.resource.data.confidence in ['low', 'medium', 'high']
+                  && validSourceFacts(request.resource.data.sourceFacts)
+                  && request.resource.data.sourceRecommendationId is string
+                  && request.resource.data.sourceRecommendationId.size() >= 8
+                  && request.resource.data.sourceRecommendationId.size() <= 128)
+              );
+            allow update, delete: if false;
+          }
+        }
+
+        match /auditEvents/{eventId} {
+          allow read: if owns(uid);
+          allow create, update, delete: if false;
         }
 
         match /todayCompletions/{completionId} {

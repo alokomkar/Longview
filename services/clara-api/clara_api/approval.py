@@ -83,8 +83,6 @@ class FirestoreApprovalRepository:
             f"users/{user_id}/workspaces/default/auditEvents/{request.idempotency_key}"
         )
         fingerprint = _fingerprint(request)
-        transaction = client.transaction()
-
         @firestore.transactional
         def apply_transaction(active_transaction):
             audit_snapshot = audit_ref.get(transaction=active_transaction)
@@ -133,7 +131,7 @@ class FirestoreApprovalRepository:
             })
             return result
 
-        return apply_transaction(transaction)
+        return apply_transaction(client.transaction(max_attempts=10))
 
 
 @lru_cache(maxsize=1)

@@ -24,7 +24,7 @@ Sources: [PRD](PRODUCT_REQUIREMENTS.md) | [Implementation phases](IMPLEMENTATION
 | 2 | Portfolio | Three Plans sharing finite capacity | Implemented | Committed hours, operating modes, allocation shares, milestones, and deterministic guidance are visible. |
 | 3 | Plan creation | Reviewed structured Plan | Partial | Working-day selection is implemented; advisor-assisted suggestions remain. |
 | 4 | Plan details | One Plan with execution and context | Implemented locally | Details, execution proof, reviewed decisions, research, current brief, and version history are present; Release 5 production evidence remains. |
-| 5 | Plan achievement | Outcome and consented reflection | Missing | Add completion evidence, reflection, and explicit reusable-memory consent. |
+| 5 | Plan achievement | Outcome and consented reflection | Designed | Release 6 now specifies required evidence, optional private reflection, exact statement-level reuse consent, recovery, and revocation; implementation awaits journey approval. |
 | 6 | Clara context | Visible bounded context | Partial | Local managed boundary uses one Plan and Today step; add deployed-model evidence and multi-Plan context where required. |
 | 7 | Agentic actions | Bounded action catalogue | Implemented locally | Ask Clara exposes grouped, typed Quick Actions that make no menu-time network call or write and hand off to existing Calendar and Plans review flows. |
 | 8 | Tradeoff recommendation | Cross-Plan managed recommendation | Missing | The local single-Plan managed boundary is ready; add deployed cross-Plan reasoning and evidence. |

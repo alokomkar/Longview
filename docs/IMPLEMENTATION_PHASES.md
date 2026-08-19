@@ -291,6 +291,17 @@ Firebase evidence remains separate.
 The remaining judged surfaces and the replacement status of every gallery asset are
 tracked in [Hackathon readiness](HACKATHON_READINESS.md).
 
+10. **Plan achievement and exact reuse consent:** Gate finishing on every required Plan
+    step being complete. Capture a measurable outcome with one to three evidence
+    references, optional user-authored reflection, and separately unchecked reuse
+    controls for each non-empty reflection statement. The final preview separates
+    private content from the exact learning approved for future Plan guidance. Save one
+    immutable achievement, optional reflection, append-only consent snapshot, and Plan
+    completion pointer atomically with stale-version and idempotency protection. Later
+    revocation affects future reuse only. See the proposed
+    [Release 6 contract](RELEASE_SIX_ACHIEVEMENT_CONSENT.md); implementation begins only
+    after the linked interactive journey is approved.
+
 ## Post-hackathon MVP candidate — only if the judged path is complete
 
 1. Add a default start time and 30-minute duration to each Plan schedule.

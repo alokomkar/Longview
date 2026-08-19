@@ -1,6 +1,6 @@
 # Longview Pending Features
 
-Status: Release 4 deployed; Release 5 implemented locally and pending merge/deployment approval
+Status: Release 4 deployed; Release 5 pending review; Release 6 product gate in progress
 
 Updated: 2026-08-19
 
@@ -40,8 +40,11 @@ not. Review checkmarks in the demo are not implementation status.
 2. **Versioned brief** — MEM-03 and MEM-04 are implemented locally with an editable
    proposal, one to three accepted sources, explicit final save, immutable history,
    idempotency, and stale-version protection. Production Cloud evidence remains.
-3. **Achievement and consent** — MEM-05 and MEM-06: evidence, reflection, explicit
-   reusable-memory permission, retry, and no memory write after failure.
+3. **Achievement and consent** — MEM-05 and MEM-06: the proposed Release 6 contract and
+   interactive journey cover completion evidence, optional private reflection, exact
+   statement-level reuse permission, default-deny consent, retry, concurrency,
+   revocation, and no memory write after failure. Implementation awaits product-owner
+   review of [the journey](RELEASE_SIX_ACHIEVEMENT_CONSENT.md).
 
 ## Post-hackathon MVP enhancement — pick up only if time permits
 

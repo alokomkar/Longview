@@ -405,4 +405,91 @@ describe('Firestore ownership rules', () => {
     await assertFails(deleteDoc(doc(owner, `${base}/briefState/current`)));
     await assertFails(getDoc(doc(environment.authenticatedContext('other').firestore(), `${base}/briefVersions/version-123`)));
   });
+
+  it('atomically finishes a Plan with immutable evidence and selective reuse consent', async () => {
+    const owner = environment.authenticatedContext('owner').firestore();
+    const base = 'users/owner/workspaces/default/plans/plan-achievement';
+    const completionPath = 'users/owner/workspaces/default/todayCompletions/completion-123';
+    await environment.withSecurityRulesDisabled(async context => {
+      const db = context.firestore();
+      await setDoc(doc(db, base), {
+        id: 'plan-achievement', clientRequestId: 'plan-achievement', ownerUid: 'owner', workspaceId: 'default',
+        title: 'Release one useful workflow', outcome: 'Release one tested planning workflow to users.',
+        why: 'A real outcome creates trustworthy product evidence.', targetDate: '2026-09-30', weeklyHours: 5,
+        workingDays: ['wed'], status: 'active', schemaVersion: 2, scheduleVersion: 1,
+        createdAt: new Date(), updatedAt: new Date()
+      });
+      await setDoc(doc(db, completionPath), {
+        id: 'completion-123', ownerUid: 'owner', workspaceId: 'default', planId: 'plan-achievement',
+        stepKey: 'first-proof-v1', completedDate: '2026-08-19', durationMinutes: 60,
+        status: 'completed', schemaVersion: 1, completedAt: new Date()
+      });
+    });
+    const batch = writeBatch(owner);
+    batch.set(doc(owner, `${base}/achievements/achievement-123`), {
+      schemaVersion: 1, achievementId: 'achievement-123', planId: 'plan-achievement', ownerUid: 'owner', workspaceId: 'default',
+      outcome: 'Released one tested planning workflow.', evidence: [{ label: 'Production acceptance', url: 'https://example.com/proof' }],
+      completedStepIds: ['completion-123'], expectedPlanRevision: 1, reflectionId: 'reflection-123',
+      requestFingerprint: 'achievement-fingerprint', recordedAt: serverTimestamp()
+    });
+    batch.set(doc(owner, `${base}/reflections/reflection-123`), {
+      schemaVersion: 1, reflectionId: 'reflection-123', achievementId: 'achievement-123', planId: 'plan-achievement',
+      ownerUid: 'owner', workspaceId: 'default', whatWorked: 'Small releases worked.', whatChanged: '', doDifferently: '',
+      recordedAt: serverTimestamp()
+    });
+    batch.set(doc(owner, `${base}/reuseConsents/consent-123`), {
+      schemaVersion: 1, consentId: 'consent-123', achievementId: 'achievement-123', reflectionId: 'reflection-123',
+      planId: 'plan-achievement', ownerUid: 'owner', workspaceId: 'default', purpose: 'future_plan_guidance',
+      approvedReflectionFields: ['whatWorked'], version: 1, previousConsentId: null,
+      requestFingerprint: 'consent-fingerprint', recordedAt: serverTimestamp()
+    });
+    batch.set(doc(owner, `${base}/achievementState/current`), {
+      schemaVersion: 1, planId: 'plan-achievement', ownerUid: 'owner', workspaceId: 'default',
+      currentAchievementId: 'achievement-123', currentConsentId: 'consent-123', consentVersion: 1,
+      updatedAt: serverTimestamp()
+    });
+    batch.update(doc(owner, base), {
+      status: 'completed', schemaVersion: 3, achievementId: 'achievement-123',
+      completedAt: serverTimestamp(), completionVersion: 1, updatedAt: serverTimestamp()
+    });
+    await assertSucceeds(batch.commit());
+    await assertFails(updateDoc(doc(owner, `${base}/achievements/achievement-123`), { outcome: 'Changed' }));
+
+    const revoke = writeBatch(owner);
+    revoke.set(doc(owner, `${base}/reuseConsents/consent-456`), {
+      schemaVersion: 1, consentId: 'consent-456', achievementId: 'achievement-123', reflectionId: 'reflection-123',
+      planId: 'plan-achievement', ownerUid: 'owner', workspaceId: 'default', purpose: 'future_plan_guidance',
+      approvedReflectionFields: [], version: 2, previousConsentId: 'consent-123',
+      requestFingerprint: 'revocation-fingerprint', recordedAt: serverTimestamp()
+    });
+    revoke.update(doc(owner, `${base}/achievementState/current`), {
+      currentConsentId: 'consent-456', consentVersion: 2, updatedAt: serverTimestamp()
+    });
+    await assertSucceeds(revoke.commit());
+  });
+
+  it('rejects partial, forged, and cross-owner achievement writes', async () => {
+    const owner = environment.authenticatedContext('owner').firestore();
+    const other = environment.authenticatedContext('other').firestore();
+    const base = 'users/owner/workspaces/default/plans/plan-achievement';
+    await environment.withSecurityRulesDisabled(async context => setDoc(doc(context.firestore(), base), {
+      id: 'plan-achievement', clientRequestId: 'plan-achievement', ownerUid: 'owner', workspaceId: 'default',
+      title: 'Release one useful workflow', outcome: 'Release one tested planning workflow to users.',
+      why: 'A real outcome creates trustworthy product evidence.', targetDate: '2026-09-30', weeklyHours: 5,
+      workingDays: ['wed'], status: 'active', schemaVersion: 2, scheduleVersion: 1,
+      createdAt: new Date(), updatedAt: new Date()
+    }));
+    const orphan = {
+      schemaVersion: 1, achievementId: 'achievement-123', planId: 'plan-achievement', ownerUid: 'owner', workspaceId: 'default',
+      outcome: 'Released one tested planning workflow.', evidence: [{ label: 'Production acceptance', url: null }],
+      completedStepIds: ['completion-123'], expectedPlanRevision: 1, reflectionId: null,
+      requestFingerprint: 'fingerprint', recordedAt: serverTimestamp()
+    };
+    await assertFails(setDoc(doc(owner, `${base}/achievements/achievement-123`), orphan));
+    await assertFails(setDoc(doc(other, `${base}/achievements/achievement-123`), orphan));
+    await assertFails(updateDoc(doc(owner, base), {
+      status: 'completed', schemaVersion: 3, achievementId: 'achievement-123',
+      completedAt: serverTimestamp(), completionVersion: 1, updatedAt: serverTimestamp()
+    }));
+  });
 });

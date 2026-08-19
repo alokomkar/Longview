@@ -2,7 +2,7 @@ import { defineConfig, devices } from '@playwright/test';
 
 export default defineConfig({
   testDir: './tests/e2e',
-  testIgnore: ['release-four-app.spec.ts', 'release-five-app.spec.ts'],
+  testIgnore: ['release-four-app.spec.ts', 'release-five-app.spec.ts', 'release-six-app.spec.ts'],
   webServer: [
     {
       command: 'npm run build && npm run preview -- --port 4173',

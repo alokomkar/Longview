@@ -213,9 +213,21 @@ them without approval.
 
 ### Achievement and reflection
 
-- Confirm the measurable outcome and summarize the journey.
-- Ask what worked, what changed, and what should happen differently next time.
-- Save only the learning the user explicitly permits Clara to remember.
+- Finish is available only after every required Plan step is complete. The user records
+  a measurable outcome and one to three evidence references; this release accepts
+  labels and optional HTTPS links, not file uploads.
+- Ask what worked, what changed, and what should happen differently next time. These
+  reflection statements are optional, private by default, and user-authored.
+- Every non-empty reflection statement has a separate unchecked reuse control. A final
+  preview distinguishes completion evidence, private reflection, and the exact selected
+  statements Clara may use for future Plan guidance. **Reuse nothing** is the default.
+- Save one immutable achievement, optional reflection, append-only consent snapshot,
+  and Plan completion pointer atomically. Duplicate retries restore the original result;
+  stale or concurrent completion fails without replacing authoritative data.
+- Later revocation prevents future reuse and appends a consent revision. It does not
+  delete achievement history or claim to undo prior model calls.
+- The reviewed Release 6 contract and complete failure journey are in
+  [Plan achievement and consent](RELEASE_SIX_ACHIEVEMENT_CONSENT.md).
 
 ### Settings and subscription
 

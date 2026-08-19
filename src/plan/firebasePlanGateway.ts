@@ -49,6 +49,7 @@ export const firebasePlanGateway: PlanGateway = {
       const snapshot = await transaction.get(planRef);
       const current = snapshot.exists() ? parseStoredPlan(snapshot.data(), snapshot.id, user.uid) : null;
       if (!current) throw new Error('Plan not found or malformed.');
+      if (current.status !== 'active') throw new PlanScheduleConflictError('Completed Plans cannot change schedule.');
       if (current.scheduleVersion !== expectedVersion) throw new PlanScheduleConflictError('Plan schedule changed.');
       const updated: Plan = {
         ...current,

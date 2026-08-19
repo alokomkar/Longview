@@ -1,6 +1,6 @@
 # Longview Implementation Phases
 
-Status: Release 4 deployed; Release 5 local release candidate verified
+Status: Release 4 deployed; Release 5 merged; Release 6 local release candidate verified
 Updated: 2026-08-19
 Links: [PRD](PRODUCT_REQUIREMENTS.md) | [Mockup](design/longview-pwa-interactive-mockup.html) | [Stack](TECH_STACK.md)
 
@@ -84,10 +84,9 @@ independently so one unavailable surface does not hide the other. See the
 [release contract](RELEASE_FIVE_RESEARCH_BRIEF.md) and
 [interactive acceptance](design/longview-release-five-research-brief.html).
 
-The local candidate passes typed frontend, API, Firestore-rule, emulator-backed mobile,
-and full regression gates. Grounded research maps attribution only from provider
-metadata, preserves Google Search suggestions, and fails closed on malformed output.
-Merge, Cloud Run/Hosting deployment, and production acceptance remain gated.
+The verified candidate is merged to `master`. Grounded research maps attribution only
+from provider metadata, preserves Google Search suggestions, and fails closed on
+malformed output. Cloud Run/Hosting deployment and production acceptance remain gated.
 
 1. **Cloud prerequisite:** Create one Google Cloud project and enable Firebase on it;
    claim credits, configure budgets, emulators, least-privilege identities, and secrets.
@@ -290,6 +289,18 @@ Firebase evidence remains separate.
 
 The remaining judged surfaces and the replacement status of every gallery asset are
 tracked in [Hackathon readiness](HACKATHON_READINESS.md).
+
+10. **Plan achievement and exact reuse consent:** Gate finishing on every required Plan
+    step being complete. Capture a measurable outcome with one to three evidence
+    references, optional user-authored reflection, and separately unchecked reuse
+    controls for each non-empty reflection statement. The final preview separates
+    private content from the exact learning approved for future Plan guidance. Save one
+    immutable achievement, optional reflection, append-only consent snapshot, and Plan
+    completion pointer atomically with stale-version and idempotency protection. Later
+    revocation affects future reuse only. See the proposed
+    [Release 6 contract](RELEASE_SIX_ACHIEVEMENT_CONSENT.md). The approved local
+    implementation passes typed, Firestore-rule, emulator-backed mobile, build, and
+    regression gates; merge and deployment remain separately gated.
 
 ## Post-hackathon MVP candidate — only if the judged path is complete
 

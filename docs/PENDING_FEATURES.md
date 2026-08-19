@@ -1,6 +1,6 @@
 # Longview Pending Features
 
-Status: Release 4 deployed; Release 5 implemented locally and pending merge/deployment approval
+Status: Release 4 deployed; Release 5 merged; Release 6 local release candidate verified
 
 Updated: 2026-08-19
 
@@ -40,8 +40,11 @@ not. Review checkmarks in the demo are not implementation status.
 2. **Versioned brief** — MEM-03 and MEM-04 are implemented locally with an editable
    proposal, one to three accepted sources, explicit final save, immutable history,
    idempotency, and stale-version protection. Production Cloud evidence remains.
-3. **Achievement and consent** — MEM-05 and MEM-06: evidence, reflection, explicit
-   reusable-memory permission, retry, and no memory write after failure.
+3. **Achievement and consent** — MEM-05 and MEM-06 are implemented locally with
+   completion evidence, optional private reflection, exact statement-level reuse
+   permission, default-deny consent, atomic finish, retry, stale protection,
+   revocation, and no memory write after failure. Merge, deployment, and production
+   evidence await product-owner review of [the release](RELEASE_SIX_ACHIEVEMENT_CONSENT.md).
 
 ## Post-hackathon MVP enhancement — pick up only if time permits
 
@@ -65,7 +68,11 @@ performs an owner-scoped authoritative read, exposes the current step and contex
 states, and fails safely when the Plan is missing or unavailable. Release 4 now restores
 immutable completion and approved-change proof, reviewed decisions, and explicitly
 retained Clara guidance. Release 5 now supplies reviewed research and versioned Plan
-Brief content locally; merge, Cloud deployment, and production evidence remain pending.
+Brief content on `master`; Cloud deployment and production evidence remain pending.
+
+Release 6 locally adds immutable achievement evidence, optional private reflection,
+append-only exact reuse consent and revocation, and a completed-Plan portfolio state.
+Production Firestore-rule deployment and acceptance evidence remain pending.
 
 The local selected-Plan Clara loop now covers typed managed recommendations, exact
 schedule previews, explicit rejection, stale checks, idempotent approval, one immutable

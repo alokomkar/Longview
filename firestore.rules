@@ -58,6 +58,63 @@ service cloud.firestore {
         && (ids.size() < 3 || acceptedResearch(uid, workspaceId, planId, ids[2]));
     }
 
+    function validAchievementEvidenceItem(item) {
+      return item is map
+        && item.keys().hasOnly(['label', 'url'])
+        && item.label is string && item.label.size() >= 3 && item.label.size() <= 160
+        && (item.url == null || (item.url is string && item.url.size() <= 1000 && item.url.matches('^https://[^\\s]+$')));
+    }
+
+    function validAchievementEvidence(items) {
+      return items is list && items.size() >= 1 && items.size() <= 3
+        && validAchievementEvidenceItem(items[0])
+        && (items.size() < 2 || validAchievementEvidenceItem(items[1]))
+        && (items.size() < 3 || validAchievementEvidenceItem(items[2]));
+    }
+
+    function validReflectionFields(fields) {
+      return fields is list && fields.size() <= 3
+        && fields.toSet().size() == fields.size()
+        && fields.hasOnly(['whatWorked', 'whatChanged', 'doDifferently']);
+    }
+
+    function validCompletionIds(ids) {
+      return ids is list && ids.size() == 1
+        && ids[0] is string && ids[0].size() >= 8 && ids[0].size() <= 128;
+    }
+
+    function approvedReflectionExists(uid, workspaceId, planId, reflectionId, fields) {
+      return fields.size() == 0 || (
+        reflectionId is string
+        && existsAfter(/databases/$(database)/documents/users/$(uid)/workspaces/$(workspaceId)/plans/$(planId)/reflections/$(reflectionId))
+        && (!fields.hasAny(['whatWorked']) || getAfter(/databases/$(database)/documents/users/$(uid)/workspaces/$(workspaceId)/plans/$(planId)/reflections/$(reflectionId)).data.whatWorked.size() > 0)
+        && (!fields.hasAny(['whatChanged']) || getAfter(/databases/$(database)/documents/users/$(uid)/workspaces/$(workspaceId)/plans/$(planId)/reflections/$(reflectionId)).data.whatChanged.size() > 0)
+        && (!fields.hasAny(['doDifferently']) || getAfter(/databases/$(database)/documents/users/$(uid)/workspaces/$(workspaceId)/plans/$(planId)/reflections/$(reflectionId)).data.doDifferently.size() > 0)
+      );
+    }
+
+    function resourcePlanScheduleVersion(uid, workspaceId, planId) {
+      return get(/databases/$(database)/documents/users/$(uid)/workspaces/$(workspaceId)/plans/$(planId)).data.scheduleVersion;
+    }
+
+    function validPlanCompletionUpdate(uid, workspaceId, planId) {
+      return resource.data.status == 'active'
+        && request.resource.data.status == 'completed'
+        && request.resource.data.schemaVersion == 3
+        && request.resource.data.achievementId is string
+        && request.resource.data.achievementId.size() >= 8
+        && request.resource.data.achievementId.size() <= 128
+        && request.resource.data.completedAt == request.time
+        && request.resource.data.completionVersion == 1
+        && request.resource.data.updatedAt == request.time
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'status', 'schemaVersion', 'achievementId', 'completedAt',
+          'completionVersion', 'updatedAt'
+        ])
+        && existsAfter(/databases/$(database)/documents/users/$(uid)/workspaces/$(workspaceId)/plans/$(planId)/achievements/$(request.resource.data.achievementId))
+        && getAfter(/databases/$(database)/documents/users/$(uid)/workspaces/$(workspaceId)/plans/$(planId)/achievementState/current).data.currentAchievementId == request.resource.data.achievementId;
+    }
+
     match /users/{uid} {
       allow read: if owns(uid);
       allow create: if owns(uid) && request.resource.data.uid == uid;
@@ -125,25 +182,29 @@ service cloud.firestore {
             && request.resource.data.outcome == resource.data.outcome
             && request.resource.data.why == resource.data.why
             && request.resource.data.targetDate == resource.data.targetDate
-            && request.resource.data.status == resource.data.status
             && request.resource.data.createdAt == resource.data.createdAt
-            && request.resource.data.diff(resource.data).affectedKeys()
-              .hasOnly(['workingDays', 'weeklyHours', 'schemaVersion', 'scheduleVersion', 'updatedAt'])
-            && request.resource.data.schemaVersion == 2
-            && request.resource.data.scheduleVersion == (
-              resource.data.keys().hasAll(['scheduleVersion'])
-                ? resource.data.scheduleVersion + 1
-                : 1
-            )
-            && request.resource.data.weeklyHours is int
-            && request.resource.data.weeklyHours >= 1
-            && request.resource.data.weeklyHours <= 40
-            && request.resource.data.workingDays is list
-            && request.resource.data.workingDays.size() >= 1
-            && request.resource.data.workingDays.size() <= 7
-            && request.resource.data.workingDays.toSet().size() == request.resource.data.workingDays.size()
-            && request.resource.data.workingDays
-              .hasOnly(['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun']);
+            && (
+              (request.resource.data.status == resource.data.status
+                && request.resource.data.status == 'active'
+                && request.resource.data.diff(resource.data).affectedKeys()
+                  .hasOnly(['workingDays', 'weeklyHours', 'schemaVersion', 'scheduleVersion', 'updatedAt'])
+                && request.resource.data.schemaVersion == 2
+                && request.resource.data.scheduleVersion == (
+                  resource.data.keys().hasAll(['scheduleVersion'])
+                    ? resource.data.scheduleVersion + 1
+                    : 1
+                )
+                && request.resource.data.weeklyHours is int
+                && request.resource.data.weeklyHours >= 1
+                && request.resource.data.weeklyHours <= 40
+                && request.resource.data.workingDays is list
+                && request.resource.data.workingDays.size() >= 1
+                && request.resource.data.workingDays.size() <= 7
+                && request.resource.data.workingDays.toSet().size() == request.resource.data.workingDays.size()
+                && request.resource.data.workingDays
+                  .hasOnly(['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun']))
+              || validPlanCompletionUpdate(uid, workspaceId, planId)
+            );
           allow delete: if false;
 
           match /records/{recordId} {
@@ -359,6 +420,132 @@ service cloud.firestore {
               && request.resource.data.currentVersionId.size() <= 128
               && request.resource.data.updatedAt == request.time
               && getAfter(/databases/$(database)/documents/users/$(uid)/workspaces/$(workspaceId)/plans/$(planId)/briefVersions/$(request.resource.data.currentVersionId)).data.version == request.resource.data.currentVersion;
+            allow delete: if false;
+          }
+
+          match /achievements/{achievementId} {
+            allow read: if owns(uid);
+            allow create: if owns(uid)
+              && workspaceId == 'default'
+              && request.resource.data.keys().hasOnly([
+                'schemaVersion', 'achievementId', 'planId', 'ownerUid', 'workspaceId',
+                'outcome', 'evidence', 'completedStepIds', 'expectedPlanRevision',
+                'reflectionId', 'requestFingerprint', 'recordedAt'
+              ])
+              && request.resource.data.schemaVersion == 1
+              && request.resource.data.achievementId == achievementId
+              && request.resource.data.planId == planId
+              && request.resource.data.ownerUid == uid
+              && request.resource.data.workspaceId == workspaceId
+              && request.resource.data.outcome is string
+              && request.resource.data.outcome.size() >= 10
+              && request.resource.data.outcome.size() <= 600
+              && validAchievementEvidence(request.resource.data.evidence)
+              && validCompletionIds(request.resource.data.completedStepIds)
+              && getAfter(/databases/$(database)/documents/users/$(uid)/workspaces/$(workspaceId)/todayCompletions/$(request.resource.data.completedStepIds[0])).data.planId == planId
+              && getAfter(/databases/$(database)/documents/users/$(uid)/workspaces/$(workspaceId)/todayCompletions/$(request.resource.data.completedStepIds[0])).data.status == 'completed'
+              && getAfter(/databases/$(database)/documents/users/$(uid)/workspaces/$(workspaceId)/todayCompletions/$(request.resource.data.completedStepIds[0])).data.stepKey == 'first-proof-v1'
+              && request.resource.data.expectedPlanRevision is int
+              && request.resource.data.expectedPlanRevision == resourcePlanScheduleVersion(uid, workspaceId, planId)
+              && (request.resource.data.reflectionId == null || (request.resource.data.reflectionId is string && request.resource.data.reflectionId.size() >= 8 && request.resource.data.reflectionId.size() <= 128))
+              && request.resource.data.requestFingerprint is string
+              && request.resource.data.requestFingerprint.size() >= 1
+              && request.resource.data.requestFingerprint.size() <= 10000
+              && request.resource.data.recordedAt == request.time
+              && getAfter(/databases/$(database)/documents/users/$(uid)/workspaces/$(workspaceId)/plans/$(planId)).data.achievementId == achievementId
+              && getAfter(/databases/$(database)/documents/users/$(uid)/workspaces/$(workspaceId)/plans/$(planId)/achievementState/current).data.currentAchievementId == achievementId;
+            allow update, delete: if false;
+          }
+
+          match /reflections/{reflectionId} {
+            allow read: if owns(uid);
+            allow create: if owns(uid)
+              && workspaceId == 'default'
+              && request.resource.data.keys().hasOnly([
+                'schemaVersion', 'reflectionId', 'achievementId', 'planId', 'ownerUid',
+                'workspaceId', 'whatWorked', 'whatChanged', 'doDifferently', 'recordedAt'
+              ])
+              && request.resource.data.schemaVersion == 1
+              && request.resource.data.reflectionId == reflectionId
+              && request.resource.data.achievementId is string
+              && request.resource.data.planId == planId
+              && request.resource.data.ownerUid == uid
+              && request.resource.data.workspaceId == workspaceId
+              && request.resource.data.whatWorked is string && request.resource.data.whatWorked.size() <= 1000
+              && request.resource.data.whatChanged is string && request.resource.data.whatChanged.size() <= 1000
+              && request.resource.data.doDifferently is string && request.resource.data.doDifferently.size() <= 1000
+              && (request.resource.data.whatWorked.size() > 0 || request.resource.data.whatChanged.size() > 0 || request.resource.data.doDifferently.size() > 0)
+              && request.resource.data.recordedAt == request.time
+              && getAfter(/databases/$(database)/documents/users/$(uid)/workspaces/$(workspaceId)/plans/$(planId)/achievements/$(request.resource.data.achievementId)).data.reflectionId == reflectionId;
+            allow update, delete: if false;
+          }
+
+          match /reuseConsents/{consentId} {
+            allow read: if owns(uid);
+            allow create: if owns(uid)
+              && workspaceId == 'default'
+              && request.resource.data.keys().hasOnly([
+                'schemaVersion', 'consentId', 'achievementId', 'reflectionId', 'planId',
+                'ownerUid', 'workspaceId', 'purpose', 'approvedReflectionFields',
+                'version', 'previousConsentId', 'requestFingerprint', 'recordedAt'
+              ])
+              && request.resource.data.schemaVersion == 1
+              && request.resource.data.consentId == consentId
+              && request.resource.data.achievementId is string
+              && request.resource.data.planId == planId
+              && request.resource.data.ownerUid == uid
+              && request.resource.data.workspaceId == workspaceId
+              && request.resource.data.purpose == 'future_plan_guidance'
+              && validReflectionFields(request.resource.data.approvedReflectionFields)
+              && approvedReflectionExists(uid, workspaceId, planId, request.resource.data.reflectionId, request.resource.data.approvedReflectionFields)
+              && request.resource.data.version is int && request.resource.data.version >= 1
+              && request.resource.data.requestFingerprint is string
+              && request.resource.data.requestFingerprint.size() >= 1
+              && request.resource.data.requestFingerprint.size() <= 5000
+              && request.resource.data.recordedAt == request.time
+              && getAfter(/databases/$(database)/documents/users/$(uid)/workspaces/$(workspaceId)/plans/$(planId)/achievementState/current).data.currentConsentId == consentId
+              && getAfter(/databases/$(database)/documents/users/$(uid)/workspaces/$(workspaceId)/plans/$(planId)/achievementState/current).data.consentVersion == request.resource.data.version
+              && (
+                (request.resource.data.version == 1
+                  && request.resource.data.previousConsentId == null
+                  && getAfter(/databases/$(database)/documents/users/$(uid)/workspaces/$(workspaceId)/plans/$(planId)/achievements/$(request.resource.data.achievementId)).data.reflectionId == request.resource.data.reflectionId)
+                ||
+                (request.resource.data.version > 1
+                  && request.resource.data.approvedReflectionFields.size() == 0
+                  && request.resource.data.previousConsentId is string
+                  && exists(/databases/$(database)/documents/users/$(uid)/workspaces/$(workspaceId)/plans/$(planId)/reuseConsents/$(request.resource.data.previousConsentId))
+                  && get(/databases/$(database)/documents/users/$(uid)/workspaces/$(workspaceId)/plans/$(planId)/reuseConsents/$(request.resource.data.previousConsentId)).data.version == request.resource.data.version - 1
+                  && get(/databases/$(database)/documents/users/$(uid)/workspaces/$(workspaceId)/plans/$(planId)/reuseConsents/$(request.resource.data.previousConsentId)).data.achievementId == request.resource.data.achievementId)
+              );
+            allow update, delete: if false;
+          }
+
+          match /achievementState/{stateId} {
+            allow read: if owns(uid);
+            allow create: if owns(uid)
+              && stateId == 'current'
+              && workspaceId == 'default'
+              && request.resource.data.keys().hasOnly([
+                'schemaVersion', 'planId', 'ownerUid', 'workspaceId', 'currentAchievementId',
+                'currentConsentId', 'consentVersion', 'updatedAt'
+              ])
+              && request.resource.data.schemaVersion == 1
+              && request.resource.data.planId == planId
+              && request.resource.data.ownerUid == uid
+              && request.resource.data.workspaceId == workspaceId
+              && request.resource.data.currentAchievementId is string
+              && request.resource.data.currentConsentId is string
+              && request.resource.data.consentVersion == 1
+              && request.resource.data.updatedAt == request.time
+              && getAfter(/databases/$(database)/documents/users/$(uid)/workspaces/$(workspaceId)/plans/$(planId)/achievements/$(request.resource.data.currentAchievementId)).data.achievementId == request.resource.data.currentAchievementId
+              && getAfter(/databases/$(database)/documents/users/$(uid)/workspaces/$(workspaceId)/plans/$(planId)/reuseConsents/$(request.resource.data.currentConsentId)).data.version == 1;
+            allow update: if owns(uid)
+              && stateId == 'current'
+              && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['currentConsentId', 'consentVersion', 'updatedAt'])
+              && request.resource.data.consentVersion == resource.data.consentVersion + 1
+              && request.resource.data.updatedAt == request.time
+              && getAfter(/databases/$(database)/documents/users/$(uid)/workspaces/$(workspaceId)/plans/$(planId)/reuseConsents/$(request.resource.data.currentConsentId)).data.version == request.resource.data.consentVersion
+              && getAfter(/databases/$(database)/documents/users/$(uid)/workspaces/$(workspaceId)/plans/$(planId)/reuseConsents/$(request.resource.data.currentConsentId)).data.achievementId == resource.data.currentAchievementId;
             allow delete: if false;
           }
         }

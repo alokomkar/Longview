@@ -1,8 +1,8 @@
 # Longview PWA Product Requirements
 
-Status: Release 2 deployed; Release 3 local implementation
+Status: Release 3 deployed; Release 4 design review
 
-Last updated: 2026-08-18
+Last updated: 2026-08-19
 
 Target: All Things Agentic hackathon PWA
 
@@ -86,6 +86,17 @@ and writes only after explicit approval. Replacements require the latest approve
 revision. A reviewed break carries unfinished work only to each Plan's next eligible
 day without approving or overwriting that destination. The full contract is in
 [Release 3: Daily Schedule](RELEASE_THREE_DAILY_SCHEDULE.md).
+
+### Release 4 durable Plan record boundary
+
+Release 4 makes Plan Details the authoritative record of execution and reasoning.
+Existing completions and approved changes retain their source proof. A user may append
+a reviewed decision with rationale or explicitly retain one validated Clara
+recommendation snapshot. Opening Plan Details, asking Clara, or cancelling review never
+creates a record. New records are immutable, owner- and Plan-scoped, idempotent, and
+recoverable after an interrupted response. Research, Plan Briefs, reflection memory,
+editing, and deletion remain later releases. The complete contract is in
+[Release 4: Durable Plan Record](RELEASE_FOUR_PLAN_RECORD.md).
 
 ## 4. Canonical demo portfolio
 
@@ -183,6 +194,10 @@ them without approval.
 - Research cards support Accept, Reject, and Not now.
 - Accepted cards create an editable brief proposal with evidence attribution.
 - Deferred insights remain recoverable; rejected evidence remains auditable.
+- Execution history shows immutable completion and approved-change source identifiers.
+- A decision records the user's conclusion and rationale only after exact review.
+- Clara guidance remains transient unless the user explicitly saves the validated
+  recommendation, rationale, confidence, and source facts to this Plan.
 
 ### Achievement and reflection
 
@@ -220,6 +235,8 @@ result. Model output is advisory until deterministic application checks pass.
 
 - Offline work is clearly marked pending and retries without duplicate writes.
 - A model timeout or malformed response leaves durable state unchanged.
+- A lost response after a Plan-record commit is recovered with the original idempotency
+  key; a different payload using that key fails closed.
 - Schedule generation failure preserves the current approved day.
 - Partial writes reconcile transactionally before success is shown.
 - Research failure preserves saved cards and every Goal Brief version.

@@ -1,7 +1,7 @@
 # Longview Implementation Phases
 
-Status: Release 2 deployed; Release 3 local implementation
-Updated: 2026-08-18
+Status: Release 3 deployed; Release 4 design review
+Updated: 2026-08-19
 Links: [PRD](PRODUCT_REQUIREMENTS.md) | [Mockup](design/longview-pwa-interactive-mockup.html) | [Stack](TECH_STACK.md)
 
 ## Rules
@@ -54,6 +54,18 @@ cancel, timeout, malformed, offline, stale, duplicate, and destination-conflict 
 fail without corrupting approved work. See the
 [release contract](RELEASE_THREE_DAILY_SCHEDULE.md) and
 [interactive acceptance](design/longview-release-three-daily-schedule.html).
+
+### Release 4: durable Plan record
+
+Make Plan Details the authoritative view of execution and reasoning. Aggregate existing
+completion and approved-change proof, then add immutable reviewed decisions and
+explicitly retained Clara guidance. Reads are owner- and Plan-scoped. Writes use an
+idempotency key, request fingerprint, Plan existence check, server timestamp, and
+append-only rules. Cancellation and Clara failures write nothing; concurrent duplicate
+and unknown-result retries restore the original record. Research, briefs, reflections,
+record editing, and deletion remain out of scope. See the
+[release contract](RELEASE_FOUR_PLAN_RECORD.md) and
+[interactive acceptance](design/longview-release-four-plan-record.html).
 
 1. **Cloud prerequisite:** Create one Google Cloud project and enable Firebase on it;
    claim credits, configure budgets, emulators, least-privilege identities, and secrets.

@@ -1,8 +1,8 @@
 # Longview Pending Features
 
-Status: Connection-loss sync implemented locally; cold offline launch deferred
+Status: Release 3 deployed; Release 4 design review
 
-Updated: 2026-08-18
+Updated: 2026-08-19
 
 Sources: [Acceptance demo](design/longview-hackathon-acceptance-demo.html) | [PRD](PRODUCT_REQUIREMENTS.md) | [Readiness ledger](HACKATHON_READINESS.md)
 
@@ -34,11 +34,15 @@ not. Review checkmarks in the demo are not implementation status.
 
 ## P1 after the judged path
 
-1. **Reviewed research** — MEM-01 and MEM-02: attributed accept/reject/defer cards and
+1. **Durable Plan record** — execution and approved-change proof, reviewed decisions,
+   and explicitly retained Clara guidance. The Release 4 contract and interactive
+   failure journey are ready for product-owner review; implementation has not started.
+
+2. **Reviewed research** — MEM-01 and MEM-02: attributed accept/reject/defer cards and
    non-destructive failure recovery.
-2. **Versioned brief** — MEM-03 and MEM-04: editable proposal, attribution, explicit save,
+3. **Versioned brief** — MEM-03 and MEM-04: editable proposal, attribution, explicit save,
    history, and stale-version conflict handling.
-3. **Achievement and consent** — MEM-05 and MEM-06: evidence, reflection, explicit
+4. **Achievement and consent** — MEM-05 and MEM-06: evidence, reflection, explicit
    reusable-memory permission, retry, and no memory write after failure.
 
 ## Post-hackathon MVP enhancement — pick up only if time permits

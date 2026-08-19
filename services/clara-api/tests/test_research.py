@@ -140,6 +140,12 @@ def fake_response(source_index=0, with_source=True):
     )
 
 
+def fenced_response_with_one_based_source():
+    response = fake_response(source_index=1)
+    response.text = "```json\n" + response.text + "\n```"
+    return response
+
+
 @pytest.mark.asyncio
 async def test_grounded_engine_maps_only_search_metadata_into_attribution():
     models = FakeModels(fake_response())
@@ -150,7 +156,17 @@ async def test_grounded_engine_maps_only_search_metadata_into_attribution():
     assert result["cards"][0]["source"]["searchQueries"] == ["activation research"]
     assert result["cards"][0]["researchId"].startswith("research-")
     assert models.calls[0]["config"].tools[0].google_search is not None
+    assert models.calls[0]["config"].max_output_tokens == 3000
     assert models.calls[0]["config"].response_schema is None
+
+
+@pytest.mark.asyncio
+async def test_grounded_engine_accepts_fenced_json_and_one_based_single_source():
+    models = FakeModels(fenced_response_with_one_based_source())
+    engine = GroundedResearchEngine(SimpleNamespace(aio=SimpleNamespace(models=models)))
+    from clara_api.models import ResearchRequest
+    result = await engine.research(ResearchRequest.model_validate(REQUEST), "owner-1")
+    assert result["cards"][0]["source"]["title"] == "Activation research"
 
 
 @pytest.mark.asyncio

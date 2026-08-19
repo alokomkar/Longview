@@ -64,9 +64,14 @@ and production endpoint evidence require a separate explicit deployment approval
 
 - `POST /v1/clara/research` is authenticated, Plan-scoped, read-only, and exposed only
   by the Release 5 service entry point.
-- Gemini uses Google Search grounding. The service accepts one to three strictly
-  validated cards, derives HTTPS attribution only from grounding metadata, and
-  preserves up to three provider Search suggestions for display.
+- Gemini uses Google Search grounding. Each request returns one strictly validated
+  card, derives HTTPS attribution only from grounding metadata, and preserves up to
+  three provider Search suggestions for display. Users can request another card after
+  reviewing the first.
+- The grounded request is deliberately bounded to one short card and a 3,000-token
+  model budget so search reasoning cannot truncate the validated JSON payload. A
+  single provider source index may be normalized from one-based to zero-based only
+  when exactly one grounded source exists; ambiguous attribution still fails closed.
 - Schema-enforced output combined with built-in tools is documented for Gemini 3 only.
   The current Gemini 2.5 path therefore requests JSON and validates it with strict
   Pydantic models before any card reaches the PWA.

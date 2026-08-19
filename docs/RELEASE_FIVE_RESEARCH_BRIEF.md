@@ -49,6 +49,8 @@ different content fails closed.
 2. Load saved cards, their current review states, and the current brief independently.
 3. Request new research. Progress remains visible until success, cancellation, timeout,
    malformed response, or network failure. Existing cards and brief remain available.
+   Each request adds at most one new attributed card; another request can follow only
+   after the current result is reviewed.
 4. Inspect attribution and choose Accept, Reject, or Not now. The reviewed state is
    saved once and restored after an interrupted or duplicate response.
 5. Prepare a proposal from accepted cards, edit its fields, inspect linked evidence,

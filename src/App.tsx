@@ -53,6 +53,9 @@ import { lazyFirebasePlanMemoryGateway } from './planMemory/lazyGateway';
 import { lazyResearchGateway } from './planMemory/lazyResearchGateway';
 import type { PlanMemoryGateway, ResearchGateway } from './planMemory/types';
 import { PlanMemorySection } from './planMemory/PlanMemorySection';
+import { lazyFirebasePlanResearchSourceGateway } from './planResearch/lazyGateway';
+import type { PlanResearchSourceGateway } from './planResearch/types';
+import { PlanResearchSourcesSection } from './planResearch/PlanResearchSourcesSection';
 import { lazyAchievementGateway } from './achievement/lazyGateway';
 import type { AchievementGateway } from './achievement/types';
 import { PlanAchievementSection } from './achievement/PlanAchievementSection';
@@ -254,12 +257,13 @@ function ScheduleRunPanel({ scheduleRun, approvedDay, dayBreak, capacityMinutes,
   return <section className="calendar-view" role="alert"><span className="status">Nothing changed</span><h1>{timedOut ? 'The run took too long.' : malformed ? 'This proposal could not be used.' : 'Today could not be prepared.'}</h1><p>{snapshot.status === 'error' && snapshot.failure === 'offline' ? 'Reconnect and try again.' : timedOut ? 'The deadline ended this request safely.' : malformed ? 'The response did not pass Longview’s safety checks.' : run?.failure ?? 'The Clara service could not complete this request.'} Your Plans are unchanged.</p><div className="actions"><button onClick={() => onStart(run?.runId)}>Start a new run</button><button className="secondary" onClick={onReturn}>Return to Today</button></div></section>;
 }
 
-function WorkspaceReady({ auth, gateway, planGateway, planRecordGateway, planMemoryGateway, researchGateway, achievementGateway, todayGateway, todayOutbox, claraGateway, claraApprovalGateway, scheduleRunGateway, approvedDayGateway, dayBreakGateway, releaseSurface }: {
+function WorkspaceReady({ auth, gateway, planGateway, planRecordGateway, planMemoryGateway, planResearchSourceGateway, researchGateway, achievementGateway, todayGateway, todayOutbox, claraGateway, claraApprovalGateway, scheduleRunGateway, approvedDayGateway, dayBreakGateway, releaseSurface }: {
   auth: ReturnType<typeof useAuth>;
   gateway: WorkspaceGateway;
   planGateway: PlanGateway;
   planRecordGateway: PlanRecordGateway;
   planMemoryGateway: PlanMemoryGateway;
+  planResearchSourceGateway: PlanResearchSourceGateway;
   researchGateway: ResearchGateway;
   achievementGateway: AchievementGateway;
   todayGateway: TodayGateway;
@@ -565,6 +569,7 @@ function WorkspaceReady({ auth, gateway, planGateway, planRecordGateway, planMem
         </div>
         {claraEnabled && plan.status === 'active' && (approvedClaraChanges && approvalProposal ? <ClaraApprovalPanel proposal={approvalProposal} state={approvalState} onApprove={applyClaraChange} onReject={closeClaraApproval} onReturn={closeClaraApproval} returnLabel="View updated Plan" /> : showPlanClara ? <ClaraPanel clara={clara} subject="Plan" onReview={approvedClaraChanges ? reviewClaraChange : undefined} onSave={planRecordEnabled ? reviewGuidance : undefined} onClose={() => { clara.cancel(); setShowPlanClara(false); }} /> : <button onClick={() => askClaraAboutPlan(plan)}>Ask Clara about this Plan</button>)}
         {planRecordEnabled && <PlanRecordSection user={snapshot.user} planId={plan.id} gateway={planRecordGateway} guidance={guidanceReview} onCancelGuidance={() => { setGuidanceReview(null); setShowPlanClara(true); }} onGuidanceSaved={() => { setGuidanceReview(null); clara.cancel(); }} />}
+        {planMemoryEnabled && <PlanResearchSourcesSection user={snapshot.user} plan={plan} gateway={planResearchSourceGateway} />}
         {planMemoryEnabled && <PlanMemorySection user={snapshot.user} plan={plan} memoryGateway={planMemoryGateway} researchGateway={researchGateway} />}
         {achievementEnabled && <PlanAchievementSection user={snapshot.user} plan={plan} gateway={achievementGateway} onPlanCompleted={updated => { plans.replace(updated); planDetails.replace(updated); }} />}
       </section>
@@ -658,7 +663,7 @@ function WorkspaceReady({ auth, gateway, planGateway, planRecordGateway, planMem
   );
 }
 
-export function App({ gateway = firebaseAuthGateway, workspaceGateway = lazyFirebaseWorkspaceGateway, planGateway = lazyFirebasePlanGateway, planRecordGateway = lazyFirebasePlanRecordGateway, planMemoryGateway = lazyFirebasePlanMemoryGateway, researchGateway = lazyResearchGateway, achievementGateway = lazyAchievementGateway, todayGateway = lazyFirebaseTodayGateway, todayOutbox = lazyIndexedDbTodayOutbox, claraGateway = lazyClaraGateway, claraApprovalGateway = lazyClaraApprovalGateway, scheduleRunGateway = lazyScheduleRunGateway, approvedDayGateway = lazyApprovedDayGateway, dayBreakGateway = lazyDayBreakGateway, releaseSurface = defaultReleaseSurface }: { gateway?: AuthGateway; workspaceGateway?: WorkspaceGateway; planGateway?: PlanGateway; planRecordGateway?: PlanRecordGateway; planMemoryGateway?: PlanMemoryGateway; researchGateway?: ResearchGateway; achievementGateway?: AchievementGateway; todayGateway?: TodayGateway; todayOutbox?: TodayOutbox; claraGateway?: ClaraGateway; claraApprovalGateway?: ClaraApprovalGateway; scheduleRunGateway?: ScheduleRunGateway; approvedDayGateway?: ApprovedDayGateway; dayBreakGateway?: DayBreakGateway; releaseSurface?: ReleaseSurface }) {
+export function App({ gateway = firebaseAuthGateway, workspaceGateway = lazyFirebaseWorkspaceGateway, planGateway = lazyFirebasePlanGateway, planRecordGateway = lazyFirebasePlanRecordGateway, planMemoryGateway = lazyFirebasePlanMemoryGateway, planResearchSourceGateway = lazyFirebasePlanResearchSourceGateway, researchGateway = lazyResearchGateway, achievementGateway = lazyAchievementGateway, todayGateway = lazyFirebaseTodayGateway, todayOutbox = lazyIndexedDbTodayOutbox, claraGateway = lazyClaraGateway, claraApprovalGateway = lazyClaraApprovalGateway, scheduleRunGateway = lazyScheduleRunGateway, approvedDayGateway = lazyApprovedDayGateway, dayBreakGateway = lazyDayBreakGateway, releaseSurface = defaultReleaseSurface }: { gateway?: AuthGateway; workspaceGateway?: WorkspaceGateway; planGateway?: PlanGateway; planRecordGateway?: PlanRecordGateway; planMemoryGateway?: PlanMemoryGateway; planResearchSourceGateway?: PlanResearchSourceGateway; researchGateway?: ResearchGateway; achievementGateway?: AchievementGateway; todayGateway?: TodayGateway; todayOutbox?: TodayOutbox; claraGateway?: ClaraGateway; claraApprovalGateway?: ClaraApprovalGateway; scheduleRunGateway?: ScheduleRunGateway; approvedDayGateway?: ApprovedDayGateway; dayBreakGateway?: DayBreakGateway; releaseSurface?: ReleaseSurface }) {
   const auth = useAuth(gateway);
   const { snapshot } = auth;
 
@@ -667,7 +672,7 @@ export function App({ gateway = firebaseAuthGateway, workspaceGateway = lazyFire
   }
 
   if (snapshot.status === 'authenticated') {
-    return <WorkspaceReady auth={auth} gateway={workspaceGateway} planGateway={planGateway} planRecordGateway={planRecordGateway} planMemoryGateway={planMemoryGateway} researchGateway={researchGateway} achievementGateway={achievementGateway} todayGateway={todayGateway} todayOutbox={todayOutbox} claraGateway={claraGateway} claraApprovalGateway={claraApprovalGateway} scheduleRunGateway={scheduleRunGateway} approvedDayGateway={approvedDayGateway} dayBreakGateway={dayBreakGateway} releaseSurface={releaseSurface} />;
+    return <WorkspaceReady auth={auth} gateway={workspaceGateway} planGateway={planGateway} planRecordGateway={planRecordGateway} planMemoryGateway={planMemoryGateway} planResearchSourceGateway={planResearchSourceGateway} researchGateway={researchGateway} achievementGateway={achievementGateway} todayGateway={todayGateway} todayOutbox={todayOutbox} claraGateway={claraGateway} claraApprovalGateway={claraApprovalGateway} scheduleRunGateway={scheduleRunGateway} approvedDayGateway={approvedDayGateway} dayBreakGateway={dayBreakGateway} releaseSurface={releaseSurface} />;
   }
 
   return (

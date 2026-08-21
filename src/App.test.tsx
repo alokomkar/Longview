@@ -14,6 +14,7 @@ import { ApprovedDayConflictError, type ApprovedDay, type ApprovedDayGateway, ty
 import { DayBreakConflictError, type DayBreakGateway, type DayBreakPreview, type DayBreakRequest, type DayBreakResult } from './dayBreak/types';
 import type { PlanRecordGateway } from './planRecord/types';
 import type { PlanMemoryGateway, ResearchGateway } from './planMemory/types';
+import type { PlanResearchSourceGateway } from './planResearch/types';
 
 const workspaceGateway: WorkspaceGateway = {
   ensure: vi.fn(async (user: AuthUser) => ({ id: 'default' as const, ownerUid: user.uid, schemaVersion: 1 as const }))
@@ -87,8 +88,13 @@ const planRecordGateway: PlanRecordGateway = {
   create: vi.fn(async () => { throw new Error('not configured'); })
 };
 
+const planResearchSourceGateway: PlanResearchSourceGateway = {
+  list: vi.fn(async () => []),
+  save: vi.fn(async () => { throw new Error('not configured'); })
+};
+
 function App(props: ComponentProps<typeof LongviewApp>) {
-  return <LongviewApp approvedDayGateway={approvedDayGateway} planRecordGateway={planRecordGateway} todayOutbox={todayOutbox} {...props} />;
+  return <LongviewApp approvedDayGateway={approvedDayGateway} planRecordGateway={planRecordGateway} planResearchSourceGateway={planResearchSourceGateway} todayOutbox={todayOutbox} {...props} />;
 }
 
 const succeededScheduleRun = {

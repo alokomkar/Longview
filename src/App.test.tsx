@@ -135,6 +135,64 @@ function gateway(initial: AuthUser | null, failure?: { code: string }) {
 }
 
 describe('authentication journey', () => {
+  it('waits for redirect completion before observing the restored account', async () => {
+    let finishRedirect: () => void = () => undefined;
+    const completeRedirectSignIn = vi.fn(() => new Promise<void>(resolve => { finishRedirect = resolve; }));
+    const observe = vi.fn((listener: (user: AuthUser | null) => void) => {
+      queueMicrotask(() => listener({ uid: 'google-1', isAnonymous: false, displayName: 'Owner' }));
+      return () => undefined;
+    });
+    const authGateway: AuthGateway = {
+      completeRedirectSignIn,
+      observe,
+      signInAnonymously: vi.fn(),
+      signInGoogle: vi.fn(),
+      linkGoogle: vi.fn(),
+      signOut: vi.fn()
+    };
+
+    render(<App gateway={authGateway} workspaceGateway={workspaceGateway} planGateway={planGateway} />);
+    expect(screen.getByText('Restoring your workspace…')).toBeVisible();
+    expect(observe).not.toHaveBeenCalled();
+    finishRedirect();
+    expect(await screen.findByText('Welcome, Owner.')).toBeVisible();
+    expect(completeRedirectSignIn).toHaveBeenCalledOnce();
+    expect(observe).toHaveBeenCalledOnce();
+  });
+
+  it('does not attach an auth observer after unmount during redirect completion', async () => {
+    let finishRedirect: () => void = () => undefined;
+    const authGateway = gateway(null);
+    authGateway.completeRedirectSignIn = vi.fn(() => new Promise<void>(resolve => { finishRedirect = resolve; }));
+    const { unmount } = render(<App gateway={authGateway} workspaceGateway={workspaceGateway} planGateway={planGateway} />);
+
+    unmount();
+    await act(async () => finishRedirect());
+    expect(authGateway.observe).not.toHaveBeenCalled();
+  });
+
+  it('shows a redirect-return failure without discarding the signed-out choices', async () => {
+    const authGateway = gateway(null);
+    authGateway.completeRedirectSignIn = vi.fn(async () => {
+      throw { code: 'auth/network-request-failed' };
+    });
+
+    render(<App gateway={authGateway} workspaceGateway={workspaceGateway} planGateway={planGateway} />);
+    expect(await screen.findByRole('alert')).toHaveTextContent('appear to be offline');
+    expect(screen.getByRole('button', { name: 'Continue anonymously' })).toBeEnabled();
+  });
+
+  it('preserves an anonymous workspace when redirect linking returns a conflict', async () => {
+    const authGateway = gateway({ uid: 'anon-1', isAnonymous: true, displayName: null });
+    authGateway.completeRedirectSignIn = vi.fn(async () => {
+      throw { code: 'auth/credential-already-in-use' };
+    });
+
+    render(<App gateway={authGateway} workspaceGateway={workspaceGateway} planGateway={planGateway} />);
+    expect(await screen.findByRole('alert')).toHaveTextContent('workspace was not changed');
+    expect(screen.getByText('You’re continuing privately.')).toBeVisible();
+  });
+
   it('continues anonymously and preserves the returned identity', async () => {
     const mock = gateway(null);
     render(<App gateway={mock} workspaceGateway={workspaceGateway} planGateway={planGateway} />);
@@ -147,7 +205,7 @@ describe('authentication journey', () => {
 
   it.each([
     ['auth/popup-closed-by-user', 'Sign-in was cancelled'],
-    ['auth/popup-blocked', 'blocked the sign-in window'],
+    ['auth/popup-blocked', 'could not open'],
     ['auth/network-request-failed', 'appear to be offline']
   ])('recovers safely from %s', async (code, message) => {
     render(<App gateway={gateway(null, { code })} workspaceGateway={workspaceGateway} planGateway={planGateway} />);

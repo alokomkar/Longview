@@ -1,5 +1,6 @@
 import { getApp, getApps, initializeApp } from 'firebase/app';
 import { connectAuthEmulator, getAuth } from 'firebase/auth';
+import { resolveFirebaseAuthDomain } from './options';
 
 const projectId = import.meta.env.VITE_FIREBASE_PROJECT_ID || 'longview-505611';
 
@@ -7,7 +8,7 @@ const app = getApps().length
   ? getApp()
   : initializeApp({
       apiKey: import.meta.env.VITE_FIREBASE_API_KEY || 'longview-local-emulator',
-      authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || `${projectId}.firebaseapp.com`,
+      authDomain: resolveFirebaseAuthDomain(import.meta.env.VITE_FIREBASE_AUTH_DOMAIN, projectId),
       projectId,
       appId: import.meta.env.VITE_FIREBASE_APP_ID || 'longview-local-emulator'
     });

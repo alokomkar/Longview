@@ -3,6 +3,7 @@ import type { AuthFailure } from './types';
 const codes: Record<string, AuthFailure> = {
   'auth/popup-closed-by-user': 'cancelled',
   'auth/cancelled-popup-request': 'cancelled',
+  'auth/redirect-cancelled-by-user': 'cancelled',
   'auth/popup-blocked': 'popup-blocked',
   'auth/credential-already-in-use': 'account-conflict',
   'auth/account-exists-with-different-credential': 'account-conflict',

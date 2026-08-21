@@ -17,6 +17,7 @@ export type AuthSnapshot =
   | { status: 'authenticated'; user: AuthUser; linking: boolean; failure?: AuthFailure };
 
 export interface AuthGateway {
+  completeRedirectSignIn?(): Promise<void>;
   observe(listener: (user: AuthUser | null) => void): () => void;
   signInAnonymously(): Promise<void>;
   linkGoogle(): Promise<void>;

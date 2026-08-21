@@ -1,9 +1,10 @@
 import {
+  getRedirectResult,
   GoogleAuthProvider,
-  linkWithPopup,
+  linkWithRedirect,
   onAuthStateChanged,
   signInAnonymously,
-  signInWithPopup,
+  signInWithRedirect,
   signOut
 } from 'firebase/auth';
 import { auth } from '../firebase/config';
@@ -16,6 +17,9 @@ const mapUser = (user: { uid: string; isAnonymous: boolean; displayName: string 
 });
 
 export const firebaseAuthGateway: AuthGateway = {
+  async completeRedirectSignIn() {
+    await getRedirectResult(auth);
+  },
   observe(listener) {
     return onAuthStateChanged(auth, user => listener(user ? mapUser(user) : null));
   },
@@ -24,10 +28,10 @@ export const firebaseAuthGateway: AuthGateway = {
   },
   async linkGoogle() {
     if (!auth.currentUser) throw new Error('No authenticated user to link');
-    await linkWithPopup(auth.currentUser, new GoogleAuthProvider());
+    await linkWithRedirect(auth.currentUser, new GoogleAuthProvider());
   },
   async signInGoogle() {
-    await signInWithPopup(auth, new GoogleAuthProvider());
+    await signInWithRedirect(auth, new GoogleAuthProvider());
   },
   async signOut() {
     await signOut(auth);

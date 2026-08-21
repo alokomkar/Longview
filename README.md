@@ -15,6 +15,7 @@ changes, and preserve the reasoning behind important decisions.
 - [Release 4 durable Plan record](docs/RELEASE_FOUR_PLAN_RECORD.md)
 - [Release 5 research and Plan Brief](docs/RELEASE_FIVE_RESEARCH_BRIEF.md)
 - [Pending feature ledger](docs/PENDING_FEATURES.md)
+- [Custom-domain Google redirect authentication](docs/CUSTOM_DOMAIN_REDIRECT_AUTH.md)
 - [Hackathon tech stack](docs/TECH_STACK.md)
 - [Hackathon readiness ledger](docs/HACKATHON_READINESS.md)
 - [Interactive PWA mockup](docs/design/longview-pwa-interactive-mockup.html)

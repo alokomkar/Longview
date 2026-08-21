@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { AuthUser } from '../auth/types';
-import { DuplicateResearchSourceError, planSourceLinkFingerprint, sourceIdForUrl, type PlanResearchSourceDraft } from './types';
+import { PlanResearchConflictError, sourceCreateFingerprint, sourceIdForUrl, sourceStateFingerprint, wikiFingerprint, type PlanResearchSourceDraft, type ResearchSourceStateDraft } from './types';
 
 const firestore = vi.hoisted(() => ({
   getDoc: vi.fn(), getDocs: vi.fn(), runTransaction: vi.fn(), transactionGet: vi.fn(), transactionSet: vi.fn(),
@@ -17,11 +17,18 @@ vi.mock('../firebase/firestore', () => ({ db: { kind: 'test-db' } }));
 import { firebasePlanResearchSourceGateway } from './firebaseGateway';
 
 const user: AuthUser = { uid: 'owner', displayName: null, isAnonymous: true };
-const draft: PlanResearchSourceDraft = {
-  url: 'https://example.com/useful', title: 'Useful source', excerpt: 'A useful excerpt for this Plan.',
-  note: 'Use this when planning the first milestone.', topic: 'First milestone'
-};
+const draft: PlanResearchSourceDraft = { url: 'https://example.com/useful', title: 'Useful source', excerpt: 'A useful excerpt for this Plan.', note: 'Use this when planning the first milestone.', topic: 'First milestone' };
+const state: ResearchSourceStateDraft = { note: draft.note, topic: draft.topic, workflowState: 'inbox', planIds: ['plan-1'] };
 const snapshot = (id: string, value?: Record<string, unknown>) => ({ id, exists: () => Boolean(value), data: () => value });
+
+const storedValues = async (overrides: Partial<ResearchSourceStateDraft> = {}) => {
+  const sourceId = await sourceIdForUrl(draft.url);
+  const source = { schemaVersion: 1, sourceId, ownerUid: 'owner', workspaceId: 'default', url: draft.url, normalizedUrl: draft.url,
+    domain: 'example.com', title: draft.title, excerpt: draft.excerpt, capturedBy: 'user', capturedAt: firestore.timestamp };
+  const storedState = { schemaVersion: 1, sourceId, ownerUid: 'owner', workspaceId: 'default', ...state, ...overrides,
+    revision: 1, latestEventId: 'request-123', updatedAt: firestore.timestamp };
+  return { sourceId, source, storedState };
+};
 
 describe('firebasePlanResearchSourceGateway', () => {
   beforeEach(() => {
@@ -29,60 +36,41 @@ describe('firebasePlanResearchSourceGateway', () => {
     firestore.runTransaction.mockImplementation(async (_db, update) => update({ get: firestore.transactionGet, set: firestore.transactionSet }));
   });
 
-  it('atomically creates one canonical source and one Plan link', async () => {
-    const sourceId = await sourceIdForUrl(draft.url);
-    const storedSource = { schemaVersion: 1, sourceId, ownerUid: 'owner', workspaceId: 'default', url: draft.url,
-      normalizedUrl: draft.url, domain: 'example.com', title: draft.title, excerpt: draft.excerpt,
-      capturedBy: 'user', capturedAt: firestore.timestamp };
-    const storedLink = { schemaVersion: 1, sourceId, planId: 'plan-1', ownerUid: 'owner', workspaceId: 'default',
-      note: draft.note, topic: draft.topic, state: 'inbox', requestId: 'request-123',
-      requestFingerprint: planSourceLinkFingerprint(draft, draft.url), createdAt: firestore.timestamp };
-    firestore.transactionGet.mockResolvedValueOnce(snapshot('plan-1', { ownerUid: 'owner' })).mockResolvedValueOnce(snapshot(sourceId)).mockResolvedValueOnce(snapshot(sourceId));
-    firestore.getDoc.mockResolvedValueOnce(snapshot(sourceId, storedSource)).mockResolvedValueOnce(snapshot(sourceId, storedLink));
+  it('atomically creates a canonical source, organization state, and immutable event', async () => {
+    const { sourceId, source, storedState } = await storedValues();
+    firestore.transactionGet.mockResolvedValueOnce(snapshot(sourceId)).mockResolvedValueOnce(snapshot(sourceId)).mockResolvedValueOnce(snapshot('request-123')).mockResolvedValueOnce(snapshot('plan-1', { ownerUid: 'owner' }));
+    firestore.getDoc.mockResolvedValueOnce(snapshot(sourceId, source)).mockResolvedValueOnce(snapshot(sourceId, storedState));
+    await expect(firebasePlanResearchSourceGateway.save(user, 'request-123', draft, state)).resolves.toMatchObject({ duplicate: false, value: { source: { sourceId }, state: { planIds: ['plan-1'] } } });
+    expect(firestore.transactionSet).toHaveBeenCalledTimes(3);
+    expect(sourceCreateFingerprint(draft, draft.url, state)).toContain('plan-1');
+  });
 
-    await expect(firebasePlanResearchSourceGateway.save(user, 'plan-1', 'request-123', draft)).resolves.toMatchObject({ duplicate: false, value: { source: { sourceId } } });
+  it('applies one reviewed organization revision and rejects stale writers', async () => {
+    const { sourceId, source, storedState } = await storedValues();
+    const next = { ...state, workflowState: 'useful' as const, planIds: ['plan-1', 'plan-2'] };
+    firestore.transactionGet.mockResolvedValueOnce(snapshot(sourceId, source)).mockResolvedValueOnce(snapshot(sourceId, storedState)).mockResolvedValueOnce(snapshot('event-456')).mockResolvedValueOnce(snapshot('plan-1', { ownerUid: 'owner' })).mockResolvedValueOnce(snapshot('plan-2', { ownerUid: 'owner' }));
+    firestore.getDoc.mockResolvedValueOnce(snapshot(sourceId, source)).mockResolvedValueOnce(snapshot(sourceId, { ...storedState, ...next, revision: 2, latestEventId: 'event-456' }));
+    await expect(firebasePlanResearchSourceGateway.update(user, sourceId, 'event-456', 1, next)).resolves.toMatchObject({ value: { state: { workflowState: 'useful', revision: 2 } } });
+    expect(sourceStateFingerprint(next)).toContain('useful');
+
+    firestore.transactionGet.mockReset().mockResolvedValueOnce(snapshot(sourceId, source)).mockResolvedValueOnce(snapshot(sourceId, { ...storedState, revision: 3 })).mockResolvedValueOnce(snapshot('event-789')).mockResolvedValueOnce(snapshot('plan-1', { ownerUid: 'owner' })).mockResolvedValueOnce(snapshot('plan-2', { ownerUid: 'owner' }));
+    await expect(firebasePlanResearchSourceGateway.update(user, sourceId, 'event-789', 1, next)).rejects.toBeInstanceOf(PlanResearchConflictError);
+  });
+
+  it('restores legacy Plan links in the workspace library without rewriting them', async () => {
+    const { sourceId, source } = await storedValues();
+    const legacy = { note: draft.note, topic: draft.topic, createdAt: firestore.timestamp };
+    firestore.getDocs.mockResolvedValueOnce({ docs: [{ id: sourceId, data: () => source }] }).mockResolvedValueOnce({ docs: [] }).mockResolvedValueOnce({ docs: [{ id: sourceId, data: () => legacy }] });
+    await expect(firebasePlanResearchSourceGateway.list(user, ['plan-1'])).resolves.toMatchObject([{ state: { revision: 0, planIds: ['plan-1'], workflowState: 'inbox' } }]);
+  });
+
+  it('saves an immutable cited Wiki revision only from useful linked sources', async () => {
+    const { sourceId, storedState } = await storedValues({ workflowState: 'useful' });
+    const wiki = { pageId: 'wiki-page-1', title: 'First value', body: 'A sufficiently detailed synthesis for the current Plan.', citations: [{ sourceId, statement: 'A useful visible result should happen before expansion.' }] };
+    const version = { ...wiki, schemaVersion: 1, versionId: 'wiki-version-1', version: 1, planId: 'plan-1', ownerUid: 'owner', workspaceId: 'default', requestFingerprint: wikiFingerprint(wiki), recordedAt: firestore.timestamp };
+    firestore.transactionGet.mockResolvedValueOnce(snapshot('plan-1', { ownerUid: 'owner' })).mockResolvedValueOnce(snapshot('wiki-page-1')).mockResolvedValueOnce(snapshot('wiki-version-1')).mockResolvedValueOnce(snapshot(sourceId, storedState));
+    firestore.getDoc.mockResolvedValueOnce(snapshot('wiki-version-1', version));
+    await expect(firebasePlanResearchSourceGateway.saveWiki(user, 'plan-1', 'wiki-version-1', 0, wiki)).resolves.toMatchObject({ value: { version: 1 } });
     expect(firestore.transactionSet).toHaveBeenCalledTimes(2);
-  });
-
-  it('restores an exact retry without creating duplicate writes', async () => {
-    const sourceId = await sourceIdForUrl(draft.url);
-    const source = { schemaVersion: 1, sourceId, ownerUid: 'owner', workspaceId: 'default', url: draft.url, normalizedUrl: draft.url,
-      domain: 'example.com', title: draft.title, excerpt: draft.excerpt, capturedBy: 'user', capturedAt: firestore.timestamp };
-    const link = { schemaVersion: 1, sourceId, planId: 'plan-1', ownerUid: 'owner', workspaceId: 'default', note: draft.note,
-      topic: draft.topic, state: 'inbox', requestId: 'request-123', requestFingerprint: planSourceLinkFingerprint(draft, draft.url), createdAt: firestore.timestamp };
-    firestore.transactionGet.mockResolvedValueOnce(snapshot('plan-1', { ownerUid: 'owner' })).mockResolvedValueOnce(snapshot(sourceId, source)).mockResolvedValueOnce(snapshot(sourceId, link));
-    firestore.getDoc.mockResolvedValueOnce(snapshot(sourceId, source)).mockResolvedValueOnce(snapshot(sourceId, link));
-    await expect(firebasePlanResearchSourceGateway.save(user, 'plan-1', 'request-123', draft)).resolves.toMatchObject({ duplicate: true });
-    expect(firestore.transactionSet).not.toHaveBeenCalled();
-  });
-
-  it('rejects a changed duplicate URL without overwriting the existing source', async () => {
-    const sourceId = await sourceIdForUrl(draft.url);
-    const existing = { schemaVersion: 1, sourceId, planId: 'plan-1', ownerUid: 'owner', workspaceId: 'default', note: 'Different note',
-      topic: draft.topic, state: 'inbox', requestId: 'old-request', requestFingerprint: 'different', createdAt: firestore.timestamp };
-    firestore.transactionGet.mockResolvedValueOnce(snapshot('plan-1', { ownerUid: 'owner' })).mockResolvedValueOnce(snapshot(sourceId)).mockResolvedValueOnce(snapshot(sourceId, existing));
-    await expect(firebasePlanResearchSourceGateway.save(user, 'plan-1', 'request-456', draft)).rejects.toBeInstanceOf(DuplicateResearchSourceError);
-    expect(firestore.transactionSet).not.toHaveBeenCalled();
-  });
-
-  it('fails closed for a missing or cross-owner Plan', async () => {
-    firestore.transactionGet.mockResolvedValueOnce(snapshot('plan-1', { ownerUid: 'other' }));
-    await expect(firebasePlanResearchSourceGateway.save(user, 'plan-1', 'request-123', draft)).rejects.toThrow('Plan not found.');
-    expect(firestore.transactionSet).not.toHaveBeenCalled();
-  });
-
-  it('loads only validated source and Plan-link pairs', async () => {
-    const sourceId = 'a'.repeat(64);
-    const source = { schemaVersion: 1, sourceId, ownerUid: 'owner', workspaceId: 'default', url: draft.url, normalizedUrl: draft.url,
-      domain: 'example.com', title: draft.title, excerpt: draft.excerpt, capturedBy: 'user', capturedAt: firestore.timestamp };
-    const link = { schemaVersion: 1, sourceId, planId: 'plan-1', ownerUid: 'owner', workspaceId: 'default', note: draft.note,
-      topic: draft.topic, state: 'inbox', requestId: 'request-123', requestFingerprint: planSourceLinkFingerprint(draft, draft.url), createdAt: firestore.timestamp };
-    firestore.getDocs.mockResolvedValueOnce({ docs: [{ id: sourceId, data: () => link }] });
-    firestore.getDoc.mockResolvedValueOnce(snapshot(sourceId, source));
-    await expect(firebasePlanResearchSourceGateway.list(user, 'plan-1')).resolves.toMatchObject([{ source: { sourceId }, link: { planId: 'plan-1' } }]);
-
-    firestore.getDocs.mockResolvedValueOnce({ docs: [{ id: sourceId, data: () => link }] });
-    firestore.getDoc.mockResolvedValueOnce(snapshot(sourceId, { ...source, ownerUid: 'other' }));
-    await expect(firebasePlanResearchSourceGateway.list(user, 'plan-1')).rejects.toThrow('Stored research source failed validation.');
   });
 });

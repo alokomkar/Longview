@@ -183,6 +183,48 @@ class ResearchResponse(StrictModel):
     cards: list[ResearchCard] = Field(min_length=1, max_length=3)
 
 
+class PlanMatchSourceContext(StrictModel):
+    title: str = Field(min_length=3, max_length=200)
+    excerpt: str = Field(min_length=10, max_length=2000)
+    note: str = Field(min_length=3, max_length=1000)
+    topic: str = Field(min_length=2, max_length=120)
+
+
+class PlanMatchPlanContext(StrictModel):
+    id: str = Field(min_length=1, max_length=128)
+    title: str = Field(min_length=3, max_length=80)
+    outcome: str = Field(min_length=10, max_length=300)
+    why: str = Field(min_length=10, max_length=300)
+
+
+class PlanMatchRequest(StrictModel):
+    schema_version: Literal[1] = Field(alias="schemaVersion")
+    request_id: str = Field(alias="requestId", min_length=8, max_length=128)
+    source: PlanMatchSourceContext
+    plans: list[PlanMatchPlanContext] = Field(min_length=1, max_length=10)
+
+    @model_validator(mode="after")
+    def validate_plan_ids(self):
+        if len({plan.id for plan in self.plans}) != len(self.plans):
+            raise ValueError("plan ids must be unique")
+        return self
+
+
+class PlanMatchCandidate(StrictModel):
+    plan_id: str = Field(alias="planId", min_length=1, max_length=128)
+    score: int = Field(ge=0, le=100)
+    confidence: Literal["low", "medium", "high"]
+    rationale: str = Field(min_length=10, max_length=300)
+
+
+class PlanMatchResponse(StrictModel):
+    schema_version: Literal[1] = Field(alias="schemaVersion")
+    request_id: str = Field(alias="requestId", min_length=8, max_length=128)
+    requires_clarification: bool = Field(alias="requiresClarification")
+    summary: str = Field(min_length=10, max_length=300)
+    candidates: list[PlanMatchCandidate] = Field(max_length=3)
+
+
 class ApprovalRequest(StrictModel):
     schema_version: Literal[1] = Field(alias="schemaVersion")
     idempotency_key: str = Field(alias="idempotencyKey", min_length=8, max_length=128)

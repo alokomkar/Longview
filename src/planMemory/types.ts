@@ -73,6 +73,7 @@ export type PlanBriefDraft = {
   approach: string;
   successEvidence: string;
   sourceResearchIds: string[];
+  sourceWikiVersionId?: string | null;
 };
 
 export type PlanBriefVersion = PlanBriefDraft & {
@@ -188,14 +189,17 @@ export function validatePlanBriefDraft(draft: PlanBriefDraft): Partial<Record<ke
   if (!textInRange(draft.focus, 3, 160)) errors.focus = 'Use 3–160 characters.';
   if (!textInRange(draft.approach, 10, 1000)) errors.approach = 'Use 10–1000 characters.';
   if (!textInRange(draft.successEvidence, 10, 600)) errors.successEvidence = 'Use 10–600 characters.';
-  if (draft.sourceResearchIds.length < 1 || draft.sourceResearchIds.length > 3 ||
-      new Set(draft.sourceResearchIds).size !== draft.sourceResearchIds.length ||
-      draft.sourceResearchIds.some(id => !validId(id))) errors.sourceResearchIds = 'Choose 1–3 accepted research cards.';
+  const wikiEvidence = draft.sourceWikiVersionId !== undefined && draft.sourceWikiVersionId !== null;
+  if ((wikiEvidence && (!validId(draft.sourceWikiVersionId) || draft.sourceResearchIds.length !== 0)) ||
+      (!wikiEvidence && (draft.sourceResearchIds.length < 1 || draft.sourceResearchIds.length > 3 ||
+        new Set(draft.sourceResearchIds).size !== draft.sourceResearchIds.length ||
+        draft.sourceResearchIds.some(id => !validId(id))))) errors.sourceResearchIds = 'Choose accepted research or one cited Wiki version.';
   return errors;
 }
 
 export function planBriefFingerprint(draft: PlanBriefDraft): string {
-  return JSON.stringify([1, draft.focus.trim(), draft.approach.trim(), draft.successEvidence.trim(), [...draft.sourceResearchIds].sort()]);
+  const base = [1, draft.focus.trim(), draft.approach.trim(), draft.successEvidence.trim(), [...draft.sourceResearchIds].sort()];
+  return JSON.stringify(draft.sourceWikiVersionId ? [...base, draft.sourceWikiVersionId] : base);
 }
 
 export function proposalFromResearch(plan: Plan, research: ReviewedResearch[]): PlanBriefDraft {
@@ -235,7 +239,8 @@ export function parseResearchReview(value: unknown, reviewId: string, planId: st
 
 export function parsePlanBriefVersion(value: unknown, versionId: string, planId: string, ownerUid: string): PlanBriefVersion | null {
   if (!isRecord(value)) return null;
-  const draft = { focus: value.focus, approach: value.approach, successEvidence: value.successEvidence, sourceResearchIds: value.sourceResearchIds } as PlanBriefDraft;
+  const draft = { focus: value.focus, approach: value.approach, successEvidence: value.successEvidence, sourceResearchIds: value.sourceResearchIds,
+    ...(value.sourceWikiVersionId === undefined ? {} : { sourceWikiVersionId: value.sourceWikiVersionId }) } as PlanBriefDraft;
   const recordedAt = toIso(value.recordedAt);
   if (!recordedAt || value.schemaVersion !== 1 || value.versionId !== versionId || value.planId !== planId ||
       value.ownerUid !== ownerUid || value.workspaceId !== 'default' || !Number.isInteger(value.version) ||

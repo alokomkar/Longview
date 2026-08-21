@@ -100,7 +100,7 @@ Run `.venv/bin/python -m pytest -q` for its deterministic contract tests. Add
 the managed path. Runtime configuration and the cloud-credential gate are documented
 in [the managed Clara API contract](docs/MANAGED_CLARA_API.md).
 
-Production PWA: `https://longview-505611.web.app/`.
+Production PWA: `https://longview.sortedqueue.com/` (Firebase Hosting custom domain).
 
 Production Clara API: `https://longview-clara-api-112452643430.asia-south1.run.app`.
 
@@ -109,6 +109,12 @@ Release 4 surface, the managed Clara API, and production Firebase connections so
 developer’s local emulator settings cannot be embedded in the hosted bundle.
 `npm run build:release-five` prepares the equivalent managed Release 5 candidate but
 does not deploy it.
+
+Production builds also pin `VITE_FIREBASE_AUTH_DOMAIN=longview.sortedqueue.com` so
+Google authentication uses the same origin as the app. The Google OAuth web client
+must allow `https://longview.sortedqueue.com/__/auth/handler`. The PWA navigation
+fallback excludes Firebase’s reserved `/__/` namespace so authentication helpers and
+hosted Firebase configuration always reach Firebase Hosting.
 
 ## Review the mockup
 

@@ -250,6 +250,39 @@ service cloud.firestore {
             allow update, delete: if false;
           }
 
+          match /sourceLinks/{sourceId} {
+            allow read: if owns(uid);
+            allow create: if owns(uid)
+              && workspaceId == 'default'
+              && exists(/databases/$(database)/documents/users/$(uid)/workspaces/$(workspaceId)/plans/$(planId))
+              && existsAfter(/databases/$(database)/documents/users/$(uid)/workspaces/$(workspaceId)/researchSources/$(sourceId))
+              && request.resource.data.keys().hasOnly([
+                'schemaVersion', 'sourceId', 'planId', 'ownerUid', 'workspaceId',
+                'note', 'topic', 'state', 'requestId', 'requestFingerprint', 'createdAt'
+              ])
+              && request.resource.data.schemaVersion == 1
+              && request.resource.data.sourceId == sourceId
+              && sourceId.matches('^[a-f0-9]{64}$')
+              && request.resource.data.planId == planId
+              && request.resource.data.ownerUid == uid
+              && request.resource.data.workspaceId == workspaceId
+              && request.resource.data.note is string
+              && request.resource.data.note.size() >= 3
+              && request.resource.data.note.size() <= 1000
+              && request.resource.data.topic is string
+              && request.resource.data.topic.size() >= 2
+              && request.resource.data.topic.size() <= 120
+              && request.resource.data.state == 'inbox'
+              && request.resource.data.requestId is string
+              && request.resource.data.requestId.size() >= 8
+              && request.resource.data.requestId.size() <= 128
+              && request.resource.data.requestFingerprint is string
+              && request.resource.data.requestFingerprint.size() >= 1
+              && request.resource.data.requestFingerprint.size() <= 5000
+              && request.resource.data.createdAt == request.time;
+            allow update, delete: if false;
+          }
+
           match /research/{researchId} {
             allow read: if owns(uid);
             allow create: if owns(uid)
@@ -548,6 +581,41 @@ service cloud.firestore {
               && getAfter(/databases/$(database)/documents/users/$(uid)/workspaces/$(workspaceId)/plans/$(planId)/reuseConsents/$(request.resource.data.currentConsentId)).data.achievementId == resource.data.currentAchievementId;
             allow delete: if false;
           }
+        }
+
+        match /researchSources/{sourceId} {
+          allow read: if owns(uid);
+          allow create: if owns(uid)
+            && workspaceId == 'default'
+            && sourceId.matches('^[a-f0-9]{64}$')
+            && request.resource.data.keys().hasOnly([
+              'schemaVersion', 'sourceId', 'ownerUid', 'workspaceId', 'url',
+              'normalizedUrl', 'domain', 'title', 'excerpt', 'capturedBy', 'capturedAt'
+            ])
+            && request.resource.data.schemaVersion == 1
+            && request.resource.data.sourceId == sourceId
+            && request.resource.data.ownerUid == uid
+            && request.resource.data.workspaceId == workspaceId
+            && request.resource.data.url is string
+            && request.resource.data.url.size() >= 8
+            && request.resource.data.url.size() <= 1000
+            && request.resource.data.url.matches('^https://[^\\s]+$')
+            && request.resource.data.normalizedUrl is string
+            && request.resource.data.normalizedUrl.size() >= 8
+            && request.resource.data.normalizedUrl.size() <= 1000
+            && request.resource.data.normalizedUrl.matches('^https://[^\\s]+$')
+            && request.resource.data.domain is string
+            && request.resource.data.domain.size() >= 3
+            && request.resource.data.domain.size() <= 253
+            && request.resource.data.title is string
+            && request.resource.data.title.size() >= 3
+            && request.resource.data.title.size() <= 200
+            && request.resource.data.excerpt is string
+            && request.resource.data.excerpt.size() >= 10
+            && request.resource.data.excerpt.size() <= 2000
+            && request.resource.data.capturedBy == 'user'
+            && request.resource.data.capturedAt == request.time;
+          allow update, delete: if false;
         }
 
         match /auditEvents/{eventId} {

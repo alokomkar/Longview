@@ -492,4 +492,55 @@ describe('Firestore ownership rules', () => {
       completedAt: serverTimestamp(), completionVersion: 1, updatedAt: serverTimestamp()
     }));
   });
+
+  it('atomically saves one owner source and one immutable Plan link', async () => {
+    const owner = environment.authenticatedContext('owner').firestore();
+    const sourceId = 'a'.repeat(64);
+    const planPath = 'users/owner/workspaces/default/plans/plan-source';
+    const sourcePath = `users/owner/workspaces/default/researchSources/${sourceId}`;
+    const linkPath = `${planPath}/sourceLinks/${sourceId}`;
+    await environment.withSecurityRulesDisabled(async context => setDoc(doc(context.firestore(), planPath), {
+      id: 'plan-source', clientRequestId: 'plan-source', ownerUid: 'owner', workspaceId: 'default',
+      title: 'Keep useful evidence', outcome: 'Save useful evidence beside a durable Plan.',
+      why: 'User-found evidence should remain attributable.', targetDate: '2026-09-30', weeklyHours: 5,
+      workingDays: ['fri'], status: 'active', schemaVersion: 2, scheduleVersion: 1,
+      createdAt: new Date(), updatedAt: new Date()
+    }));
+    const batch = writeBatch(owner);
+    batch.set(doc(owner, sourcePath), {
+      schemaVersion: 1, sourceId, ownerUid: 'owner', workspaceId: 'default',
+      url: 'https://example.com/useful', normalizedUrl: 'https://example.com/useful', domain: 'example.com',
+      title: 'Useful source', excerpt: 'This source contains useful evidence.', capturedBy: 'user', capturedAt: serverTimestamp()
+    });
+    batch.set(doc(owner, linkPath), {
+      schemaVersion: 1, sourceId, planId: 'plan-source', ownerUid: 'owner', workspaceId: 'default',
+      note: 'Use this for the first milestone.', topic: 'First milestone', state: 'inbox',
+      requestId: 'request-123', requestFingerprint: 'fingerprint', createdAt: serverTimestamp()
+    });
+    await assertSucceeds(batch.commit());
+    await assertSucceeds(getDoc(doc(owner, sourcePath)));
+    await assertSucceeds(getDoc(doc(owner, linkPath)));
+    await assertFails(updateDoc(doc(owner, linkPath), { topic: 'Changed' }));
+    await assertFails(deleteDoc(doc(owner, sourcePath)));
+    await assertFails(getDoc(doc(environment.authenticatedContext('other').firestore(), sourcePath)));
+  });
+
+  it('rejects partial, malformed, and forged Plan source links', async () => {
+    const owner = environment.authenticatedContext('owner').firestore();
+    const other = environment.authenticatedContext('other').firestore();
+    const sourceId = 'b'.repeat(64);
+    const linkPath = `users/owner/workspaces/default/plans/plan-source/sourceLinks/${sourceId}`;
+    const link = {
+      schemaVersion: 1, sourceId, planId: 'plan-source', ownerUid: 'owner', workspaceId: 'default',
+      note: 'Use this for the first milestone.', topic: 'First milestone', state: 'inbox',
+      requestId: 'request-123', requestFingerprint: 'fingerprint', createdAt: serverTimestamp()
+    };
+    await assertFails(setDoc(doc(owner, linkPath), link));
+    await assertFails(setDoc(doc(other, linkPath), link));
+    await assertFails(setDoc(doc(owner, `users/owner/workspaces/default/researchSources/${sourceId}`), {
+      schemaVersion: 1, sourceId, ownerUid: 'owner', workspaceId: 'default',
+      url: 'http://localhost/private', normalizedUrl: 'http://localhost/private', domain: 'localhost',
+      title: 'Private source', excerpt: 'This must not be stored.', capturedBy: 'user', capturedAt: serverTimestamp()
+    }));
+  });
 });

@@ -137,6 +137,16 @@ legend { margin-bottom:10px; color:#dce7e9; font-weight:800; }
 .record-list .plan-card p { margin-bottom:12px; }
 .record-list small { overflow-wrap:anywhere; }
 .memory-section { margin-top:28px; }
+.plan-research-section { display:grid; gap:18px; }
+.plan-research-section form { margin-top:18px; }
+.plan-research-section .record-review { margin:0; }
+.research-source-list { display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:14px; }
+.research-source-card { min-width:0; }
+.research-source-card h3 { margin:10px 0; font:700 1.3rem/1.2 Georgia,serif; }
+.research-source-card p { margin-bottom:12px; }
+.research-source-card a { display:inline-flex; margin-top:8px; color:#79d7c5; font-weight:800; }
+.research-source-meta { display:flex; gap:8px; flex-wrap:wrap; margin:12px 0; }
+.research-source-meta span { padding:6px 9px; border:1px solid #37576b; border-radius:999px; color:#b8c6ce; font-size:.78rem; font-weight:700; }
 .memory-tabs { grid-template-columns:repeat(3,minmax(0,1fr)); }
 .memory-tabs button { min-height:48px; }
 .memory-list { display:grid; gap:14px; }

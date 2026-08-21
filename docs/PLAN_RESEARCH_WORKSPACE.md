@@ -1,6 +1,6 @@
 # Plan Research Workspace
 
-Status: URL addition slice approved for implementation; broader workspace remains phased
+Status: complete implementation candidate; production acceptance pending
 
 Last updated: 2026-08-21
 
@@ -32,16 +32,22 @@ conflicts, but cannot silently attach, accept, rewrite, or promote a source.
   It does not crawl arbitrary pages, upload documents, generate embeddings, or run
   background research.
 
-## Implemented URL addition slice
+## Implemented workspace
 
-The first shippable slice starts inside one Plan and therefore uses that Plan as the
-explicit initial association. It includes public-HTTPS validation, tracking-parameter
-normalization, deterministic duplicate detection, exact review, one transactional
-source-and-link save, idempotent retry, reload restoration, and owner isolation.
+The PWA now implements manual URL capture, public-HTTPS validation, tracking-parameter
+normalization, a workspace Research Library, unassigned capture, one-to-many Plan
+associations, reviewed Inbox/Reading/Useful/Archived transitions, source details and
+search. Canonical evidence is immutable; organization changes create an append-only
+event and advance one optimistic-concurrency pointer.
 
-Clara matching, unassigned capture, linking one source to several Plans, card state
-changes, wiki authoring, and Plan Brief promotion remain represented in this approved
-design but are not implied by the URL-addition release.
+Authenticated Clara matching ranks bounded active-Plan summaries without writing data.
+It returns alternatives, rationale, confidence and clarification state; manual selection
+remains available after cancellation, malformed output, timeout or service failure.
+
+Useful Plan-linked sources can be cited in user-authored Wiki pages. Each exact Wiki
+revision is immutable and stale writes fail closed. A cited Wiki version can prepare an
+editable Plan Brief proposal; only the final reviewed confirmation advances the existing
+versioned Plan Brief pointer.
 
 ## Complete journey
 
@@ -60,19 +66,19 @@ design but are not implied by the URL-addition release.
 10. Select wiki conclusions to prepare an editable Plan Brief proposal. Existing Plan
     Brief review, versioning, idempotency, and stale-write protections remain unchanged.
 
-## Durable model proposal
+## Durable model
 
 | Record | Boundary |
 |---|---|
 | `researchSources/{sourceId}` | Owner-scoped canonical URL, title, excerpt, capture metadata, and content fingerprint |
-| `sourceNotes/{noteId}` | Owner-authored note, topic, research question, and revision |
-| `planSourceLinks/{linkId}` | Explicit Plan association, confirmation actor, rationale, and server time |
-| `sourceStateEvents/{eventId}` | Append-only Inbox/Reading/Useful/Archived transition |
+| `researchSourceStates/{sourceId}` | Current note, topic, workflow state, Plan links and optimistic revision |
+| `researchSourceEvents/{eventId}` | Immutable reviewed organization transition and idempotency evidence |
 | `wikiPages/{pageId}` | Plan-scoped page identity and current revision pointer |
 | `wikiVersions/{versionId}` | Immutable user-approved text with statement-to-source references |
+| `briefVersions/{versionId}` | Existing immutable Plan Brief version, attributed to accepted research or one cited Wiki version |
 
-Clara suggestions are transient until confirmed. A matching request and its response may
-be recorded for audit, but it cannot create a `planSourceLink` or wiki version.
+Clara suggestions are transient and cannot create source state, Plan associations, Wiki
+versions, or Plan Brief versions.
 
 ## Failure and recovery contract
 
@@ -99,5 +105,5 @@ be recorded for audit, but it cannot create a `planSourceLink` or wiki version.
 - Integration tests cover cancellation, timeout, malformed suggestions, offline writes,
   idempotent retry, concurrent edits, partial-write recovery, and owner isolation.
 
-The product owner approved the interactive journey on 21st August 2026 and explicitly
-authorized implementation, testing, and production deployment of the URL-addition slice.
+The product owner approved the interactive journey and explicitly authorized complete
+implementation, testing, and production deployment on 21st August 2026.

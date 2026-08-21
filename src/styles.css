@@ -147,6 +147,21 @@ legend { margin-bottom:10px; color:#dce7e9; font-weight:800; }
 .research-source-card a { display:inline-flex; margin-top:8px; color:#79d7c5; font-weight:800; }
 .research-source-meta { display:flex; gap:8px; flex-wrap:wrap; margin:12px 0; }
 .research-source-meta span { padding:6px 9px; border:1px solid #37576b; border-radius:999px; color:#b8c6ce; font-size:.78rem; font-weight:700; }
+.research-workspace-tabs { grid-template-columns:repeat(4,minmax(0,1fr)); }
+.research-toolbar { display:grid; gap:12px; margin:16px 0; padding:16px; border:1px solid #284458; border-radius:16px; background:#071522; }
+.compact-actions { gap:8px; flex-wrap:wrap; }
+.compact-actions button { width:auto; padding:10px 13px; font-size:.85rem; }
+.research-plan-choice { display:flex; align-items:flex-start; gap:12px; margin:10px 0; padding:13px; border:1px solid #284458; border-radius:12px; background:#071522; }
+.research-plan-choice input { width:auto; margin:3px 0 0; }
+.research-plan-choice span { display:grid; gap:4px; }
+.research-plan-choice small { color:#849aa6; }
+.match-candidate { margin-top:12px; padding:12px; border:1px solid #284458; border-radius:12px; }
+.match-candidate p { margin:6px 0; }
+.research-source-details { margin-top:14px; padding-top:14px; border-top:1px solid #284458; }
+.wiki-source-choice { margin:12px 0; padding:12px; border:1px solid #284458; border-radius:14px; }
+.wiki-source-choice .research-plan-choice { margin:0 0 10px; }
+.wiki-pages { display:grid; gap:14px; }
+.wiki-page-card ol { color:#b8c6ce; }
 .memory-tabs { grid-template-columns:repeat(3,minmax(0,1fr)); }
 .memory-tabs button { min-height:48px; }
 .memory-list { display:grid; gap:14px; }
@@ -189,6 +204,7 @@ legend { margin-bottom:10px; color:#dce7e9; font-weight:800; }
 @media (max-width:620px) { .portfolio-summary,.detail-grid { grid-template-columns:1fr; } .context-grid { grid-template-columns:repeat(2,1fr); } }
 @media (max-width:620px) { .record-heading { align-items:stretch; flex-direction:column; } .record-section .context-grid { grid-template-columns:1fr; } }
 @media (max-width:620px) { .memory-tabs { grid-template-columns:1fr; } }
+@media (max-width:720px) { .research-workspace-tabs { grid-template-columns:1fr 1fr; } .research-plan-choice { padding:11px; } .compact-actions button { flex:1 1 140px; } }
 @media (max-width:480px) { .research-actions { grid-template-columns:1fr; } }
 @media (max-width:520px) { .clara-doors,.quick-action-grid { grid-template-columns:1fr; } }
 @media (max-width:420px) { .day-choices { grid-template-columns:repeat(4,1fr); } }

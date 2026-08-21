@@ -43,7 +43,7 @@
   const btn=(label,go,cls='')=>`<button class="btn ${cls}" data-go="${go}">${label}</button>`;
   const action=(label,name,cls='')=>`<button class="btn ${cls}" data-action="${name}">${label}</button>`;
   const chip=(label,cls='')=>`<span class="chip ${cls}">${label}</span>`;
-  const location=()=>`<header class="location"><div class="crumb">Plans / Launch Longview / Research<b>${screens[state.screen]}</b></div><span class="section-pill">Plans</span></header>`;
+  const location=()=>`<header class="location"><div class="crumb">Plans / Launch Longview / Research<b>${screens[state.screen]}</b></div><div><span class="section-pill">Plans</span> <span class="section-pill">Implementation candidate</span></div></header>`;
   const pageHead=(title,copy,actions='')=>`<div class="page-head"><div><h1 class="page-title">${title}</h1><p class="page-sub">${copy}</p></div>${actions?`<div class="head-actions">${actions}</div>`:''}</div>`;
   const sourceCard=(title=seeded.title,status='Useful')=>`<article class="source-card" data-go="detail"><div class="source-top">${chip(status,status==='Useful'?'accent':'')}<span class="meta">Saved by you</span></div><h3>${title}</h3><p>${state.source.note}</p><div class="source-meta">${chip('Early user activation')}${chip('Launch Longview','accent')}${chip('1 cited statement','wiki')}</div></article>`;
   const notice=(title,copy,kind='blue')=>`<div class="notice"><span class="badge ${kind}">${kind==='rose'?'Safe stop':kind==='green'?'Confirmed':kind==='amber'?'Needs a choice':'Review first'}</span><div><strong>${title}</strong><span>${copy}</span></div></div>`;

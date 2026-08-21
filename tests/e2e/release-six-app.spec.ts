@@ -112,3 +112,45 @@ test('cancel and offline completion preserve an active Plan without partial writ
   await openPlan(page);
   await expect(page.getByRole('button', { name: 'Finish Plan' })).toBeVisible();
 });
+
+test('owner captures research, confirms Clara matching, writes a cited Wiki, and promotes a Plan Brief', async ({ page }) => {
+  await page.route('http://127.0.0.1:9999/v1/clara/plan-matches', async route => {
+    const request = route.request().postDataJSON();
+    await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({
+      schemaVersion: 1,
+      requestId: request.requestId,
+      requiresClarification: false,
+      summary: 'This source most strongly supports the active release Plan.',
+      candidates: [{ planId: request.plans[0].id, score: 91, confidence: 'high', rationale: 'Both focus on releasing one tested planning journey.' }]
+    }) });
+  });
+  await createCompletedStep(page);
+  await openPlan(page);
+
+  await page.getByRole('button', { name: 'Add a source' }).click();
+  await page.getByLabel('Source URL').fill('https://example.com/complete-research-workspace?utm_source=e2e');
+  await page.getByLabel('Title').fill('Evidence for one useful release');
+  await page.getByLabel('Useful excerpt').fill('A visible, tested release creates stronger evidence than an unfinished prototype.');
+  await page.getByLabel('Topic or question').fill('First useful release');
+  await page.getByLabel('Why it matters').fill('Use this evidence to keep the release focused.');
+  await page.getByRole('button', { name: 'Ask Clara to suggest Plans' }).click();
+  await expect(page.getByText('Review Clara’s suggestion.')).toBeVisible();
+  await page.getByRole('button', { name: 'Review source and associations' }).click();
+  await page.getByRole('button', { name: 'Save source' }).click();
+  await expect(page.getByText('Source saved.')).toBeVisible();
+
+  await page.getByRole('button', { name: 'Move to Useful' }).click();
+  await page.getByRole('button', { name: 'Confirm changes' }).click();
+  await expect(page.getByText('Useful · saved by you')).toBeVisible();
+  await page.getByRole('tab', { name: /Plan Wiki/ }).click();
+  await page.getByRole('button', { name: 'Create Wiki page' }).click();
+  await page.getByLabel('Page title').fill('Why one complete release comes first');
+  await page.getByLabel('Your synthesis').fill('Ship and observe one complete journey before expanding the product surface.');
+  await page.getByRole('button', { name: 'Review Wiki revision' }).click();
+  await page.getByRole('button', { name: 'Save Wiki revision' }).click();
+  await expect(page.getByText('Wiki revision saved.')).toBeVisible();
+  await page.getByRole('button', { name: 'Promote to Plan Brief' }).click();
+  await page.getByRole('button', { name: 'Review Plan Brief proposal' }).click();
+  await page.getByRole('button', { name: 'Save Plan Brief version 1' }).click();
+  await expect(page.getByText('Plan Brief version saved.')).toBeVisible();
+});

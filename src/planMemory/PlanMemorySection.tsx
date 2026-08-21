@@ -34,6 +34,8 @@ const dateTime = (value: string) => new Intl.DateTimeFormat(undefined, {
 const decisionLabel: Record<ResearchDecision, string> = {
   accepted: 'Accepted', rejected: 'Rejected', deferred: 'Not now'
 };
+const briefEvidence = (brief: { sourceResearchIds: string[]; sourceWikiVersionId?: string | null }) =>
+  brief.sourceWikiVersionId ? '1 cited Wiki version' : `${brief.sourceResearchIds.length} attributed ${brief.sourceResearchIds.length === 1 ? 'source' : 'sources'}`;
 const researchFailureCopy: Record<ResearchFailure, [string, string]> = {
   offline: ['You’re offline.', 'Saved research and the current Plan Brief remain available.'],
   timeout: ['Research took too long.', 'The request stopped safely. No new cards were added.'],
@@ -222,13 +224,13 @@ function BriefPanel({ status, current, version, stage, draft, errors, saving, fa
   return <div className="memory-list">
     {status === 'error' && <div className="notice" role="alert"><strong>The current Plan Brief couldn’t be refreshed.</strong><p>{current ? 'The last confirmed version remains visible.' : 'Saved research remains available; no stale brief is shown.'}</p><button onClick={onRetry}>Try current Plan Brief again</button></div>}
     {stage === 'saved' && <div className="notice success" role="status"><strong>{duplicate ? 'Plan Brief already saved once.' : 'Plan Brief saved.'}</strong><p>{duplicate ? 'The original version was restored; no duplicate was added.' : 'The approved version is now current.'}</p></div>}
-    {current ? <article className="plan-card brief-card"><span className="status">Current · version {current.version}</span><h3>{current.focus}</h3><p><strong>Approach:</strong> {current.approach}</p><p><strong>Success evidence:</strong> {current.successEvidence}</p><small>{current.sourceResearchIds.length} attributed {current.sourceResearchIds.length === 1 ? 'source' : 'sources'} · saved {dateTime(current.recordedAt)}</small></article> : <div className="record-state"><p>No Plan Brief version has been approved yet.</p></div>}
+    {current ? <article className="plan-card brief-card"><span className="status">Current · version {current.version}</span><h3>{current.focus}</h3><p><strong>Approach:</strong> {current.approach}</p><p><strong>Success evidence:</strong> {current.successEvidence}</p><small>{briefEvidence(current)} · saved {dateTime(current.recordedAt)}</small></article> : <div className="record-state"><p>No Plan Brief version has been approved yet.</p></div>}
     <button disabled={accepted.length === 0} onClick={onPrepare}>{current ? 'Prepare a new version' : 'Prepare Plan Brief'}</button>
   </div>;
 }
 
 function HistoryPanel({ status, versions, onRetry }: { status: string; versions: NonNullable<ReturnType<typeof usePlanMemory>['brief']['versions']>; onRetry: () => void }) {
-  return <div className="memory-list">{status === 'error' && <div className="notice" role="alert"><strong>Version history couldn’t be refreshed.</strong><button onClick={onRetry}>Try version history again</button></div>}{versions.length === 0 ? <div className="record-state"><p>No Plan Brief versions have been saved yet.</p></div> : <ol className="record-list">{versions.map((brief, index) => <li key={brief.versionId}><article className="plan-card"><span className="status">Version {brief.version}{index === 0 ? ' · current' : ''}</span><h3>{brief.focus}</h3><p>{brief.approach}</p><small>{brief.sourceResearchIds.length} attributed {brief.sourceResearchIds.length === 1 ? 'source' : 'sources'} · {dateTime(brief.recordedAt)}</small></article></li>)}</ol>}</div>;
+  return <div className="memory-list">{status === 'error' && <div className="notice" role="alert"><strong>Version history couldn’t be refreshed.</strong><button onClick={onRetry}>Try version history again</button></div>}{versions.length === 0 ? <div className="record-state"><p>No Plan Brief versions have been saved yet.</p></div> : <ol className="record-list">{versions.map((brief, index) => <li key={brief.versionId}><article className="plan-card"><span className="status">Version {brief.version}{index === 0 ? ' · current' : ''}</span><h3>{brief.focus}</h3><p>{brief.approach}</p><small>{briefEvidence(brief)} · {dateTime(brief.recordedAt)}</small></article></li>)}</ol>}</div>;
 }
 
 function ResearchFailureNotice({ failure, onRetry, onClose }: { failure: ResearchFailure; onRetry: () => void; onClose: () => void }) {

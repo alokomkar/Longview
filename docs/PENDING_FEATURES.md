@@ -1,12 +1,15 @@
 # Longview Pending Features
 
-Status: Release 4 deployed; Release 5 merged; Release 6 local release candidate verified
+Status: archived hackathon ledger; current delivery status is maintained in release documents
 
-Updated: 2026-08-19
+Updated: 2026-08-21
 
 Sources: [Acceptance demo](design/longview-hackathon-acceptance-demo.html) | [PRD](PRODUCT_REQUIREMENTS.md) | [Readiness ledger](HACKATHON_READINESS.md)
 
-The ledger currently records 28 implemented, 7 partial, and 22 missing cases. Partial
+This file preserves the hackathon snapshot and is no longer the live implementation
+count. Plan Research Workspace status is tracked in
+[Plan Research Workspace](PLAN_RESEARCH_WORKSPACE.md). The historical ledger recorded
+28 implemented, 7 partial, and 22 missing cases. Partial
 means a safe client contract exists but the full judged behavior or cloud evidence does
 not. Review checkmarks in the demo are not implementation status.
 

@@ -26,6 +26,7 @@ const newRequestIds = () => ({ achievementId: newId('achievement'), reflectionId
 const displayTime = (value: string) => new Intl.DateTimeFormat(undefined, {
   day: 'numeric', month: 'long', year: 'numeric', hour: 'numeric', minute: '2-digit'
 }).format(new Date(value));
+const isOffline = () => navigator.onLine === false;
 
 export function PlanAchievementSection({ user, plan, gateway, onPlanCompleted }: {
   user: AuthUser;
@@ -81,6 +82,7 @@ export function PlanAchievementSection({ user, plan, gateway, onPlanCompleted }:
   const save = async () => {
     if (!bundle || Object.keys(errors).length > 0) return;
     setFailure(null);
+    if (isOffline()) { setFailure('offline'); return; }
     try {
       const result = await achievement.finish({
         ...ids,
@@ -94,7 +96,7 @@ export function PlanAchievementSection({ user, plan, gateway, onPlanCompleted }:
     } catch (error) {
       setFailure(error instanceof AchievementConflictError
         ? 'conflict' : error instanceof AchievementIdempotencyConflictError
-          ? 'idempotency' : navigator.onLine === false ? 'offline' : 'unavailable');
+          ? 'idempotency' : isOffline() ? 'offline' : 'unavailable');
     }
   };
   const beginRevoke = () => {

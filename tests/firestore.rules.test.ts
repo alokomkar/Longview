@@ -543,4 +543,73 @@ describe('Firestore ownership rules', () => {
       title: 'Private source', excerpt: 'This must not be stored.', capturedBy: 'user', capturedAt: serverTimestamp()
     }));
   });
+
+  it('versions source organization, cited Wiki pages, and Wiki-backed Plan Brief promotion atomically', async () => {
+    const owner = environment.authenticatedContext('owner').firestore();
+    const sourceId = 'c'.repeat(64);
+    const workspace = 'users/owner/workspaces/default';
+    const planPath = `${workspace}/plans/plan-wiki`;
+    await environment.withSecurityRulesDisabled(async context => setDoc(doc(context.firestore(), planPath), {
+      id: 'plan-wiki', clientRequestId: 'plan-wiki', ownerUid: 'owner', workspaceId: 'default',
+      title: 'Build a cited Plan Wiki', outcome: 'Turn reviewed evidence into durable Plan guidance.',
+      why: 'User-authored citations should remain reviewable.', targetDate: '2026-09-30', weeklyHours: 5,
+      workingDays: ['fri'], status: 'active', schemaVersion: 2, scheduleVersion: 1,
+      createdAt: new Date(), updatedAt: new Date()
+    }));
+
+    const create = writeBatch(owner);
+    create.set(doc(owner, `${workspace}/researchSources/${sourceId}`), {
+      schemaVersion: 1, sourceId, ownerUid: 'owner', workspaceId: 'default', url: 'https://example.com/cited',
+      normalizedUrl: 'https://example.com/cited', domain: 'example.com', title: 'Cited source',
+      excerpt: 'This source contains evidence for the Wiki.', capturedBy: 'user', capturedAt: serverTimestamp()
+    });
+    create.set(doc(owner, `${workspace}/researchSourceEvents/source-event-1`), {
+      schemaVersion: 1, sourceId, eventId: 'source-event-1', ownerUid: 'owner', workspaceId: 'default', kind: 'created',
+      fromRevision: 0, toRevision: 1, note: 'Use this in the Wiki.', topic: 'First value', workflowState: 'inbox',
+      planIds: ['plan-wiki'], requestFingerprint: 'create-fingerprint', recordedAt: serverTimestamp()
+    });
+    create.set(doc(owner, `${workspace}/researchSourceStates/${sourceId}`), {
+      schemaVersion: 1, sourceId, ownerUid: 'owner', workspaceId: 'default', note: 'Use this in the Wiki.', topic: 'First value',
+      workflowState: 'inbox', planIds: ['plan-wiki'], revision: 1, latestEventId: 'source-event-1', updatedAt: serverTimestamp()
+    });
+    await assertSucceeds(create.commit());
+
+    const organize = writeBatch(owner);
+    organize.set(doc(owner, `${workspace}/researchSourceEvents/source-event-2`), {
+      schemaVersion: 1, sourceId, eventId: 'source-event-2', ownerUid: 'owner', workspaceId: 'default', kind: 'organized',
+      fromRevision: 1, toRevision: 2, note: 'Use this in the Wiki.', topic: 'First value', workflowState: 'useful',
+      planIds: ['plan-wiki'], requestFingerprint: 'organize-fingerprint', recordedAt: serverTimestamp()
+    });
+    organize.update(doc(owner, `${workspace}/researchSourceStates/${sourceId}`), {
+      workflowState: 'useful', revision: 2, latestEventId: 'source-event-2', updatedAt: serverTimestamp()
+    });
+    await assertSucceeds(organize.commit());
+    await assertFails(updateDoc(doc(owner, `${workspace}/researchSourceStates/${sourceId}`), { workflowState: 'archived', revision: 3, updatedAt: serverTimestamp() }));
+
+    const wiki = writeBatch(owner);
+    wiki.set(doc(owner, `${planPath}/wikiVersions/wiki-version-1`), {
+      schemaVersion: 1, versionId: 'wiki-version-1', version: 1, pageId: 'wiki-page-1', planId: 'plan-wiki',
+      ownerUid: 'owner', workspaceId: 'default', title: 'First value', body: 'A visible useful result should happen before expanding setup.',
+      citations: [{ sourceId, statement: 'The first useful result should be visible.' }], requestFingerprint: 'wiki-fingerprint', recordedAt: serverTimestamp()
+    });
+    wiki.set(doc(owner, `${planPath}/wikiPages/wiki-page-1`), {
+      schemaVersion: 1, pageId: 'wiki-page-1', planId: 'plan-wiki', ownerUid: 'owner', workspaceId: 'default', title: 'First value',
+      currentVersion: 1, currentVersionId: 'wiki-version-1', updatedAt: serverTimestamp()
+    });
+    await assertSucceeds(wiki.commit());
+
+    const brief = writeBatch(owner);
+    brief.set(doc(owner, `${planPath}/briefVersions/brief-version-1`), {
+      schemaVersion: 1, versionId: 'brief-version-1', version: 1, planId: 'plan-wiki', ownerUid: 'owner', workspaceId: 'default',
+      focus: 'Prove first value', approach: 'Use the cited Wiki conclusion in one bounded launch test.',
+      successEvidence: 'Three users reach the visible checkpoint.', sourceResearchIds: [], sourceWikiVersionId: 'wiki-version-1',
+      requestFingerprint: 'brief-fingerprint', recordedAt: serverTimestamp()
+    });
+    brief.set(doc(owner, `${planPath}/briefState/current`), {
+      schemaVersion: 1, planId: 'plan-wiki', ownerUid: 'owner', workspaceId: 'default', currentVersion: 1,
+      currentVersionId: 'brief-version-1', updatedAt: serverTimestamp()
+    });
+    await assertSucceeds(brief.commit());
+    await assertFails(getDoc(doc(environment.authenticatedContext('other').firestore(), `${workspace}/researchSourceStates/${sourceId}`)));
+  });
 });

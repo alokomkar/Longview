@@ -1,6 +1,6 @@
 # Plan Research Workspace
 
-Status: complete implementation candidate; production acceptance pending
+Status: deployed; production acceptance verified
 
 Last updated: 2026-08-21
 
@@ -107,3 +107,12 @@ versions, or Plan Brief versions.
 
 The product owner approved the interactive journey and explicitly authorized complete
 implementation, testing, and production deployment on 21st August 2026.
+
+## Production evidence
+
+On 22nd August 2026, an anonymous custom-domain session created a Plan, captured a URL,
+received an authenticated read-only Clara match, confirmed the association, moved the
+source to Useful, saved a cited Wiki revision, and promoted it to Plan Brief version 1.
+After activating the deployed update and reloading, the source, Wiki revision, and
+Wiki-backed current Plan Brief restored from Firestore. Cloud Run revision
+`longview-clara-api-00008-gs7` serves the matching endpoint at 100% traffic.

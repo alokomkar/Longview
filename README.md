@@ -24,11 +24,12 @@ changes, and preserve the reasoning behind important decisions.
 
 ## Current status
 
-Releases 1–6 are live on Firebase Hosting. The Plan Research Workspace implementation
-candidate adds user-led URL capture, a searchable workspace library, unassigned and
+Releases 1–6 and the Plan Research Workspace are live on Firebase Hosting. The workspace
+adds user-led URL capture, a searchable workspace library, unassigned and
 multi-Plan organization, reviewed workflow states, read-only Clara association ranking,
 immutable cited Wiki revisions, and explicit promotion into the existing versioned Plan
-Brief. Production acceptance is required before this candidate is called released.
+Brief. Production acceptance verified source, Wiki, and Wiki-backed Brief restoration
+after a fresh reload on the custom domain.
 Offline cold-start recovery remains outside the production surface.
 
 Release 1 adds authenticated, read-only Clara guidance for a selected Plan or today's

@@ -186,7 +186,7 @@ export function wikiFingerprint(draft: WikiDraft): string {
   return JSON.stringify([1, draft.pageId, draft.title.trim(), draft.body.trim(), [...draft.citations].sort((a, b) => a.sourceId.localeCompare(b.sourceId))]);
 }
 export function wikiBriefFingerprint(wikiVersionId: string, draft: WikiBriefDraft): string {
-  return JSON.stringify([1, wikiVersionId, draft.focus.trim(), draft.approach.trim(), draft.successEvidence.trim()]);
+  return JSON.stringify([1, draft.focus.trim(), draft.approach.trim(), draft.successEvidence.trim(), [], wikiVersionId]);
 }
 
 export function parseStoredResearchSource(value: unknown, sourceId: string, ownerUid: string): StoredResearchSource | null {

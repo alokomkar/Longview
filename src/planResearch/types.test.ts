@@ -8,6 +8,7 @@ import {
   validateResearchSourceStateDraft,
   validateWikiBriefDraft,
   validateWikiDraft,
+  wikiBriefFingerprint,
   type PlanResearchSourceDraft,
   type ResearchSourceStateDraft
 } from './types';
@@ -41,6 +42,8 @@ describe('Plan research workspace contracts', () => {
     expect(validateWikiDraft(wiki)).toEqual({});
     expect(validateWikiDraft({ ...wiki, citations: [] })).toHaveProperty('citations');
     expect(validateWikiBriefDraft({ focus: 'Prove first value', approach: 'Run one bounded test with real users.', successEvidence: 'Three users complete the visible checkpoint.' })).toEqual({});
+    expect(wikiBriefFingerprint('wiki-version-1', { focus: 'Prove first value', approach: 'Run one bounded test with real users.', successEvidence: 'Three users complete the visible checkpoint.' }))
+      .toBe(JSON.stringify([1, 'Prove first value', 'Run one bounded test with real users.', 'Three users complete the visible checkpoint.', [], 'wiki-version-1']));
   });
 
   it('derives stable IDs and fingerprints all reviewed organization', async () => {

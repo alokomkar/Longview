@@ -127,5 +127,11 @@ describe('Release 5 research and Plan Brief contracts', () => {
     };
     expect(parsePlanBriefVersion(briefStored, 'version-123', plan.id, 'owner')?.version).toBe(2);
     expect(parsePlanBriefVersion({ ...briefStored, requestFingerprint: 'wrong' }, 'version-123', plan.id, 'owner')).toBeNull();
+
+    const wikiDraft: PlanBriefDraft = { ...draft, sourceResearchIds: [], sourceWikiVersionId: 'wiki-version-1' };
+    const wikiStored = { ...briefStored, ...wikiDraft, requestFingerprint: planBriefFingerprint(wikiDraft) };
+    const legacyWikiStored = { ...wikiStored, requestFingerprint: JSON.stringify([1, 'wiki-version-1', wikiDraft.focus, wikiDraft.approach, wikiDraft.successEvidence]) };
+    expect(parsePlanBriefVersion(wikiStored, 'version-123', plan.id, 'owner')?.sourceWikiVersionId).toBe('wiki-version-1');
+    expect(parsePlanBriefVersion(legacyWikiStored, 'version-123', plan.id, 'owner')?.sourceWikiVersionId).toBe('wiki-version-1');
   });
 });

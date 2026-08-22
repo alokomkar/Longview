@@ -81,6 +81,7 @@ export function PlanAchievementSection({ user, plan, gateway, onPlanCompleted }:
   const save = async () => {
     if (!bundle || Object.keys(errors).length > 0) return;
     setFailure(null);
+    if (navigator.onLine === false) { setFailure('offline'); return; }
     try {
       const result = await achievement.finish({
         ...ids,

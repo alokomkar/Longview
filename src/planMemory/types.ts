@@ -242,9 +242,12 @@ export function parsePlanBriefVersion(value: unknown, versionId: string, planId:
   const draft = { focus: value.focus, approach: value.approach, successEvidence: value.successEvidence, sourceResearchIds: value.sourceResearchIds,
     ...(value.sourceWikiVersionId === undefined ? {} : { sourceWikiVersionId: value.sourceWikiVersionId }) } as PlanBriefDraft;
   const recordedAt = toIso(value.recordedAt);
+  const legacyWikiFingerprint = draft.sourceWikiVersionId
+    ? JSON.stringify([1, draft.sourceWikiVersionId, String(draft.focus).trim(), String(draft.approach).trim(), String(draft.successEvidence).trim()])
+    : null;
   if (!recordedAt || value.schemaVersion !== 1 || value.versionId !== versionId || value.planId !== planId ||
       value.ownerUid !== ownerUid || value.workspaceId !== 'default' || !Number.isInteger(value.version) ||
-      Number(value.version) < 1 || value.requestFingerprint !== planBriefFingerprint(draft) ||
+      Number(value.version) < 1 || (value.requestFingerprint !== planBriefFingerprint(draft) && value.requestFingerprint !== legacyWikiFingerprint) ||
       Object.keys(validatePlanBriefDraft(draft)).length > 0) return null;
   return { ...value, ...draft, recordedAt } as PlanBriefVersion;
 }

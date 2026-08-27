@@ -16,7 +16,7 @@ background run, or claim a deployed Cloud Run revision.
 - The API verifies a Firebase ID token and uses its UID as the only user identity.
 - The request contains one selected Plan and one derived Today step; no unrelated Plan,
   browser state, or Firestore document is available to the model.
-- Google ADK invokes Vertex AI model `gemini-2.5-flash` and returns the existing strict
+- Google ADK invokes Vertex AI model `gemini-3.5-flash` and returns the existing strict
   recommendation payload. The API supplies trusted request and Plan identifiers plus
   `proposedChange: null`, then parses the complete response before it reaches the PWA.
 - A response may request clarification, but `proposedChange` must remain `null` in this
@@ -75,8 +75,9 @@ and production endpoint evidence require a separate explicit deployment approval
 - The browser allows 25 seconds for identity lookup, transport, and the server's
   bounded model call. Cancellation still aborts the request immediately.
 - Schema-enforced output combined with built-in tools is documented for Gemini 3 only.
-  The current Gemini 2.5 path therefore requests JSON and validates it with strict
-  Pydantic models before any card reaches the PWA.
+  The research path is on Gemini 3.5 but still requests JSON and validates it with
+  strict Pydantic models before any card reaches the PWA, rather than relying on
+  `output_schema` alongside the Google Search tool.
 - `CLARA_RESEARCH_MODEL` overrides the research model; it defaults to `CLARA_MODEL`,
-  then `gemini-2.5-flash`. Timeout, unavailable, malformed, and missing-attribution
+  then `gemini-3.5-flash`. Timeout, unavailable, malformed, and missing-attribution
   responses fail closed and create no durable research.

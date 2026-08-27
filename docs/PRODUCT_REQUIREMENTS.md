@@ -243,7 +243,7 @@ The React/TypeScript PWA is hosted on Firebase Hosting and calls a FastAPI servi
 Cloud Run. Release 3 uses a checkpointed coordinator inside that service and resumes
 a non-terminal Firestore run when it is polled. A separate Pub/Sub-triggered Cloud Run
 worker remains the later reliability target; Release 3 does not claim it. Google ADK
-invokes Gemini 2.5 Flash through Vertex AI; Firestore stores run checkpoints,
+invokes Gemini 3.5 Flash through Vertex AI; Firestore stores run checkpoints,
 versions, idempotency records, and audit events.
 
 Clara receives a minimal typed context packet and returns a strict schema containing
@@ -300,7 +300,7 @@ the submission narrative.
 - Every Plan card opens Plan Details showing the saved outcome, rationale, target,
   weekly allocation, working days, and current Today-step/completion state.
 - Three Goals share one visible finite-capacity portfolio.
-- Clara uses Gemini 2.5 Flash through Google ADK and Vertex AI.
+- Clara uses Gemini 3.5 Flash through Google ADK and Vertex AI.
 - One Pub/Sub-triggered Cloud Run worker completes a checkpointed asynchronous run.
 - At least one recommendation produces a specific preview and approved durable write.
 - Rejection, duplicate approval, timeout, malformed output, offline mode, stale data,

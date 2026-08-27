@@ -75,9 +75,14 @@ and production endpoint evidence require a separate explicit deployment approval
 - The browser allows 25 seconds for identity lookup, transport, and the server's
   bounded model call. Cancellation still aborts the request immediately.
 - Schema-enforced output combined with built-in tools is documented for Gemini 3 only.
-  The research path is on Gemini 3.5 but still requests JSON and validates it with
-  strict Pydantic models before any card reaches the PWA, rather than relying on
-  `output_schema` alongside the Google Search tool.
+  The research path requests JSON and validates it with strict Pydantic models before
+  any card reaches the PWA, rather than relying on `output_schema` alongside the
+  Google Search tool.
+- Research is pinned to `gemini-2.5-flash` via `CLARA_RESEARCH_MODEL`, independent of
+  the `gemini-3.5-flash` used for recommendations. As of this writing, Gemini 3.5's
+  Google Search grounding on Vertex AI does not return `grounding_chunks` (the
+  structured per-claim title/URL data this endpoint requires for HTTPS attribution),
+  so every request would otherwise fail closed. Re-evaluate once that metadata ships.
 - `CLARA_RESEARCH_MODEL` overrides the research model; it defaults to `CLARA_MODEL`,
   then `gemini-3.5-flash`. Timeout, unavailable, malformed, and missing-attribution
   responses fail closed and create no durable research.

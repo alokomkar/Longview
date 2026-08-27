@@ -43,11 +43,14 @@ from .models import (
     DayBreakResponse,
     RecommendationRequest,
     RecommendationResponse,
+    PlanMatchRequest,
+    PlanMatchResponse,
     ResearchRequest,
     ResearchResponse,
     ScheduleRun,
 )
 from .research import GroundedResearchEngine, ResearchEngine, ResearchEngineUnavailableError
+from .plan_matching import match_plans
 from .schedule_runs import (
     ScheduleRunCoordinator,
     ScheduleRunNotFoundError,
@@ -170,6 +173,14 @@ def create_app(
         if any(card.research_id in context.existing_research_ids for card in response.cards):
             raise HTTPException(status_code=502, detail="Existing research returned again")
         return response
+
+    @app.post("/v1/clara/plan-matches", response_model=PlanMatchResponse, response_model_by_alias=True)
+    async def plan_matches(
+        context: PlanMatchRequest,
+        authorization: str | None = Header(default=None),
+    ) -> PlanMatchResponse:
+        await authenticated_user(authorization)
+        return match_plans(context)
 
     @app.post("/v1/clara/approvals", response_model=ApprovalResponse, response_model_by_alias=True)
     async def approve(
@@ -340,7 +351,7 @@ def create_app(
                 "/v1/clara/approved-days/{selected_date}/break",
             })
         if release_mode == "release-five":
-            allowed_paths.add("/v1/clara/research")
+            allowed_paths.update({"/v1/clara/research", "/v1/clara/plan-matches"})
         app.router.routes = [
             route for route in app.router.routes
             if getattr(route, "path", None) in allowed_paths

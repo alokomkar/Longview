@@ -15,6 +15,7 @@ import { DayBreakConflictError, type DayBreakGateway, type DayBreakPreview, type
 import type { PlanRecordGateway } from './planRecord/types';
 import type { PlanMemoryGateway, ResearchGateway } from './planMemory/types';
 import type { PlanResearchSourceGateway } from './planResearch/types';
+import type { PlanMatchGateway } from './planResearch/matching';
 
 const workspaceGateway: WorkspaceGateway = {
   ensure: vi.fn(async (user: AuthUser) => ({ id: 'default' as const, ownerUid: user.uid, schemaVersion: 1 as const }))
@@ -90,11 +91,16 @@ const planRecordGateway: PlanRecordGateway = {
 
 const planResearchSourceGateway: PlanResearchSourceGateway = {
   list: vi.fn(async () => []),
-  save: vi.fn(async () => { throw new Error('not configured'); })
+  save: vi.fn(async () => { throw new Error('not configured'); }),
+  update: vi.fn(async () => { throw new Error('not configured'); }),
+  loadWiki: vi.fn(async () => ({ pages: [], briefVersion: 0 })),
+  saveWiki: vi.fn(async () => { throw new Error('not configured'); }),
+  promoteWiki: vi.fn(async () => { throw new Error('not configured'); })
 };
+const planMatchGateway: PlanMatchGateway = { match: vi.fn(async () => { throw new Error('not configured'); }) };
 
 function App(props: ComponentProps<typeof LongviewApp>) {
-  return <LongviewApp approvedDayGateway={approvedDayGateway} planRecordGateway={planRecordGateway} planResearchSourceGateway={planResearchSourceGateway} todayOutbox={todayOutbox} {...props} />;
+  return <LongviewApp approvedDayGateway={approvedDayGateway} planRecordGateway={planRecordGateway} planResearchSourceGateway={planResearchSourceGateway} planMatchGateway={planMatchGateway} todayOutbox={todayOutbox} {...props} />;
 }
 
 const succeededScheduleRun = {

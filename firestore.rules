@@ -47,6 +47,49 @@ service cloud.firestore {
         && (ids.size() < 3 || (ids[2] is string && ids[2].size() >= 8 && ids[2].size() <= 128));
     }
 
+    function validPlanIds(ids) {
+      return ids is list && ids.size() <= 5 && ids.toSet().size() == ids.size()
+        && (ids.size() < 1 || (ids[0] is string && ids[0].size() >= 1 && ids[0].size() <= 128))
+        && (ids.size() < 2 || (ids[1] is string && ids[1].size() >= 1 && ids[1].size() <= 128))
+        && (ids.size() < 3 || (ids[2] is string && ids[2].size() >= 1 && ids[2].size() <= 128))
+        && (ids.size() < 4 || (ids[3] is string && ids[3].size() >= 1 && ids[3].size() <= 128))
+        && (ids.size() < 5 || (ids[4] is string && ids[4].size() >= 1 && ids[4].size() <= 128));
+    }
+
+    function validWikiCitation(item) {
+      return item is map && item.keys().hasOnly(['sourceId', 'statement'])
+        && item.sourceId is string && item.sourceId.matches('^[a-f0-9]{64}$')
+        && item.statement is string && item.statement.size() >= 10 && item.statement.size() <= 500;
+    }
+
+    function usefulSource(uid, workspaceId, planId, citation) {
+      return existsAfter(/databases/$(database)/documents/users/$(uid)/workspaces/$(workspaceId)/researchSourceStates/$(citation.sourceId))
+        && getAfter(/databases/$(database)/documents/users/$(uid)/workspaces/$(workspaceId)/researchSourceStates/$(citation.sourceId)).data.workflowState == 'useful'
+        && getAfter(/databases/$(database)/documents/users/$(uid)/workspaces/$(workspaceId)/researchSourceStates/$(citation.sourceId)).data.planIds.hasAny([planId]);
+    }
+
+    function validWikiCitations(uid, workspaceId, planId, citations) {
+      return citations is list && citations.size() >= 1 && citations.size() <= 5
+        && validWikiCitation(citations[0]) && usefulSource(uid, workspaceId, planId, citations[0])
+        && (citations.size() < 2 || (validWikiCitation(citations[1]) && usefulSource(uid, workspaceId, planId, citations[1])))
+        && (citations.size() < 3 || (validWikiCitation(citations[2]) && usefulSource(uid, workspaceId, planId, citations[2])))
+        && (citations.size() < 4 || (validWikiCitation(citations[3]) && usefulSource(uid, workspaceId, planId, citations[3])))
+        && (citations.size() < 5 || (validWikiCitation(citations[4]) && usefulSource(uid, workspaceId, planId, citations[4])));
+    }
+
+    function validBriefEvidence(uid, workspaceId, planId, data) {
+      return (
+        !data.keys().hasAny(['sourceWikiVersionId'])
+        && validResearchIds(data.sourceResearchIds)
+        && allResearchAccepted(uid, workspaceId, planId, data.sourceResearchIds)
+      ) || (
+        data.sourceWikiVersionId is string
+        && data.sourceWikiVersionId.size() >= 8 && data.sourceWikiVersionId.size() <= 128
+        && data.sourceResearchIds is list && data.sourceResearchIds.size() == 0
+        && existsAfter(/databases/$(database)/documents/users/$(uid)/workspaces/$(workspaceId)/plans/$(planId)/wikiVersions/$(data.sourceWikiVersionId))
+      );
+    }
+
     function acceptedResearch(uid, workspaceId, planId, researchId) {
       return exists(/databases/$(database)/documents/users/$(uid)/workspaces/$(workspaceId)/plans/$(planId)/researchState/$(researchId))
         && get(/databases/$(database)/documents/users/$(uid)/workspaces/$(workspaceId)/plans/$(planId)/researchState/$(researchId)).data.currentDecision == 'accepted';
@@ -391,7 +434,7 @@ service cloud.firestore {
               && request.resource.data.keys().hasOnly([
                 'schemaVersion', 'versionId', 'version', 'planId', 'ownerUid',
                 'workspaceId', 'focus', 'approach', 'successEvidence',
-                'sourceResearchIds', 'requestFingerprint', 'recordedAt'
+                'sourceResearchIds', 'sourceWikiVersionId', 'requestFingerprint', 'recordedAt'
               ])
               && request.resource.data.schemaVersion == 1
               && request.resource.data.versionId == versionId
@@ -409,8 +452,7 @@ service cloud.firestore {
               && request.resource.data.successEvidence is string
               && request.resource.data.successEvidence.size() >= 10
               && request.resource.data.successEvidence.size() <= 600
-              && validResearchIds(request.resource.data.sourceResearchIds)
-              && allResearchAccepted(uid, workspaceId, planId, request.resource.data.sourceResearchIds)
+              && validBriefEvidence(uid, workspaceId, planId, request.resource.data)
               && request.resource.data.requestFingerprint is string
               && request.resource.data.requestFingerprint.size() >= 1
               && request.resource.data.requestFingerprint.size() <= 5000
@@ -418,6 +460,59 @@ service cloud.firestore {
               && getAfter(/databases/$(database)/documents/users/$(uid)/workspaces/$(workspaceId)/plans/$(planId)/briefState/current).data.currentVersionId == versionId
               && getAfter(/databases/$(database)/documents/users/$(uid)/workspaces/$(workspaceId)/plans/$(planId)/briefState/current).data.currentVersion == request.resource.data.version;
             allow update, delete: if false;
+          }
+
+          match /wikiVersions/{versionId} {
+            allow read: if owns(uid);
+            allow create: if owns(uid)
+              && workspaceId == 'default'
+              && exists(/databases/$(database)/documents/users/$(uid)/workspaces/$(workspaceId)/plans/$(planId))
+              && request.resource.data.keys().hasOnly([
+                'schemaVersion', 'versionId', 'version', 'pageId', 'planId', 'ownerUid',
+                'workspaceId', 'title', 'body', 'citations', 'requestFingerprint', 'recordedAt'
+              ])
+              && request.resource.data.schemaVersion == 1
+              && request.resource.data.versionId == versionId
+              && versionId.size() >= 8 && versionId.size() <= 128
+              && request.resource.data.version is int && request.resource.data.version >= 1
+              && request.resource.data.pageId is string && request.resource.data.pageId.size() >= 8 && request.resource.data.pageId.size() <= 128
+              && request.resource.data.planId == planId
+              && request.resource.data.ownerUid == uid
+              && request.resource.data.workspaceId == workspaceId
+              && request.resource.data.title is string && request.resource.data.title.size() >= 3 && request.resource.data.title.size() <= 120
+              && request.resource.data.body is string && request.resource.data.body.size() >= 20 && request.resource.data.body.size() <= 5000
+              && validWikiCitations(uid, workspaceId, planId, request.resource.data.citations)
+              && request.resource.data.requestFingerprint is string && request.resource.data.requestFingerprint.size() >= 1 && request.resource.data.requestFingerprint.size() <= 10000
+              && request.resource.data.recordedAt == request.time
+              && getAfter(/databases/$(database)/documents/users/$(uid)/workspaces/$(workspaceId)/plans/$(planId)/wikiPages/$(request.resource.data.pageId)).data.currentVersionId == versionId
+              && getAfter(/databases/$(database)/documents/users/$(uid)/workspaces/$(workspaceId)/plans/$(planId)/wikiPages/$(request.resource.data.pageId)).data.currentVersion == request.resource.data.version;
+            allow update, delete: if false;
+          }
+
+          match /wikiPages/{pageId} {
+            allow read: if owns(uid);
+            allow create: if owns(uid)
+              && workspaceId == 'default'
+              && request.resource.data.keys().hasOnly(['schemaVersion', 'pageId', 'planId', 'ownerUid', 'workspaceId', 'title', 'currentVersion', 'currentVersionId', 'updatedAt'])
+              && request.resource.data.schemaVersion == 1 && request.resource.data.pageId == pageId
+              && request.resource.data.planId == planId && request.resource.data.ownerUid == uid && request.resource.data.workspaceId == workspaceId
+              && request.resource.data.title is string && request.resource.data.title.size() >= 3 && request.resource.data.title.size() <= 120
+              && request.resource.data.currentVersion == 1
+              && request.resource.data.currentVersionId is string && request.resource.data.currentVersionId.size() >= 8 && request.resource.data.currentVersionId.size() <= 128
+              && request.resource.data.updatedAt == request.time
+              && getAfter(/databases/$(database)/documents/users/$(uid)/workspaces/$(workspaceId)/plans/$(planId)/wikiVersions/$(request.resource.data.currentVersionId)).data.version == 1;
+            allow update: if owns(uid)
+              && request.resource.data.keys() == resource.data.keys()
+              && request.resource.data.schemaVersion == resource.data.schemaVersion
+              && request.resource.data.pageId == resource.data.pageId && request.resource.data.planId == resource.data.planId
+              && request.resource.data.ownerUid == resource.data.ownerUid && request.resource.data.ownerUid == uid
+              && request.resource.data.workspaceId == resource.data.workspaceId
+              && request.resource.data.title is string && request.resource.data.title.size() >= 3 && request.resource.data.title.size() <= 120
+              && request.resource.data.currentVersion == resource.data.currentVersion + 1
+              && request.resource.data.currentVersionId is string && request.resource.data.currentVersionId.size() >= 8 && request.resource.data.currentVersionId.size() <= 128
+              && request.resource.data.updatedAt == request.time
+              && getAfter(/databases/$(database)/documents/users/$(uid)/workspaces/$(workspaceId)/plans/$(planId)/wikiVersions/$(request.resource.data.currentVersionId)).data.version == request.resource.data.currentVersion;
+            allow delete: if false;
           }
 
           match /briefState/{stateId} {
@@ -616,6 +711,84 @@ service cloud.firestore {
             && request.resource.data.capturedBy == 'user'
             && request.resource.data.capturedAt == request.time;
           allow update, delete: if false;
+        }
+
+        match /researchSourceEvents/{eventId} {
+          allow read: if owns(uid);
+          allow create: if owns(uid)
+            && workspaceId == 'default'
+            && eventId.size() >= 8 && eventId.size() <= 128
+            && request.resource.data.keys().hasOnly([
+              'schemaVersion', 'sourceId', 'eventId', 'ownerUid', 'workspaceId', 'kind',
+              'fromRevision', 'toRevision', 'note', 'topic', 'workflowState', 'planIds',
+              'requestFingerprint', 'recordedAt'
+            ])
+            && request.resource.data.schemaVersion == 1
+            && request.resource.data.eventId == eventId
+            && request.resource.data.sourceId is string && request.resource.data.sourceId.matches('^[a-f0-9]{64}$')
+            && request.resource.data.ownerUid == uid && request.resource.data.workspaceId == workspaceId
+            && request.resource.data.kind in ['created', 'organized']
+            && request.resource.data.fromRevision is int && request.resource.data.fromRevision >= 0
+            && request.resource.data.toRevision == request.resource.data.fromRevision + 1
+            && request.resource.data.note is string && request.resource.data.note.size() >= 3 && request.resource.data.note.size() <= 1000
+            && request.resource.data.topic is string && request.resource.data.topic.size() >= 2 && request.resource.data.topic.size() <= 120
+            && request.resource.data.workflowState in ['inbox', 'reading', 'useful', 'archived']
+            && validPlanIds(request.resource.data.planIds)
+            && request.resource.data.requestFingerprint is string && request.resource.data.requestFingerprint.size() >= 1 && request.resource.data.requestFingerprint.size() <= 10000
+            && request.resource.data.recordedAt == request.time
+            && existsAfter(/databases/$(database)/documents/users/$(uid)/workspaces/$(workspaceId)/researchSources/$(request.resource.data.sourceId))
+            && getAfter(/databases/$(database)/documents/users/$(uid)/workspaces/$(workspaceId)/researchSourceStates/$(request.resource.data.sourceId)).data.latestEventId == eventId
+            && getAfter(/databases/$(database)/documents/users/$(uid)/workspaces/$(workspaceId)/researchSourceStates/$(request.resource.data.sourceId)).data.revision == request.resource.data.toRevision
+            && getAfter(/databases/$(database)/documents/users/$(uid)/workspaces/$(workspaceId)/researchSourceStates/$(request.resource.data.sourceId)).data.note == request.resource.data.note
+            && getAfter(/databases/$(database)/documents/users/$(uid)/workspaces/$(workspaceId)/researchSourceStates/$(request.resource.data.sourceId)).data.topic == request.resource.data.topic
+            && getAfter(/databases/$(database)/documents/users/$(uid)/workspaces/$(workspaceId)/researchSourceStates/$(request.resource.data.sourceId)).data.workflowState == request.resource.data.workflowState
+            && getAfter(/databases/$(database)/documents/users/$(uid)/workspaces/$(workspaceId)/researchSourceStates/$(request.resource.data.sourceId)).data.planIds == request.resource.data.planIds;
+          allow update, delete: if false;
+        }
+
+        match /researchSourceStates/{sourceId} {
+          allow read: if owns(uid);
+          allow create: if owns(uid)
+            && workspaceId == 'default'
+            && sourceId.matches('^[a-f0-9]{64}$')
+            && request.resource.data.keys().hasOnly([
+              'schemaVersion', 'sourceId', 'ownerUid', 'workspaceId', 'note', 'topic',
+              'workflowState', 'planIds', 'revision', 'latestEventId', 'updatedAt'
+            ])
+            && request.resource.data.schemaVersion == 1 && request.resource.data.sourceId == sourceId
+            && request.resource.data.ownerUid == uid && request.resource.data.workspaceId == workspaceId
+            && request.resource.data.note is string && request.resource.data.note.size() >= 3 && request.resource.data.note.size() <= 1000
+            && request.resource.data.topic is string && request.resource.data.topic.size() >= 2 && request.resource.data.topic.size() <= 120
+            && request.resource.data.workflowState in ['inbox', 'reading', 'useful', 'archived']
+            && validPlanIds(request.resource.data.planIds)
+            && request.resource.data.revision == 1
+            && request.resource.data.latestEventId is string && request.resource.data.latestEventId.size() >= 8 && request.resource.data.latestEventId.size() <= 128
+            && request.resource.data.updatedAt == request.time
+            && getAfter(/databases/$(database)/documents/users/$(uid)/workspaces/$(workspaceId)/researchSourceEvents/$(request.resource.data.latestEventId)).data.toRevision == 1
+            && getAfter(/databases/$(database)/documents/users/$(uid)/workspaces/$(workspaceId)/researchSourceEvents/$(request.resource.data.latestEventId)).data.note == request.resource.data.note
+            && getAfter(/databases/$(database)/documents/users/$(uid)/workspaces/$(workspaceId)/researchSourceEvents/$(request.resource.data.latestEventId)).data.topic == request.resource.data.topic
+            && getAfter(/databases/$(database)/documents/users/$(uid)/workspaces/$(workspaceId)/researchSourceEvents/$(request.resource.data.latestEventId)).data.workflowState == request.resource.data.workflowState
+            && getAfter(/databases/$(database)/documents/users/$(uid)/workspaces/$(workspaceId)/researchSourceEvents/$(request.resource.data.latestEventId)).data.planIds == request.resource.data.planIds;
+          allow update: if owns(uid)
+            && request.resource.data.keys() == resource.data.keys()
+            && request.resource.data.schemaVersion == resource.data.schemaVersion
+            && request.resource.data.sourceId == resource.data.sourceId
+            && request.resource.data.ownerUid == resource.data.ownerUid && request.resource.data.ownerUid == uid
+            && request.resource.data.workspaceId == resource.data.workspaceId
+            && request.resource.data.note is string && request.resource.data.note.size() >= 3 && request.resource.data.note.size() <= 1000
+            && request.resource.data.topic is string && request.resource.data.topic.size() >= 2 && request.resource.data.topic.size() <= 120
+            && request.resource.data.workflowState in ['inbox', 'reading', 'useful', 'archived']
+            && validPlanIds(request.resource.data.planIds)
+            && request.resource.data.revision == resource.data.revision + 1
+            && request.resource.data.latestEventId is string && request.resource.data.latestEventId.size() >= 8 && request.resource.data.latestEventId.size() <= 128
+            && request.resource.data.updatedAt == request.time
+            && getAfter(/databases/$(database)/documents/users/$(uid)/workspaces/$(workspaceId)/researchSourceEvents/$(request.resource.data.latestEventId)).data.fromRevision == resource.data.revision
+            && getAfter(/databases/$(database)/documents/users/$(uid)/workspaces/$(workspaceId)/researchSourceEvents/$(request.resource.data.latestEventId)).data.toRevision == request.resource.data.revision
+            && getAfter(/databases/$(database)/documents/users/$(uid)/workspaces/$(workspaceId)/researchSourceEvents/$(request.resource.data.latestEventId)).data.note == request.resource.data.note
+            && getAfter(/databases/$(database)/documents/users/$(uid)/workspaces/$(workspaceId)/researchSourceEvents/$(request.resource.data.latestEventId)).data.topic == request.resource.data.topic
+            && getAfter(/databases/$(database)/documents/users/$(uid)/workspaces/$(workspaceId)/researchSourceEvents/$(request.resource.data.latestEventId)).data.workflowState == request.resource.data.workflowState
+            && getAfter(/databases/$(database)/documents/users/$(uid)/workspaces/$(workspaceId)/researchSourceEvents/$(request.resource.data.latestEventId)).data.planIds == request.resource.data.planIds;
+          allow delete: if false;
         }
 
         match /auditEvents/{eventId} {

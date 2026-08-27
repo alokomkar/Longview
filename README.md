@@ -24,10 +24,12 @@ changes, and preserve the reasoning behind important decisions.
 
 ## Current status
 
-Release 4 is live on Firebase Hosting. Release 5 is implemented on its feature branch
-and remains local until product-owner merge and deployment approval. It adds reviewed,
-Plan-scoped research and immutable, attributed Plan Brief versions while preserving
-the existing authentication, Today, Calendar, Clara approval, and Plan-record journeys.
+Releases 1–6 and the Plan Research Workspace are live on Firebase Hosting. The workspace
+adds user-led URL capture, a searchable workspace library, unassigned and
+multi-Plan organization, reviewed workflow states, read-only Clara association ranking,
+immutable cited Wiki revisions, and explicit promotion into the existing versioned Plan
+Brief. Production acceptance verified source, Wiki, and Wiki-backed Brief restoration
+after a fresh reload on the custom domain.
 Offline cold-start recovery remains outside the production surface.
 
 Release 1 adds authenticated, read-only Clara guidance for a selected Plan or today's
@@ -80,6 +82,10 @@ creates one audit record. A live Vertex response and safe rejection were verifie
 5. Open `http://127.0.0.1:5173`. Local sign-in and data stay in the emulators. To
    test the real Google chooser, set `VITE_USE_FIREBASE_EMULATORS=false` and run
    `npm run dev` instead.
+
+Plan Research verification: open a Plan, add a source, choose or ask Clara to recommend
+Plan associations, review the exact save, organize the card, mark it Useful, create a
+cited Wiki revision, and explicitly promote that revision into a new Plan Brief version.
 
 Verification: `npm test`, `npm run test:rules`, `npm run build`, and
 `npm run test:e2e`. With Auth and Firestore emulators plus the Release 4 dev server

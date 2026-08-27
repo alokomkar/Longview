@@ -117,9 +117,9 @@ describe('PlanAchievementSection', () => {
   });
 
   it.each([
-    [new AchievementConflictError(), true, 'This Plan changed in another tab.'],
-    [new Error('offline'), false, 'You’re offline.']
-  ])('keeps reviewed data safe when completion fails', async (failure, online, message) => {
+    [new AchievementConflictError(), true, 'This Plan changed in another tab.', 1],
+    [new Error('offline'), false, 'You’re offline.', 0]
+  ])('keeps reviewed data safe when completion fails', async (failure, online, message, expectedCalls) => {
     Object.defineProperty(navigator, 'onLine', { configurable: true, value: online });
     const gateway = statefulGateway(failure);
     render(<PlanAchievementSection user={user} plan={plan} gateway={gateway} onPlanCompleted={vi.fn()} />);
@@ -128,6 +128,6 @@ describe('PlanAchievementSection', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Finish and save' }));
     expect(await screen.findByText(message)).toBeVisible();
     expect(screen.getByText('Released one tested planning workflow.')).toBeVisible();
-    await waitFor(() => expect(gateway.finish).toHaveBeenCalledOnce());
+    await waitFor(() => expect(gateway.finish).toHaveBeenCalledTimes(expectedCalls));
   });
 });

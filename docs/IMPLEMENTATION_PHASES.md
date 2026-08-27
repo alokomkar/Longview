@@ -99,7 +99,7 @@ malformed output. Cloud Run/Hosting deployment and production acceptance remain 
    accessibility, IndexedDB outbox, and update recovery.
 4. **Goal authority:** Add versioned schemas, Firestore rules, Goals, Today, Portfolio,
    deterministic scheduling, cross-user isolation, audit events, and emulator seeds.
-5. **Clara read loop:** Use Google ADK with Gemini 2.5 Flash through Vertex AI.
+5. **Clara read loop:** Use Google ADK with Gemini 3.5 Flash through Vertex AI.
    Return scoped recommendations and clarification; fail closed on timeout, malformed
    output, or prompt injection. No model-direct writes. Bounded Quick Actions first
    route to existing Calendar or Plans review surfaces; opening the catalogue never
@@ -223,7 +223,7 @@ owner-scoped read and exposes current-step, context-empty, missing, and retry st
 
 5. **Managed Clara recommendation API:** Add an authenticated FastAPI boundary for the
    existing versioned context and response schemas. Google ADK calls Vertex AI model
-   `gemini-2.5-flash`; Firebase ID token verification binds the caller. Authentication,
+   `gemini-3.5-flash`; Firebase ID token verification binds the caller. Authentication,
    validation, timeout, unavailable, malformed-output, cancellation, and clarification
    paths remain read-only. The preview adapter stays available only when a managed API
    URL is not configured. Deployment and Cloud evidence require explicit approval.

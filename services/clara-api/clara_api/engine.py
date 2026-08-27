@@ -22,7 +22,7 @@ class AdkRecommendationEngine:
         from google.adk.agents import Agent
         from google.adk.runners import InMemoryRunner
 
-        model = os.getenv("CLARA_MODEL", "gemini-2.5-flash")
+        model = os.getenv("CLARA_MODEL", "gemini-3.5-flash")
         change_instruction = (
             "Propose exactly one useful working-day change for this Plan when cadence can improve; "
             "prefer adding one absent day, but removing one day is allowed. Preserve weekly hours, "

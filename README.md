@@ -22,6 +22,15 @@ changes, and preserve the reasoning behind important decisions.
 - [Interactive PWA mockup](docs/design/longview-pwa-interactive-mockup.html)
 - [Hackathon acceptance demo](docs/design/longview-hackathon-acceptance-demo.html)
 
+## Google Cloud backend evidence
+
+![Cloud Run revision, live gcloud CLI, and Cloud Logging for longview-clara-api showing CLARA_MODEL=gemini-3.5-flash](docs/demo/longview-gemini35-cloudrun-proof.gif)
+
+Live capture of the `longview-clara-api` Cloud Run service in `longview-505611`: the
+Revisions panel confirming `CLARA_MODEL=gemini-3.5-flash` on the active revision,
+the same value read back via `gcloud` in Cloud Shell, and Cloud Logging showing the
+deployment and request traffic.
+
 ## Current status
 
 Releases 1–6 and the Plan Research Workspace are live on Firebase Hosting. The workspace
